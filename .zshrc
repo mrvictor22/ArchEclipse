@@ -1,0 +1,89 @@
+(cat ~/.cache/wal/sequences &)
+# (nohup $HOME/.config/hypr/theme/scripts/wal-theme.sh > /dev/null 2>&1 &) # set wallpaper theme
+
+eval "$(starship init zsh)"
+
+# fetch system information
+source $HOME/.config/fastfetch/fastfetch.sh
+
+source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh                   # Autosuggestions for commands
+source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh           # Syntax Highlighting and colors
+source /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh # Substring history search using up and down arrow keys
+source /usr/share/zsh/plugins/zsh-sudo/sudo.plugin.zsh
+source /usr/share/zsh/plugins/zsh-auto-notify/auto-notify.plugin.zsh
+source /usr/share/zsh/plugins/fzf-tab-git/fzf-tab.plugin.zsh
+
+#Zsh Auto-Suggestions
+ZSH_AUTOSUGGEST_HIGHLIGHT_STYLE="fg=#696969,bold"
+HISTSIZE=10000            # Maximum events for internal history
+SAVEHIST=10000            # Maximum events in history file
+HISTDIR=~/.cache/zsh      # History directory
+HISTFILE=$HISTDIR/history # History filepath
+mkdir -p "$HISTDIR"       # Create history directory if it doesn't exist
+touch "$HISTDIR/history"  # Create history file if it doesn't exist
+
+# Zsh Tab Complete
+autoload -U compinit
+compinit
+
+#Zsh Substring History Search
+bindkey '^[[A' history-substring-search-up
+bindkey '^[[B' history-substring-search-down
+
+############################################################
+
+# # Informative Prompt
+# echo "Ctrl+F => fastfetch / clear"
+
+############################################################
+
+# Aliases for ls
+alias ls='lsd'
+
+# Aliases for cat
+alias cat='bat'
+
+# Aliases for fastfetch
+alias f='clear && source $HOME/.config/fastfetch/fastfetch.sh'
+fastfetch() {
+    clear
+    $HOME/.config/fastfetch/fastfetch.sh
+    zle redisplay
+}
+
+zle -N fastfetch
+bindkey '^F' fastfetch
+
+# Aliase functions
+function code() {
+    /bin/code $1 && exit
+}
+function v() {
+    /bin/neovide --fork $1 && exit
+}
+
+# Test Connection
+TEST_CONNECTION="/home/ayman/.config/hypr/scripts/test-connection.sh"
+alias conn=$TEST_CONNECTION
+
+# Aliases for neofetch
+alias n=$NEOFETCH
+
+# Aliases for logout
+alias logout='hyprctl dispatch exit'
+
+# Set up fzf key bindings and fuzzy completion
+source <(fzf --zsh)
+
+# Configuration Update
+alias update='bash -c "$(curl -fsSL https://raw.githubusercontent.com/AymanLyesri/hyprland-conf/refs/heads/master/.config/hypr/maintenance/UPDATE.sh)"'
+alias 'update dev'='bash -c "$(curl -fsSL https://raw.githubusercontent.com/AymanLyesri/hyprland-conf/refs/heads/dev/.config/hypr/maintenance/UPDATE.sh)" -- dev'
+
+# Waifu Chat Bot and Assistant
+alias waifu='source $HOME/linux-chat-bot/main.sh "$(pwd)"'
+
+###REACT NATIVE SETUP (android studio) comment if u don't use react native
+export ANDROID_HOME=$HOME/Android/Sdk
+export PATH=$PATH:$ANDROID_HOME/emulator
+export PATH=$PATH:$ANDROID_HOME/platform-tools
+############################################################
