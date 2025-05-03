@@ -108,7 +108,7 @@ function BatteryWidget() {
           if (isCharging) {
             return "trigger charging";
           } else {
-            return value <= 10 ? "trigger low" : "trigger";
+            return value * 100 <= 10 ? "trigger low" : "trigger";
           }
         })
       )}

@@ -316,7 +316,6 @@ const EnsurePaths = async () => {
     `${MESSAGE_FILE_PATH}`,
     `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}`,
     `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/images`,
-    `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/history.json`,
   ];
 
   paths.forEach((path) => {
@@ -335,6 +334,7 @@ export default () => {
     chatHistory.set(messages.get().slice(-10));
   });
 
+  EnsurePaths();
   fetchMessages();
 
   return (
