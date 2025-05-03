@@ -209,7 +209,7 @@ const LimitDisplay = () => {
 
   return (
     <box className="limits" spacing={5} hexpand>
-      <label>Limit</label>
+      <label label={"Limit"}></label>
       <slider
         value={bind(booruLimit).as((l) => l / 100)}
         className={"slider"}
@@ -227,7 +227,7 @@ const LimitDisplay = () => {
           }, 300);
         }}
       />
-      <label>{bind(booruLimit)}</label>
+      <label label={bind(booruLimit).as((l) => String(l))}></label>
     </box>
   );
 };
