@@ -98,8 +98,8 @@ function BatteryWidget() {
 
   const label = (
     <label
-      className="trigger"
-      label={bind(battery, "percentage").as((p) => {
+      className={value.as((p) => (p <= 10 ? "trigger low" : "trigger"))}
+      label={value.as((p) => {
         p *= 100;
         switch (true) {
           case p == 100:
@@ -144,6 +144,7 @@ function BatteryWidget() {
     <CustomRevealer
       trigger={label}
       child={box}
+      custom_class="battery"
       visible={battery.percentage > 0}
     />
   );

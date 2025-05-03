@@ -6,7 +6,7 @@
 
 #define LOW_BATTERY_THRESHOLD 25
 #define CHECK_INTERVAL 300 // 5 minutes in seconds
-#define ALERT_INTERVAL 10  // 10 seconds between alerts
+#define ALERT_INTERVAL 25  // 10 seconds between alerts
 
 bool is_charging()
 {
@@ -26,7 +26,7 @@ bool is_charging()
 
 int get_battery_percentage()
 {
-    FILE *fp = popen("upower -i /org/freedesktop/UPower/devices/battery_BAT1 | grep 'percentage' | awk '{print $2}' | tr -d '%'", "r");
+    FILE *fp = popen("upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep 'percentage' | awk '{print $2}' | tr -d '%'", "r");
     if (!fp)
         return -1;
 

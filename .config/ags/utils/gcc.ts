@@ -2,5 +2,5 @@ import { exec } from "astal";
 
 export async function compileBinaries()
 {
-    exec("gcc -o ./assets/binaries/bandwidth ./scripts/bandwidth.c");
+    exec(`bash -c "mkdir -p ./assets/binaries && gcc -o ./assets/binaries/bandwidth ./scripts/bandwidth.c"`);
 }
