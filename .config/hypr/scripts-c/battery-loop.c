@@ -10,7 +10,7 @@
 
 bool is_charging()
 {
-    FILE *fp = popen("upower -i /org/freedesktop/UPower/devices/battery_BAT1 | grep 'state' | awk '{print $2}'", "r");
+    FILE *fp = popen("upower -i /org/freedesktop/UPower/devices/battery_BAT0 | grep 'state' | awk '{print $2}'", "r");
     if (!fp)
         return false;
 

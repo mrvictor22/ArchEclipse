@@ -1,7 +1,11 @@
 import Brightness from "../../../services/brightness";
 const brightness = Brightness.get_default();
 import CustomRevealer from "../../CustomRevealer";
-import { bind, execAsync } from "../../../../../../../usr/share/astal/gjs";
+import {
+  bind,
+  execAsync,
+  Variable,
+} from "../../../../../../../usr/share/astal/gjs";
 
 import Wp from "gi://AstalWp";
 
@@ -93,12 +97,21 @@ function Volume() {
 
 function BatteryWidget() {
   const value = bind(battery, "percentage").as((p) => p);
+  const isCharging = bind(battery, "charging").as((c) => c);
 
   // if (battery.percentage <= 0) return <box />;
 
   const label = (
     <label
-      className={value.as((p) => (p <= 10 ? "trigger low" : "trigger"))}
+      className={bind(
+        Variable.derive([isCharging, value], (isCharging, value) => {
+          if (isCharging) {
+            return "trigger charging";
+          } else {
+            return value <= 10 ? "trigger low" : "trigger";
+          }
+        })
+      )}
       label={value.as((p) => {
         p *= 100;
         switch (true) {
