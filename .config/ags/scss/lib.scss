@@ -116,18 +116,23 @@ levelbar {
   padding: 0;
   trough {
     background: $background-transparent;
-    border: unset;
-    min-height: 5px;
-    padding: 5px;
+    color: black;
+    min-height: 5px; // Match slider's min-height
+    padding: 0px; // Match slider's padding
+    border-radius: 10px; // Match slider's border-radius
+
     .filled {
-      box-shadow: 0 0 10px 0 $secondary;
-      background: $secondary;
-      border-radius: 10px;
+      background: $secondary; // Match slider's highlight background
+      border-radius: 10px; // Match slider's border-radius
+      box-shadow: none; // Remove shadow to match slider
       border: unset;
     }
   }
-}
 
+  &:hover .filled {
+    background: $tertiary; // Match slider's hover highlight
+  }
+}
 switch {
   @extend .module;
   margin: 0;

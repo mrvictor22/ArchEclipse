@@ -7,15 +7,8 @@
   }
 
   .clock {
-    &:hover {
-      .trigger {
-        margin-right: 0px;
-        transition: margin-right 0s;
-      }
-    }
     .revealer {
-      margin-left: 0px;
-      transition: margin-left 0s;
+      padding-right: 5px;
     }
   }
 
@@ -73,6 +66,10 @@
 
   .bandwidth {
     @extend .module;
+
+    .bandwidth-total {
+      padding: 0px 5px;
+    }
   }
 
   .client-title {

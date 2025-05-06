@@ -24,10 +24,20 @@
   }
 }
 
-.battery .low {
-  background: $red;
-}
+.battery {
+  .details {
+    padding: 0px 5px;
+  }
 
-.battery .charging {
-  background: $green;
+  levelbar > * {
+    min-height: 1px;
+    margin: 5px;
+  }
+
+  .charging {
+    background: $green;
+  }
+  .low {
+    background: $red;
+  }
 }

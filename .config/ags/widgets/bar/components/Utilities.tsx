@@ -108,48 +108,44 @@ function BatteryWidget() {
           if (isCharging) {
             return "trigger charging";
           } else {
-            return value * 100 <= 10 ? "trigger low" : "trigger";
+            return value * 100 <= 15 ? "trigger low" : "trigger";
           }
         })
       )}
-      label={value.as((p) => {
-        p *= 100;
-        switch (true) {
-          case p == 100:
-            return "";
-          case p > 75:
-            return "";
-          case p > 50:
-            return "";
-          case p > 25:
-            return "";
-          case p > 10:
-            return "";
-          case p > 0:
-            return "";
-          default:
-            return "";
-        }
-      })}
+      label={bind(
+        Variable.derive([isCharging, value], (isCharging, p) => {
+          p *= 100;
+          switch (true) {
+            case isCharging:
+              return "⚡";
+            case p > 85:
+              return "";
+            case p > 75:
+              return "";
+            case p > 50:
+              return "";
+            case p > 25:
+              return "";
+            case p > 10:
+              return "";
+            case p > 0:
+              return "";
+            default:
+              return "";
+          }
+        })
+      )}
     />
   );
 
-  const info = (
-    <label className={"trigger"} label={value.as((v) => `${v * 100}%`)} />
-  );
+  const info = <label label={value.as((v) => `${Math.round(v * 100)}%`)} />;
 
-  const slider = (
-    <levelbar
-      className="slider"
-      widthRequest={100}
-      value={value.as((v) => v)}
-    />
-  );
+  const levelbar = <levelbar widthRequest={100} value={value.as((v) => v)} />;
 
   const box = (
-    <box>
+    <box className={"details"} spacing={5}>
       {info}
-      {slider}
+      {levelbar}
     </box>
   );
 

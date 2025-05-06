@@ -211,12 +211,43 @@ function Clock() {
 }
 
 function Bandwidth() {
-  const bandwidth = Variable<string[]>(["0", "0"]).poll(
+  const bandwidth = Variable<number[]>([0, 0, 0, 0]).poll(
     1000,
     ["./assets/binaries/bandwidth"],
     (out) => {
-      return [String(JSON.parse(out)[0]), String(JSON.parse(out)[1])];
+      return [
+        JSON.parse(out)[0],
+        JSON.parse(out)[1],
+        JSON.parse(out)[2],
+        JSON.parse(out)[3],
+      ];
     }
+  );
+
+  // Utility function to format bytes into KB, MB, GB, etc.
+  function formatKiloBytes(kiloBytes: number): string {
+    const units = ["KB", "MB", "GB", "TB"];
+    let unitIndex = 0;
+    let formattedValue = kiloBytes;
+
+    while (formattedValue >= 1024 && unitIndex < units.length - 1) {
+      formattedValue /= 1024;
+      unitIndex++;
+    }
+
+    return `${formattedValue.toFixed(2)} ${units[unitIndex]}`;
+  }
+
+  const totalBandwidth = (
+    <label
+      className={"bandwidth-total"}
+      onDestroy={() => bandwidth.drop()}
+      label={bind(bandwidth).as((bandwidth) => {
+        return `${formatKiloBytes(bandwidth[2])} | ${formatKiloBytes(
+          bandwidth[3]
+        )}`;
+      })}
+    />
   );
 
   const packet = (icon: string, value: string) => (
@@ -226,7 +257,7 @@ function Bandwidth() {
     </box>
   );
 
-  return (
+  const trigger = (
     <box className="bandwidth" spacing={5}>
       {bind(bandwidth).as((bandwidth) => {
         return [
@@ -235,6 +266,14 @@ function Bandwidth() {
         ];
       })}
     </box>
+  );
+
+  return (
+    <CustomRevealer
+      trigger={trigger}
+      child={totalBandwidth}
+      custom_class="bandwidth"
+    />
   );
 }
 
