@@ -21,24 +21,24 @@ const fetchImage = async (
   openProgress();
   const url = image.url!;
   name = name || String(image.id);
-  image.url_path = `${savePath}/${name}.webp`;
+  image.url_path = `${savePath}/${name}.jpg`;
 
   await execAsync(`bash -c "mkdir -p ${savePath}"`).catch((err) =>
     notify({ summary: "Error", body: String(err) })
   );
 
   await execAsync(
-    `bash -c "[ -e "${imageUrlPath}/${image.id}.webp" ] || curl -o ${savePath}/${name}.webp ${url}"`
+    `bash -c "[ -e "${imageUrlPath}/${image.id}.jpg" ] || curl -o ${savePath}/${name}.jpg ${url}"`
   ).catch((err) => notify({ summary: "Error", body: String(err) }));
   closeProgress();
 };
 
 const waifuThisImage = async (image: Waifu) => {
   execAsync(
-    `bash -c "mkdir -p ${waifuPath} && cp ${image.url_path} ${waifuPath}/waifu.webp"`
+    `bash -c "mkdir -p ${waifuPath} && cp ${image.url_path} ${waifuPath}/waifu.jpg"`
   )
     .then(() =>
-      waifuCurrent.set({ ...image, url_path: waifuPath + "/waifu.webp" })
+      waifuCurrent.set({ ...image, url_path: waifuPath + "/waifu.jpg" })
     )
     .catch((err) => notify({ summary: "Error", body: String(err) }));
 };
@@ -56,11 +56,22 @@ const OpenInBrowser = (image: Waifu) =>
 
 const CopyImage = (image: Waifu) =>
   execAsync(
-    `bash -c "wl-copy --type image/png < ${imageUrlPath}/${image.id}.webp"`
+    `bash -c "wl-copy --type image/png < ${imageUrlPath}/${image.id}.jpg"`
   ).catch((err) => notify({ summary: "Error", body: err }));
 
 const OpenImage = (image: Waifu) => {
-  previewFloatImage(`${imageUrlPath}/${image.id}.webp`);
+  previewFloatImage(`${imageUrlPath}/${image.id}.jpg`);
+};
+
+const addToWallpapers = (image: Waifu) => {
+  // copy image to wallpapers folder
+  execAsync(
+    `bash -c "cp ${image.url_path} ~/.config/wallpapers/custom/${image.id}.jpg"`
+  )
+    .then(() =>
+      notify({ summary: "Success", body: "Image added to wallpapers" })
+    )
+    .catch((err) => notify({ summary: "Error", body: String(err) }));
 };
 
 export class ImageDialog {
@@ -154,6 +165,12 @@ export class ImageDialog {
         tooltip: "Pin to terminal",
         response: 5,
       },
+      {
+        icon: "󰸉",
+        needImageDownload: true,
+        tooltip: "Add to wallpapers",
+        response: 6,
+      },
     ];
 
     buttons.forEach((btn) => {
@@ -197,6 +214,9 @@ export class ImageDialog {
         break;
       case 5:
         PinImageToTerminal(img);
+        break;
+      case 6:
+        addToWallpapers(img);
         break;
     }
   }

@@ -70,4 +70,6 @@ $MAINTENANCE_DIR/WAL.sh
 
 $MAINTENANCE_DIR/PLUGINS.sh
 
+$MAINTENANCE_DIR/TWEAKS.sh
+
 echo "Installation complete. Please Reboot the system."
