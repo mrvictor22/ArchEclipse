@@ -179,7 +179,8 @@ const MessageItem = ({ message }: { message: Message }) => {
       className="actions"
       spacing={5}
       valign={message.sender === "user" ? Gtk.Align.START : Gtk.Align.END}
-      vertical>
+      vertical
+    >
       {[
         <button
           className="copy"
@@ -202,7 +203,8 @@ const MessageItem = ({ message }: { message: Message }) => {
           background-image: url("${message.image}");
         `}
         heightRequest={bind(leftPanelWidth)}
-        hexpand></box>
+        hexpand
+      ></box>
     </box>
   );
 
@@ -330,8 +332,8 @@ export default () => {
   });
   messages.subscribe(() => {
     saveMessages();
-    // set the last 10 messages to chat history
-    chatHistory.set(messages.get().slice(-10));
+    // set the last 50 messages to chat history
+    chatHistory.set(messages.get().slice(-50));
   });
 
   EnsurePaths();
