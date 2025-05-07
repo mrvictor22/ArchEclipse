@@ -14,7 +14,7 @@ New official [Discord](https://discord.gg/fMGt4vH6s5) server.
 
 # See Wiki
 
-> The README as an organized [WIKI](https://hyprland-conf-wiki.vercel.app/)
+> The README as an organized [WIKI](https://archeclipse-wiki.vercel.app/)
 
 # Design Philosophy
 
@@ -108,6 +108,7 @@ update
 - User Icon is stored in `$HOME/.face.icon`
 - Press `SUPER + w` to select the wallpaper you like
 - Custom wallpapers should be added in `$HOME/.config/wallpapers/custom`
+- Custom hyprland configuration should be put in `$HOME/.config/hypr/configs/custom`
 - Most functionalities have associated [keybinds](https://github.com/AymanLyesri/hyprland-conf/blob/master/.config/hypr/configs/keybinds.conf). Check them out!
 
 > **Important**: If you encounter any problems, no matter how small, please feel free to open an issue. I’m happy to help! :)

@@ -155,6 +155,9 @@ function BatteryWidget() {
       child={box}
       custom_class="battery"
       visible={battery.percentage > 0}
+      revealChild={value.as(
+        (v) => (v < 0.1 && !isCharging.get()) || (v >= 0.95 && isCharging.get())
+      )}
     />
   );
 }

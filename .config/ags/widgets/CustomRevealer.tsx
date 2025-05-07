@@ -1,22 +1,25 @@
 import { Gtk } from "astal/gtk3";
 import { globalTransition } from "../variables";
+import { Binding } from "astal";
 
 export default ({
   trigger,
   child,
   visible = true,
+  revealChild = false,
   custom_class = "",
   on_primary_click = () => {},
 }: {
   trigger: Gtk.Widget;
   child: Gtk.Widget;
   visible?: boolean;
+  revealChild?: boolean | Binding<boolean>;
   custom_class?: string;
   on_primary_click?: () => void;
 }) => {
   const revealer = (
     <revealer
-      revealChild={false}
+      revealChild={revealChild}
       transitionDuration={globalTransition}
       transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
       child={child}

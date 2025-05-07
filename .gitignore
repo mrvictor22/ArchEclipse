@@ -15,8 +15,6 @@
 !.config/ranger/
 # include btop config
 !.config/btop/
-# include nvim config
-!.config/nvim/
 # include aria2c config
 !.config/aria2/
 # include pipwire config
@@ -30,6 +28,9 @@
 !.config/fastfetch/
 # wallpapers
 !.config/wallpapers/
+
+# include starship config
+!.config/starship.toml
 
 # include icons (cursort theme)
 !.icons/
