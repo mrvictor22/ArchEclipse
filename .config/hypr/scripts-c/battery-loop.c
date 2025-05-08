@@ -5,8 +5,8 @@
 #include <stdbool.h>
 
 #define LOW_BATTERY_THRESHOLD 25
-#define CHECK_INTERVAL 300 // 5 minutes in seconds
-#define ALERT_INTERVAL 25  // 10 seconds between alerts
+#define CHECK_INTERVAL 120 //  seconds between checks
+#define ALERT_INTERVAL 25  // seconds between alerts
 
 bool is_charging()
 {
@@ -18,7 +18,7 @@ bool is_charging()
     if (fgets(status, sizeof(status), fp))
     {
         pclose(fp);
-        return strstr(status, "charging") != NULL;
+        return strstr(status, "discharging") == NULL;
     }
     pclose(fp);
     return false;
@@ -51,6 +51,10 @@ int main()
 
         if (percentage > 0 && percentage <= LOW_BATTERY_THRESHOLD && !is_charging())
         {
+            printf("Battery percentage: %d%%\n", percentage);
+
+            printf("Charging status: %s\n", is_charging() ? "Charging" : "Not Charging");
+            
             while (!is_charging())
             {
                 send_notification("Battery Low!",
