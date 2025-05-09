@@ -1,0 +1,88 @@
+#!/bin/bash
+source $HOME/.config/hypr/maintenance/ESSENTIALS.sh # source the essentials file INSIDE the repository
+
+# List of URLs
+urls=(
+    "https://cdn.donmai.us/original/00/0f/__albion_azur_lane_drawn_by_uaxa2334__000fdfe75113f2144a50b3705161f5d2.jpg"
+    "https://cdn.donmai.us/original/51/25/__burnice_white_luciana_de_montefio_and_piper_wheel_zenless_zone_zero_drawn_by_hakusama233__5125aa4e807eea5df772929b2f1cd401.png"
+    "https://cdn.donmai.us/original/b4/fe/__changli_wuthering_waves_drawn_by_uaxa2334__b4fe81b5f2b51aaea811eefeb85c5491.jpg"
+    "https://cdn.donmai.us/original/bc/66/__dehya_genshin_impact_drawn_by_xude__bc66c4b2ab9ac2c0e4c62cb0e59e0cd0.jpg"
+    "https://cdn.donmai.us/original/e3/4b/__emilie_genshin_impact_drawn_by_guaishengyin__e34b646530171b07aaf973ea444766ba.jpg"
+    "https://cdn.donmai.us/original/df/37/__eula_genshin_impact_drawn_by_swkl_d__df37376cf347fd5ba6fc397ec7a0e00b.jpg"
+    "https://cdn.donmai.us/original/28/51/__eula_genshin_impact_drawn_by_the_what_sa__2851e14012f4bf512ac33fe8df2f2df1.jpg"
+    "https://cdn.donmai.us/original/3e/d7/__herta_honkai_and_1_more_drawn_by_apple_caramel__3ed780454ec4e598c89e2b9920bc5c1c.jpg"
+    "https://cdn.donmai.us/original/7c/56/__iori_and_iori_blue_archive_drawn_by_dizzen__7c56e7e702806ceaac863b9b0d210b17.png"
+    "https://cdn.donmai.us/original/99/dd/__kamisato_ayaka_and_shenhe_genshin_impact_drawn_by_swkl_d__99dd0704eabf5d700f3e3d05f45a9300.jpg"
+    "https://cdn.donmai.us/original/82/e1/__kazusa_blue_archive_drawn_by_uaxa2334__82e1237f9fc8f67adce6dc48061d54ad.jpg"
+    "https://cdn.donmai.us/original/f6/c9/__kisaki_blue_archive_drawn_by_aoi_sakura_seak5545__f6c90df1f7da64b7591db4b59edd0657.jpg"
+    "https://cdn.donmai.us/original/6c/83/__kisaki_blue_archive_drawn_by_chen_bingyou__6c83c49df1027e034b7ef3f0f73235a7.jpg"
+    "https://cdn.donmai.us/original/af/4b/__kisaki_blue_archive_drawn_by_mile_miluo__af4b455fc2341b75c3ad4dc022305bdf.jpg"
+    "https://cdn.donmai.us/original/d7/2e/__kita_ikuyo_bocchi_the_rock_drawn_by_bafangyu__d72eb163096c2eb4a544d362ed6603d8.jpg"
+    "https://cdn.donmai.us/original/1f/3a/__lumine_genshin_impact_drawn_by_heitian_keji__1f3aebacc1ef15d910b1c0b3619d9b22.jpg"
+    "https://cdn.donmai.us/original/28/16/__ningguang_and_ningguang_genshin_impact_drawn_by_w_q_y__28169aa1d42203051a2cf3b9e58dbbf0.jpg"
+    "https://cdn.donmai.us/original/3c/c5/__original_drawn_by_datan_uu__3cc582513dcff139a485b2c793736c44.jpg"
+    "https://cdn.donmai.us/original/3e/31/__original_drawn_by_mac_star__3e313866d6435f61f819d1d6123ab981.jpg"
+    "https://cdn.donmai.us/original/e5/fc/__original_drawn_by_ping9137__e5fc9c7c37bb19008006759aea886e39.jpg"
+    "https://cdn.donmai.us/original/2c/6f/__mizugaiya_original_drawn_by_proxyl__2c6f048f4e1786ccb7941d5367b9fcaf.png"
+    "https://cdn.donmai.us/original/39/8d/__original_drawn_by_ribao__398db021670fbf4ca9b6843fef5171e9.png"
+    "https://cdn.donmai.us/original/7b/33/__original_drawn_by_swkl_d__7b333431520df7632406ad70186671eb.jpg"
+    "https://cdn.donmai.us/original/04/ba/__original_drawn_by_swkl_d__04ba237b265a378dd08ebe0ae48ee21d.jpg"
+    "https://cdn.donmai.us/original/1b/1f/__original_drawn_by_tu_er_tm__1b1fabdc9969afff10e57a00bd8be84e.jpg"
+    "https://cdn.donmai.us/original/41/ae/__original_drawn_by_tuweibu__41ae2e99e1d5e2443d7582b83e05ef48.jpg"
+    "https://cdn.donmai.us/original/59/e2/__original_drawn_by_vikiye__59e227bae545a3074f8fb4128065a4d4.jpg"
+    "https://cdn.donmai.us/original/0d/02/__rebecca_lucy_and_dorio_cyberpunk_and_1_more_drawn_by_feguimel__0d026f4ad56695ddb81e31f54337ea7a.jpg"
+    "https://cdn.donmai.us/original/72/ae/__robin_honkai_and_1_more_drawn_by_swkl_d__72aeec3f718f00424689c5124f13563f.jpg"
+    "https://cdn.donmai.us/original/19/ca/__shyrei_faolan_vedal987_pepe_the_frog_filian_layna_lazar_and_1_more_indie_virtual_youtuber_and_2_more_drawn_by_haedgie__19ca44fa28b99f7fcc265fa76a7840b5.jpg"
+    "https://cdn.donmai.us/original/1d/f6/__xingtong_qq_dance_drawn_by_pugongying__1df62f1c8177c9d2d56c8889f37559de.jpg"
+)
+
+wallpapers_total_size() {
+    total_size=0
+    for url in "${urls[@]}"; do
+        size=$(curl -sI "$url" | grep -i Content-Length | awk '{print $2}' | tr -d '\r')
+        total_size=$((total_size + size))
+    done
+    echo "$((total_size / 1024 / 1024)) MB"
+}
+
+download_wallpapers() {
+    echo "Downloading wallpapers..."
+
+    # Folder to save the images
+    folder="$HOME/.config/wallpapers/defaults"
+    mkdir -p "$folder"
+
+    # Track filenames from URLs
+    expected_files=()
+
+    for url in "${urls[@]}"; do
+        filename=$(basename "$url")
+        expected_files+=("$filename")
+        filepath="$folder/$filename"
+
+        if [[ -f "$filepath" ]]; then
+            echo "$filename already exists. Skipping download."
+        else
+            echo "Downloading $filename..."
+            curl -L -o "$filepath" "$url"
+        fi
+    done
+
+    # Cleanup files not in the list
+    echo "Cleaning up files not in the list..."
+    for file in "$folder"/*; do
+        basename_file=$(basename "$file")
+        if [[ ! " ${expected_files[*]} " =~ " $basename_file " ]]; then
+            echo "Removing $basename_file"
+            rm "$file"
+        fi
+    done
+
+    echo "Done."
+}
+
+echo "Calculating total size of wallpapers..."
+
+size=$(wallpapers_total_size)
+
+continue_prompt "Do you want to install default wallpapers? (total size: $size) " download_wallpapers

@@ -37,6 +37,8 @@ if pacman -Q agsv1 &>/dev/null; then
     yay -Rns agsv1 --noconfirm
 fi
 
+$MAINTENANCE_DIR/WALLPAPERS.sh
+
 $MAINTENANCE_DIR/WAL.sh
 
 $MAINTENANCE_DIR/PLUGINS.sh
