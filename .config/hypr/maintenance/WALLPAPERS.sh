@@ -44,12 +44,9 @@ urls=(
 )
 
 wallpapers_total_size() {
-    total_size=0
-    for url in "${urls[@]}"; do
-        size=$(curl -sI "$url" | grep -i Content-Length | awk '{print $2}' | tr -d '\r')
-        total_size=$((total_size + size))
-    done
-    echo "$((total_size / 1024 / 1024)) MB"
+    curl --parallel --parallel-immediate -sI "${urls[@]}" |
+        grep -ioP 'Content-Length:\s*\K\d+' |
+        awk '{s+=$1} END {print int(s/1024/1024) " MB"}'
 }
 
 download_wallpapers() {
