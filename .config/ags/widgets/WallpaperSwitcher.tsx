@@ -16,6 +16,12 @@ const selectedWorkspaceState = {
   widget: Variable<Button>(new Button()),
 };
 
+focusedWorkspace.subscribe((workspace) => {
+  if (workspace) {
+    selectedWorkspaceState.id.set(workspace.id);
+  }
+});
+
 const targetTypes = ["workspace", "sddm", "lockscreen"];
 const targetType = Variable<string>("workspace");
 const wallpaperType = Variable<boolean>(false);

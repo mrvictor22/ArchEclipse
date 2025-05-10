@@ -45,8 +45,19 @@ const ensureRatingTagFirst = () => {
 };
 
 const cleanUp = () => {
-  execAsync(`bash -c "rm -rf ${imagePreviewPath}/*"`);
-  execAsync(`bash -c "rm -rf ${imageUrlPath}/*"`);
+  const promises = [
+    execAsync(`bash -c "rm -rf ${imagePreviewPath}/*"`),
+    execAsync(`bash -c "rm -rf ${imageUrlPath}/*"`),
+  ];
+
+  Promise.all(promises)
+    .then(() => {
+      notify({ summary: "Success", body: "Cache cleared successfully" });
+      calculateCacheSize();
+    })
+    .catch((err) => {
+      notify({ summary: "Error", body: String(err) });
+    });
 };
 
 const fetchImages = async () => {
@@ -164,7 +175,8 @@ const Images = () => {
               ))
           )}
         </box>
-      }></scrollable>
+      }
+    ></scrollable>
   );
 };
 
@@ -336,7 +348,6 @@ const ClearCacheButton = () => {
       className="clear"
       onClicked={(self) => {
         cleanUp();
-        self.label = "0kb";
       }}
     />
   );

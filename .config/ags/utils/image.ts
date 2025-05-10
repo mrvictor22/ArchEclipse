@@ -6,14 +6,12 @@ const terminalWaifuPath = `$HOME/.config/fastfetch/assets/logo.webp`;
 
 export function getDominantColor(imagePath: string)
 {
-
     return exec(`bash ./scripts/get-image-color.sh ${imagePath}`)
-
 }
 
 export function previewFloatImage(imagePath: string)
 {
-    execAsync(`swayimg -w 690,690 --class 'previewImage' ${imagePath}`)
+    execAsync(`swayimg -w 690,690 --class 'preview-image' ${imagePath}`)
         .catch(err => notify({ summary: 'Error', body: err }))
 }
 

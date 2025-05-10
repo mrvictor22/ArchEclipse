@@ -34,6 +34,13 @@ urls=(
     "https://cdn.donmai.us/original/72/ae/__robin_honkai_and_1_more_drawn_by_swkl_d__72aeec3f718f00424689c5124f13563f.jpg"
     "https://cdn.donmai.us/original/19/ca/__shyrei_faolan_vedal987_pepe_the_frog_filian_layna_lazar_and_1_more_indie_virtual_youtuber_and_2_more_drawn_by_haedgie__19ca44fa28b99f7fcc265fa76a7840b5.jpg"
     "https://cdn.donmai.us/original/1d/f6/__xingtong_qq_dance_drawn_by_pugongying__1df62f1c8177c9d2d56c8889f37559de.jpg"
+    "https://cdn.donmai.us/original/c5/df/__dusk_shu_nian_ling_nian_and_3_more_arknights_drawn_by_yamauchi_conan_comy__c5df4f9e6f6c3ad7044481e4016a8ff2.jpg"
+    "https://cdn.donmai.us/original/6e/d8/__entelechia_arknights_drawn_by_fanfanfanlove__6ed8cba86b4c9f371a270a771b26291e.png"
+    "https://cdn.donmai.us/original/c9/31/__glorious_azur_lane_drawn_by_devil_heavens__c931521701abd64e6ec0d2842e568bf5.jpg"
+    "https://cdn.donmai.us/original/c9/79/__hoshimi_miyabi_zenless_zone_zero_drawn_by_icecake__c9795356fb51ebac9fb543afd7380959.jpg"
+    "https://cdn.donmai.us/original/5a/be/__napoli_and_napoli_azur_lane_drawn_by_shiran1024__5abe045d8800883566ec060b2f319395.jpg"
+    "https://cdn.donmai.us/original/be/a0/__necrass_arknights_drawn_by_ebonvow__bea0b54bc2122fdd749fce5bb0c285a0.jpg"
+    "https://cdn.donmai.us/original/e2/83/__original_drawn_by_creamyghost__e28396e7cd44869472f742d25fb37d86.jpg"
 )
 
 wallpapers_total_size() {
@@ -85,4 +92,4 @@ echo "Calculating total size of wallpapers..."
 
 size=$(wallpapers_total_size)
 
-continue_prompt "Do you want to install default wallpapers? (total size: $size) " download_wallpapers
+continue_prompt "Do you want to install default wallpapers? (total size: $size)" download_wallpapers
