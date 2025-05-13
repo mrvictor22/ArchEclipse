@@ -62,7 +62,7 @@ install_discord_client
 
 continue_prompt "Sddm theme setup" "$MAINTENANCE_DIR/SDDM.sh"
 
-$MAINTENANCE_DIR/LOCALES.sh
+continue_prompt "Do you want to add the en_US locale?" "$MAINTENANCE_DIR/LOCALES.sh"
 
 $MAINTENANCE_DIR/DEFAULTS.sh
 
