@@ -16,11 +16,10 @@ const selectedWorkspaceState = {
   widget: Variable<Button>(new Button()),
 };
 
-focusedWorkspace.subscribe((workspace) => {
-  if (workspace) {
-    selectedWorkspaceState.id.set(workspace.id);
-  }
-});
+const updateSelectedWorkspaceWidget = (workspaceId: number, widget: Button) => {
+  selectedWorkspaceState.id.set(workspaceId);
+  selectedWorkspaceState.widget.set(widget);
+};
 
 const targetTypes = ["workspace", "sddm", "lockscreen"];
 const targetType = Variable<string>("workspace");
@@ -49,11 +48,6 @@ const shuffleArraysTogether = (
   const combined = arr1.map((item, index) => ({ item, thumb: arr2[index] }));
   combined.sort(() => Math.random() - 0.5);
   return [combined.map((c) => c.item), combined.map((c) => c.thumb)];
-};
-
-const updateSelectedWorkspaceWidget = (workspaceId: number, widget: Button) => {
-  selectedWorkspaceState.id.set(workspaceId);
-  selectedWorkspaceState.widget.set(widget);
 };
 
 const FetchWallpapers = async () => {
@@ -184,7 +178,7 @@ function Wallpapers(monitor: string) {
     />
   );
 
-  const getWorkspaceButtons = () => {
+  const getCurrentWorkspaces = () => {
     const activeId = focusedWorkspace.as((workspace) => workspace.id || 1);
     const wallpapers: string[] = JSON.parse(
       exec(`bash ./scripts/get-wallpapers.sh --current ${monitor}`) || "[]"
@@ -221,6 +215,16 @@ function Wallpapers(monitor: string) {
       );
     });
   };
+
+  let currentWorkspaces = getCurrentWorkspaces();
+  focusedWorkspace.subscribe((workspace) => {
+    if (workspace) {
+      selectedWorkspaceState.id.set(workspace.id);
+      selectedWorkspaceState.widget.set(
+        currentWorkspaces[workspace.id - 1] as Button
+      );
+    }
+  });
 
   const resetButton = (
     <button
@@ -373,7 +377,7 @@ function Wallpapers(monitor: string) {
   return (
     <box className="wallpaper-switcher" vertical={true} spacing={20}>
       <box hexpand={true} vexpand={true} halign={Gtk.Align.CENTER} spacing={10}>
-        {getWorkspaceButtons()}
+        {currentWorkspaces}
       </box>
       {actions}
       <box

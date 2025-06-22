@@ -6,12 +6,6 @@
     font-size: 0.69em;
   }
 
-  .clock {
-    .revealer {
-      padding-right: 5px;
-    }
-  }
-
   .media {
     @extend .module;
     background-size: cover;
@@ -55,13 +49,17 @@
         color: unset; /* you can set color on it */
       }
     }
-
     .title {
       font-weight: 700;
     }
+  }
 
-    // .artist {
-    // }
+  .clock {
+    @extend .module;
+
+    .revealer {
+      padding-right: 5px;
+    }
   }
 
   .bandwidth {
