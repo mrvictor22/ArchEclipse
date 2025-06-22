@@ -10,12 +10,22 @@
     padding: 10px;
   }
   .category {
-    background: $background;
+    background: $background-secondary;
     color: $foreground;
     border-radius: 10px;
-    margin: 10px;
-    border: 1px solid $tertiary;
-    font-size: 1.5em;
+    padding: 10px;
+    // border: 1px solid $tertiary;
+
+    > label {
+      font-size: 1.5em;
+      font-weight: 700;
+    }
+
+    .subcategory-label {
+      font-size: 1.2em;
+      margin-top: 10px;
+      font-weight: 700;
+    }
   }
   .settings {
     padding: 10px;

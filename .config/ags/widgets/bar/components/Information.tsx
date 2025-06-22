@@ -111,7 +111,8 @@ function Media({ monitorName }: { monitorName: string }) {
         child={
           // <icon className="icon" icon={playerIcon}/>
           <label className={"icon"} label={playerIcon} />
-        }></circularprogress>
+        }
+      ></circularprogress>
     );
   };
 
@@ -120,7 +121,8 @@ function Media({ monitorName }: { monitorName: string }) {
       className="title"
       max_width_chars={20}
       truncate={true}
-      label={bind(player, "title").as((t) => t || "Unknown Track")}></label>
+      label={bind(player, "title").as((t) => t || "Unknown Track")}
+    ></label>
   );
 
   const artist = (player: Mpris.Player) => (
@@ -128,9 +130,8 @@ function Media({ monitorName }: { monitorName: string }) {
       className="artist"
       max_width_chars={20}
       truncate={true}
-      label={bind(player, "artist").as(
-        (a) => `[${a}]` || "Unknown Artist"
-      )}></label>
+      label={bind(player, "artist").as((a) => `[${a}]` || "Unknown Artist")}
+    ></label>
   );
 
   const coverArtToCss = (player: Mpris.Player) =>
@@ -151,7 +152,8 @@ function Media({ monitorName }: { monitorName: string }) {
       <box
         className={bind(player, "entry").as((entry) => `media ${entry}`)}
         css={coverArtToCss(player)}
-        spacing={10}>
+        spacing={10}
+      >
         {progress(player)}
         {title(player)}
         {artist(player)}
@@ -182,15 +184,17 @@ function Media({ monitorName }: { monitorName: string }) {
           }}
           child={bind(mpris, "players").as((arr) =>
             arr.length > 0 ? activePlayer() : <box />
-          )}></eventbox>
-      }></revealer>
+          )}
+        ></eventbox>
+      }
+    ></revealer>
   );
 }
 
 function Clock() {
   const revealer = <label className="revealer" label={bind(date_more)}></label>;
 
-  const trigger = <label className="trigger" label={bind(date_less)}></label>;
+  const trigger = <label className="clock" label={bind(date_less)}></label>;
 
   return (
     <eventbox
@@ -293,7 +297,8 @@ function ClientTitle() {
               label={bind(client, "title").as(String)}
             />
           )
-      )}></revealer>
+      )}
+    ></revealer>
   );
 }
 

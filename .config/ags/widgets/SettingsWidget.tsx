@@ -43,7 +43,11 @@ const normalizeValue = (value: any, type: string) => {
 const setBarLayout = () => {
   return (
     <box spacing={5} vertical>
-      <label label={"bar Layout"} />
+      <label
+        className={"subcategory-label"}
+        label={"bar Layout"}
+        halign={Gtk.Align.START}
+      />
       <box className="setting" spacing={10} hexpand>
         {barWidgetSelectors.map((widget) => {
           return (
@@ -62,7 +66,8 @@ const setBarLayout = () => {
                     .filter((w) => w.name !== widget.name);
                   barLayout.set(newWidgets);
                 }
-              }}></ToggleButton>
+              }}
+            ></ToggleButton>
           );
         })}
       </box>
@@ -274,7 +279,13 @@ interface NestedSettings {
 const Settings = () => {
   const hyprlandSettings: any = [];
 
-  const Category = (title: string) => <label label={title} />;
+  const Category = (title: string) => (
+    <label
+      className={"subcategory-label"}
+      label={title}
+      halign={Gtk.Align.START}
+    />
+  );
 
   const processSetting = (
     key: string,
@@ -320,14 +331,18 @@ const Settings = () => {
       heightRequest={500}
       child={
         <box vertical={true} spacing={5} className="settings">
-          <label className={"category"} label="AGS" />
-          {setBarLayout()}
-          {agsSetting(globalOpacity)}
-          {agsSetting(globalIconSize)}
-          {agsSetting(globalScale)}
-          {agsSetting(globalFontSize)}
-          <label className={"category"} label="Hyprland" />
-          {hyprlandSettings}
+          <box className={"category"} vertical={true} spacing={5}>
+            <label label="AGS" halign={Gtk.Align.START} />
+            {setBarLayout()}
+            {agsSetting(globalOpacity)}
+            {agsSetting(globalIconSize)}
+            {agsSetting(globalScale)}
+            {agsSetting(globalFontSize)}
+          </box>
+          <box className={"category"} vertical={true} spacing={5}>
+            <label label="Hyprland" halign={Gtk.Align.START} />
+            {hyprlandSettings}
+          </box>
         </box>
       }
     />
@@ -347,7 +362,8 @@ const WindowActions = ({ monitor }: { monitor: string }) => (
             hideWindow(`settings-${monitor}`);
           }}
         />
-      }></box>
+      }
+    ></box>
     <button label="󰑐" onClicked={() => execAsync(`bash -c "hyprctl reload"`)} />
   </box>
 );
@@ -369,6 +385,7 @@ export default (monitor: Gdk.Monitor) => {
           <WindowActions monitor={monitorName} />
           <Settings />
         </box>
-      }></window>
+      }
+    ></window>
   );
 };

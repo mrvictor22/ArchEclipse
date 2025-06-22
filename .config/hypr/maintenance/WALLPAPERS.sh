@@ -41,6 +41,11 @@ urls=(
     "https://cdn.donmai.us/original/5a/be/__napoli_and_napoli_azur_lane_drawn_by_shiran1024__5abe045d8800883566ec060b2f319395.jpg"
     "https://cdn.donmai.us/original/be/a0/__necrass_arknights_drawn_by_ebonvow__bea0b54bc2122fdd749fce5bb0c285a0.jpg"
     "https://cdn.donmai.us/original/e2/83/__original_drawn_by_creamyghost__e28396e7cd44869472f742d25fb37d86.jpg"
+    "https://cdn.donmai.us/original/c1/7b/__jinhsi_wuthering_waves_drawn_by_ceey__c17b00a9c413d75556e1ff8fdc82109e.jpg"
+    "https://cdn.donmai.us/original/d7/36/__amiya_kal_tsit_theresa_and_amiya_arknights_and_1_more_drawn_by_lonki__d73672de44e20e5877592116ccccb73c.jpg"
+    "https://cdn.donmai.us/original/62/4b/__rover_male_rover_and_cartethyia_wuthering_waves_drawn_by_jin_sumire__624b4bdf0074b1551ad3c8e9534892f4.jpg"
+    "https://cdn.donmai.us/original/bf/38/__cartethyia_fleurdelys_and_imperator_wuthering_waves_drawn_by_jvn__bf389e2eae6ebea429cac939cf935430.jpg"
+    "https://cdn.donmai.us/original/6b/b0/__lovely_labrynth_of_the_silver_castle_yu_gi_oh_drawn_by_ribao__6bb069c9a7f4b8a39e0b54a7901b2a81.jpg"
 )
 
 wallpapers_total_size() {
