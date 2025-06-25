@@ -330,7 +330,7 @@ const Settings = () => {
     <scrollable
       heightRequest={500}
       child={
-        <box vertical={true} spacing={5} className="settings">
+        <box vertical={true} spacing={10} className="settings">
           <box className={"category"} vertical={true} spacing={5}>
             <label label="AGS" halign={Gtk.Align.START} />
             {setBarLayout()}

@@ -6,6 +6,9 @@
   }
 
   .messages {
+    .message-eventbox:hover .message {
+      background-color: $background;
+    }
     .message {
       @extend .module;
       padding: 5px;

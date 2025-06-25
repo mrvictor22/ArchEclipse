@@ -1,5 +1,5 @@
 import { App, Astal, Gdk, Gtk } from "astal/gtk3";
-import { bind } from "astal";
+import { bind, Variable } from "astal";
 import Workspaces from "./components/Workspaces";
 import Information from "./components/Information";
 import Utilities from "./components/Utilities";
@@ -9,6 +9,7 @@ import {
   barOrientation,
   barVisibility,
   emptyWorkspace,
+  focusedClient,
   globalMargin,
 } from "../../variables";
 import { getMonitorName } from "../../utils/monitor";
@@ -37,7 +38,16 @@ export default (monitor: Gdk.Monitor) => {
             Astal.WindowAnchor.RIGHT
       )}
       margin={emptyWorkspace.as((empty) => (empty ? globalMargin : 5))}
-      visible={bind(barVisibility)}
+      visible={bind(
+        Variable.derive(
+          [bind(barVisibility), bind(focusedClient)],
+          (barVisibility, focusedClient) => {
+            const isFullscreen: boolean = focusedClient.get_fullscreen() == 2;
+            const visibility: boolean = !isFullscreen && barVisibility;
+            return visibility;
+          }
+        )
+      )}
       child={
         <eventbox
           onHoverLost={() => {
@@ -48,7 +58,8 @@ export default (monitor: Gdk.Monitor) => {
               spacing={5}
               className={emptyWorkspace.as((empty) =>
                 empty ? "bar empty" : "bar full"
-              )}>
+              )}
+            >
               <LeftPanelVisibility />
               <centerbox hexpand>
                 {bind(barLayout).as((layout) =>
@@ -83,7 +94,9 @@ export default (monitor: Gdk.Monitor) => {
               </centerbox>
               <RightPanelVisibility />
             </box>
-          }></eventbox>
-      }></window>
+          }
+        ></eventbox>
+      }
+    ></window>
   );
 };
