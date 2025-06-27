@@ -43,7 +43,8 @@ export default ({
                 `
             )}
           />
-        }></box>
+        }
+      ></box>
     );
   };
   const title = (
@@ -52,7 +53,8 @@ export default ({
       max_width_chars={20}
       halign={Gtk.Align.START}
       truncate={true}
-      label={bind(player, "title").as((t) => t || "Unknown Track")}></label>
+      label={bind(player, "title").as((t) => t || "Unknown Track")}
+    ></label>
   );
 
   const artist = (
@@ -61,7 +63,8 @@ export default ({
       max_width_chars={20}
       halign={Gtk.Align.START}
       truncate={true}
-      label={bind(player, "artist").as((a) => a || "Unknown Artist")}></label>
+      label={bind(player, "artist").as((a) => a || "Unknown Artist")}
+    ></label>
   );
 
   const positionSlider = (
@@ -81,14 +84,16 @@ export default ({
       className="position time"
       halign={Gtk.Align.START}
       label={bind(player, "position").as(lengthStr)}
-      visible={bind(player, "length").as((l) => l > 0)}></label>
+      visible={bind(player, "length").as((l) => l > 0)}
+    ></label>
   );
   const lengthLabel = (
     <label
       className="length time"
       halign={Gtk.Align.END}
       visible={bind(player, "length").as((l) => l > 0)}
-      label={bind(player, "length").as(lengthStr)}></label>
+      label={bind(player, "length").as(lengthStr)}
+    ></label>
   );
 
   // const icon = Widget.icon({
@@ -129,22 +134,26 @@ export default ({
               case AstalMpris.PlaybackStatus.STOPPED:
                 return PLAY_ICON;
             }
-          })}></icon>
-      }></button>
+          })}
+        ></icon>
+      }
+    ></button>
   );
 
   const prev = (
     <button
       on_clicked={() => player.previous()}
       visible={bind(player, "can_go_previous").as((c) => c)}
-      child={<icon icon={PREV_ICON}></icon>}></button>
+      child={<icon icon={PREV_ICON}></icon>}
+    ></button>
   );
 
   const next = (
     <button
       on_clicked={() => player.next()}
       visible={bind(player, "can_go_next").as((c) => c)}
-      child={<icon icon={NEXT_ICON}></icon>}></button>
+      child={<icon icon={NEXT_ICON}></icon>}
+    ></button>
   );
 
   return (
@@ -158,15 +167,16 @@ export default ({
               background-image: url('${p}');
               `
           : ``
-      )}>
+      )}
+    >
       {img()}
       <box vertical={true} hexpand={true}>
         {/* <box>{icon}</box> */}
         <box vexpand={true}></box>
         <eventbox
-          className={"bottom-event"}
+          className={"bottom-eventbox"}
           child={
-            <box className={"bottom"} spacing={5} vertical>
+            <box className={"bottom-bar"} spacing={5} vertical>
               <box className={"info"} vertical>
                 {title}
                 {artist}

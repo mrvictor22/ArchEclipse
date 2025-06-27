@@ -19,16 +19,23 @@ $custom-background: linear-gradient(
     }
   }
   .workspaces {
-    background: $background-transparent;
     border-radius: 10px;
     .workspace-group {
       border-radius: 10px;
-      &.active {
-        background: $background-secondary;
-      }
+      // &.active {
+      // }
       &.inactive button {
         background: transparent;
         padding: 0px;
+      }
+      button {
+        border-radius: 0px;
+      }
+      button:first-child {
+        border-radius: 10px 0px 0px 10px;
+      }
+      button:last-child {
+        border-radius: 0px 10px 10px 0px;
       }
     }
     button {

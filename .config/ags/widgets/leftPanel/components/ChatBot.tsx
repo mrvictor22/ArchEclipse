@@ -304,13 +304,18 @@ const MessageEntry = () => {
 };
 
 const BottomBar = () => (
-  <box className={"bottom"} spacing={10} vertical>
-    <box spacing={5}>
-      <MessageEntry />
-      <ClearButton />
-    </box>
-    <box child={<ImageGenerationSwitch />}></box>
-  </box>
+  <eventbox
+    className={"bottom-eventbox"}
+    child={
+      <box className={"bottom-bar"} spacing={10} vertical>
+        <box spacing={5}>
+          <MessageEntry />
+          <ClearButton />
+        </box>
+        <box child={<ImageGenerationSwitch />}></box>
+      </box>
+    }
+  />
 );
 
 const EnsurePaths = async () => {

@@ -354,17 +354,22 @@ const ClearCacheButton = () => {
 };
 
 const BottomBar = () => (
-  <box className={"bottom"} spacing={5} vertical>
-    <PageDisplay />
-    <LimitDisplay />
-    <box className="input-bar" vertical spacing={5}>
-      <TagDisplay />
-      <box>
-        <Entry />
-        <ClearCacheButton />
+  <eventbox
+    className={"bottom-eventbox"}
+    child={
+      <box className={"bottom"} spacing={5} vertical>
+        <PageDisplay />
+        <LimitDisplay />
+        <box className="bottom-bar" vertical spacing={5}>
+          <TagDisplay />
+          <box>
+            <Entry />
+            <ClearCacheButton />
+          </box>
+        </box>
       </box>
-    </box>
-  </box>
+    }
+  />
 );
 
 export default () => {

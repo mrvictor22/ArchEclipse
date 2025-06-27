@@ -22,8 +22,6 @@ import { booruApis } from "../../../constants/api.constants";
 import { PinImageToTerminal, previewFloatImage } from "../../../utils/image";
 const waifuDir = "./assets/booru/waifu";
 
-const terminalWaifuPath = `./assets/terminal/icon.webp`;
-
 const fetchImage = async (image: Waifu, saveDir: string) => {
   const url = image.url!;
   image.url_path = `${saveDir}/waifu.webp`;
@@ -99,96 +97,104 @@ function Actions() {
       transitionDuration={globalTransition}
       transition_type={Gtk.RevealerTransitionType.SLIDE_UP}
       child={
-        <box className={"actions"} vertical>
-          <box className={"top"}>
-            <button
-              label=""
-              className="open"
-              hexpand
-              onClicked={() => OpenImage(waifuCurrent.get())}
-            />
-            <button
-              label=""
-              hexpand
-              className="browser"
-              onClicked={() => OpenInBrowser(waifuCurrent.get())}
-            />
-            <button
-              label=""
-              hexpand
-              className="pin"
-              onClicked={() => PinImageToTerminal(waifuCurrent.get())}
-            />
-            <button
-              label=""
-              hexpand
-              className="copy"
-              onClicked={() => CopyImage(waifuCurrent.get())}
-            />
-          </box>
-          <box>
-            <button
-              hexpand
-              label=""
-              className="entry-search"
-              onClicked={() => Entry.activate()}
-            />
-            {Entry}
-            <button
-              hexpand
-              label={""}
-              className={"upload"}
-              onClicked={() => {
-                let dialog = new Gtk.FileChooserDialog({
-                  title: "Open Image",
-                  action: Gtk.FileChooserAction.OPEN,
-                });
-                dialog.add_button("Open", Gtk.ResponseType.OK);
-                dialog.add_button("Cancel", Gtk.ResponseType.CANCEL);
-                let response = dialog.run();
-                if (response == Gtk.ResponseType.OK) {
-                  let filename = dialog.get_filename();
-                  let [height, width] = exec(
-                    `identify -format "%h %w" ${filename}`
-                  ).split(" ");
-                  execAsync(`cp ${filename} ${waifuCurrent.get().url_path}`)
-                    .then(() =>
-                      waifuCurrent.set({
-                        id: 0,
-                        preview: waifuCurrent.get().url_path,
-                        height: Number(height) ?? 0,
-                        width: Number(width) ?? 0,
-                        api: {} as Api,
-                        url_path: waifuCurrent.get().url_path,
-                      })
-                    )
-                    .finally(() =>
-                      notify({
-                        summary: "Waifu",
-                        body: "Custom image set",
-                      })
-                    )
-                    .catch((err) => notify({ summary: "Error", body: err }));
-                }
-                dialog.destroy();
-              }}
-            />
-          </box>
-          <box className={"bottom"}>
-            {booruApis.map((api) => (
-              <ToggleButton
-                hexpand
-                className={"api"}
-                label={api.name}
-                state={bind(waifuApi).as(
-                  (current) => current.value === api.value
-                )}
-                onToggled={(self, on) => waifuApi.set(api)}
-              />
-            ))}
-          </box>
-        </box>
-      }></revealer>
+        <eventbox
+          className="bottom-eventbox"
+          child={
+            <box className={"bottom-bar"} vertical>
+              <box className={"top"}>
+                <button
+                  label=""
+                  className="open"
+                  hexpand
+                  onClicked={() => OpenImage(waifuCurrent.get())}
+                />
+                <button
+                  label=""
+                  hexpand
+                  className="browser"
+                  onClicked={() => OpenInBrowser(waifuCurrent.get())}
+                />
+                <button
+                  label=""
+                  hexpand
+                  className="pin"
+                  onClicked={() => PinImageToTerminal(waifuCurrent.get())}
+                />
+                <button
+                  label=""
+                  hexpand
+                  className="copy"
+                  onClicked={() => CopyImage(waifuCurrent.get())}
+                />
+              </box>
+              <box>
+                <button
+                  hexpand
+                  label=""
+                  className="entry-search"
+                  onClicked={() => Entry.activate()}
+                />
+                {Entry}
+                <button
+                  hexpand
+                  label={""}
+                  className={"upload"}
+                  onClicked={() => {
+                    let dialog = new Gtk.FileChooserDialog({
+                      title: "Open Image",
+                      action: Gtk.FileChooserAction.OPEN,
+                    });
+                    dialog.add_button("Open", Gtk.ResponseType.OK);
+                    dialog.add_button("Cancel", Gtk.ResponseType.CANCEL);
+                    let response = dialog.run();
+                    if (response == Gtk.ResponseType.OK) {
+                      let filename = dialog.get_filename();
+                      let [height, width] = exec(
+                        `identify -format "%h %w" ${filename}`
+                      ).split(" ");
+                      execAsync(`cp ${filename} ${waifuCurrent.get().url_path}`)
+                        .then(() =>
+                          waifuCurrent.set({
+                            id: 0,
+                            preview: waifuCurrent.get().url_path,
+                            height: Number(height) ?? 0,
+                            width: Number(width) ?? 0,
+                            api: {} as Api,
+                            url_path: waifuCurrent.get().url_path,
+                          })
+                        )
+                        .finally(() =>
+                          notify({
+                            summary: "Waifu",
+                            body: "Custom image set",
+                          })
+                        )
+                        .catch((err) =>
+                          notify({ summary: "Error", body: err })
+                        );
+                    }
+                    dialog.destroy();
+                  }}
+                />
+              </box>
+              <box className={"bottom"}>
+                {booruApis.map((api) => (
+                  <ToggleButton
+                    hexpand
+                    className={"api"}
+                    label={api.name}
+                    state={bind(waifuApi).as(
+                      (current) => current.value === api.value
+                    )}
+                    onToggled={(self, on) => waifuApi.set(api)}
+                  />
+                ))}
+              </box>
+            </box>
+          }
+        />
+      }
+    ></revealer>
   );
 
   const bottom = (
@@ -237,8 +243,10 @@ function Image() {
             (waifuCurrent) =>
               `background-image: url("${waifuCurrent.url_path}");`
           )}
-          child={Actions()}></box>
-      }></eventbox>
+          child={Actions()}
+        ></box>
+      }
+    ></eventbox>
   );
 }
 
@@ -248,13 +256,8 @@ export default () => {
       transitionDuration={globalTransition}
       transition_type={Gtk.RevealerTransitionType.SLIDE_DOWN}
       revealChild={globalSettings.get().waifu.visibility}
-      child={
-        <eventbox
-          className="waifu-event"
-          child={
-            <box className="waifu" vertical child={Image()}></box>
-          }></eventbox>
-      }></revealer>
+      child={<box className="waifu" vertical child={Image()}></box>}
+    ></revealer>
   );
 };
 
