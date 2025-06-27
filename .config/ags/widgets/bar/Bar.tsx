@@ -42,9 +42,13 @@ export default (monitor: Gdk.Monitor) => {
         Variable.derive(
           [bind(barVisibility), bind(focusedClient)],
           (barVisibility, focusedClient) => {
-            const isFullscreen: boolean = focusedClient.get_fullscreen() == 2;
-            const visibility: boolean = !isFullscreen && barVisibility;
-            return visibility;
+            if (focusedClient) {
+              const isFullscreen: boolean = focusedClient.get_fullscreen() == 2;
+              const visibility: boolean = !isFullscreen && barVisibility;
+              return visibility;
+            } else {
+              return barVisibility;
+            }
           }
         )
       )}
