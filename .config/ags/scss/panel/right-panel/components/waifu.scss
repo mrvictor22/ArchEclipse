@@ -10,15 +10,17 @@
     border-radius: 10px;
     .action-trigger {
       padding: 5px;
-      background: $background-transparent;
-      &:hover {
-        background: $background;
-      }
     }
-    .actions {
+
+    .bottom-eventbox:hover .bottom-bar {
+      background: $background-secondary;
+    }
+    .bottom-bar {
+      background: $background-semi-transparent;
       margin-top: 10px;
+      border-radius: 10px;
       entry {
-        // background: $background;
+        // background: transparent;
         border-radius: 0px;
         padding: 0px;
         margin: 0px;

@@ -11,13 +11,13 @@
   }
 
   &.widget {
-    .bottom-event:hover {
-      .bottom {
+    .bottom-eventbox:hover {
+      .bottom-bar {
         background-color: $background-secondary;
       }
     }
-    .bottom {
-      background: $background-transparent;
+    .bottom-bar {
+      background: $background-semi-transparent;
       padding: 5px;
     }
   }
@@ -31,7 +31,7 @@
     margin-right: 10px;
   }
 
-  .bottom {
+  .bottom-bar {
     border-radius: 10px;
 
     .title {

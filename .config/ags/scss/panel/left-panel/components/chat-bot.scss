@@ -7,7 +7,7 @@
 
   .messages {
     .message-eventbox:hover .message {
-      background-color: $background;
+      background-color: $background-secondary;
     }
     .message {
       @extend .module;
@@ -50,8 +50,8 @@
     }
   }
 
-  .bottom {
-    background: $background-secondary;
+  .bottom-bar {
+    background: $background-semi-transparent;
     border-radius: 10px;
     padding: 10px;
 

@@ -33,12 +33,18 @@ export default (monitor: Gdk.Monitor) => {
                 <box vertical={true} spacing={10}>
                   {players.as((p) =>
                     p.map((player) => (
-                      <Player player={player} playerType="popup" />
+                      <eventbox
+                        className={"player-eventbox"}
+                        child={<Player player={player} playerType="popup" />}
+                      />
                     ))
                   )}
                 </box>
-              }></eventbox>
-          }></box>
-      }></window>
+              }
+            ></eventbox>
+          }
+        ></box>
+      }
+    ></window>
   );
 };
