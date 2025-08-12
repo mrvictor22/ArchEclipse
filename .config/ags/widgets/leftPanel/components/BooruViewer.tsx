@@ -362,7 +362,7 @@ const BottomBar = () => (
         <LimitDisplay />
         <box className="bottom-bar" vertical spacing={5}>
           <TagDisplay />
-          <box>
+          <box spacing={5}>
             <Entry />
             <ClearCacheButton />
           </box>
