@@ -37,6 +37,9 @@ $custom-background: linear-gradient(
       button:last-child {
         border-radius: 0px 10px 10px 0px;
       }
+      button:only-child {
+        border-radius: 10px;
+      }
     }
     button {
       ////////////////////////////

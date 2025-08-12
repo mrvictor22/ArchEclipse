@@ -52,35 +52,6 @@ def fetch_danbooru(tags, post_id, page=1, limit=6):
 
     return None
 
-
-def fetch_gelbooru(tags, post_id, page=1, limit=6):
-    if post_id=="random": 
-        api_url = (f"https://gelbooru.com/index.php?limit={limit}&pid={page}&page=dapi&s=post&q=index&json=1&tags="
-               f"+{'+'.join(tags)}"
-               f"+{'+'.join(exclude_tags)}")
-    else:
-        api_url = (f"https://gelbooru.com/index.php?page=dapi&s=post&q=index&json=1&id={post_id}")
-    user_id = "1667355"
-    api_key = "1ccd9dd7c457c2317e79bd33f47a1138ef9545b9ba7471197f477534efd1dd05"  # Replace with your own API key
-    response = requests.get(api_url, auth=HTTPBasicAuth(user_id, api_key))
-    if response.status_code == 200:
-        posts = response.json().get("post")
-        
-        # Extract only the necessary fields
-        result = []
-        for post in posts:
-            # Handle the possibility of missing keys by using .get()
-            post_data = {
-                "id": post.get("id"),
-                "url": post.get("file_url"),
-                "preview": post.get("preview_url"),
-                "width": post.get("width"),
-                "height": post.get("height")
-            }
-            result.append(post_data)
-        return result
-    return None
-
 def fetch_danbooru_tags(tag: str, limit: int = 10):
     """Fetch the top 10 most popular matching tags from Danbooru."""
     user_id = "publicapi"  # Danbooru's public API user (rate-limited)
@@ -110,42 +81,125 @@ def fetch_danbooru_tags(tag: str, limit: int = 10):
         
     except requests.exceptions.RequestException as e:
         return {"error": str(e)}
-    
-    
-def fetch_gelbooru_tags(tag: str, limit: int = 10):
-    """Fetch matching tags from Gelbooru by partial name matching."""
+
+# ---- paste/replace into your script ----
+def fetch_gelbooru(tags, post_id, page=1, limit=6):
+    """
+    tags: list of tag strings (e.g. ["1girl","smile"])
+    post_id: "random" or specific id
+    page: 1-based page (function will convert to pid=page-1)
+    limit: results per page
+    """
+    base = "https://gelbooru.com/index.php"
     user_id = "1667355"
     api_key = "1ccd9dd7c457c2317e79bd33f47a1138ef9545b9ba7471197f477534efd1dd05"
-    url = "https://gelbooru.com/index.php"
+
+    # common params for post queries
     params = {
         "page": "dapi",
+        "s": "post",
         "q": "index",
-        "s": "tag",
         "json": "1",
-        "limit": 1000,  # Fetch more than needed
-        "name_pattern": f"%{tag}%"  # Search for tags containing the input string
+        "limit": int(limit),
     }
 
+    # request a single post by id
+    if post_id != "random":
+        params["id"] = post_id
+        # don't set pid/limit for id-based lookup
+    else:
+        # Gelbooru uses 'pid' = zero-based page index
+        pid = max(0, int(page) - 1)
+        params["pid"] = pid
+
+        # build tags string: space-separated, include exclude tags (e.g. -animated)
+        if tags:
+            params["tags"] = " ".join(tags + exclude_tags)
+        else:
+            params["tags"] = " ".join(exclude_tags)
+
+    # add auth as query params (Gelbooru expects user_id & api_key as GET params)
+    if user_id:
+        params["user_id"] = user_id
+    if api_key:
+        params["api_key"] = api_key
+
     try:
-        response = requests.get(url, params=params, auth=HTTPBasicAuth(user_id, api_key))
-        response.raise_for_status()
-        tags = response.json().get("tag", [])
+        resp = requests.get(base, params=params, timeout=15)
+        resp.raise_for_status()
+        data = resp.json()
+    except Exception as e:
+        # return None or error info — keep your original behavior (you can print e for debugging)
+        # print("Gelbooru request error:", e)
+        return None
 
-        if not tags:
-            return []
+    # Gelbooru returns a 'post' array for searches; for id-based it may return 'post' dict or array
+    posts = data.get("post", [])
+    if isinstance(posts, dict):
+        posts = [posts]
+    if posts is None:
+        posts = []
 
-        # Sort the matching tags by popularity (post_count) in descending order
-        sorted_tags = sorted(tags, key=lambda x: int(x.get("post_count", 0)), reverse=True)
+    result = []
+    for post in posts:
+        # Gelbooru fields: id, file_url, preview_url, width, height
+        post_data = {
+            "id": post.get("id"),
+            "url": post.get("file_url"),
+            "preview": post.get("preview_url"),
+            "width": post.get("width"),
+            "height": post.get("height"),
+        }
+        # keep same filtering behavior as your Danbooru function (only complete posts)
+        if all(post_data.values()):
+            result.append(post_data)
 
-        # Extract just the tag names
-        tag_names = [tag_data["name"] for tag_data in sorted_tags]
+    return result if result else None
 
-        # Return the top matching tags
-        return tag_names[:limit]
 
-    except requests.exceptions.RequestException as e:
+def fetch_gelbooru_tags(tag: str, limit: int = 10):
+    """
+    Fetch matching tags from Gelbooru.
+    Uses the tag index endpoint and returns up to `limit` tag names ordered by post_count.
+    """
+    base = "https://gelbooru.com/index.php"
+    user_id = "1667355"
+    api_key = "1ccd9dd7c457c2317e79bd33f47a1138ef9545b9ba7471197f477534efd1dd05"
+
+    params = {
+        "page": "dapi",
+        "s": "tag",
+        "q": "index",
+        "json": "1",
+        # many Gelbooru installs accept 'name_pattern' for wildcard searches; if not supported,
+        # you can try 'name' instead.
+        "name_pattern": f"%{tag}%",
+        "limit": 1000  # fetch a big chunk and sort locally
+    }
+
+    if user_id:
+        params["user_id"] = user_id
+    if api_key:
+        params["api_key"] = api_key
+
+    try:
+        resp = requests.get(base, params=params, timeout=15)
+        resp.raise_for_status()
+        payload = resp.json()
+    except Exception as e:
         return {"error": str(e)}
-    
+
+    tags_list = payload.get("tag", []) or []
+    # ensure numeric post_count, sort desc
+    try:
+        sorted_tags = sorted(tags_list, key=lambda x: int(x.get("post_count", 0)), reverse=True)
+        tag_names = [t.get("name") for t in sorted_tags if t.get("name")]
+        return tag_names[:limit]
+    except Exception:
+        # fallback: just return up to limit of names if sorting fails
+        return [t.get("name") for t in tags_list[:limit] if t.get("name")]
+
+
 def main():
     # Check if the correct number of arguments is passed
     if len(sys.argv) < 2:
