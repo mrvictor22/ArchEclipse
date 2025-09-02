@@ -1,67 +1,63 @@
-#!/bin/bash
+#!/usr/bin/env bash
+# one-shot network health check
+set -euo pipefail
 
-# Set the target and interval
 TARGET="google.com"
-INTERVAL=1
-SUCCESS_COUNT=0
+URL="http://speedtest.tele2.net/1MB.zip"
+DURATION=5   # seconds to test download
 
-# ANSI color codes
-GREEN='\033[0;32m'
-RED='\033[0;31m'
-NC='\033[0m' # No color
+GREEN=$'\033[0;32m'; RED=$'\033[0;31m'; YELLOW=$'\033[0;33m'; NC=$'\033[0m'
 
-# Function to measure max bandwidth by forcing download
-measure_max_bandwidth() {
-    # URL of a large file (change this to a reliable source)
-    FILE_URL="http://speedtest.tele2.net/1GB.zip"
-    echo "Testing maximum bandwidth by downloading a large file for 10 seconds..."
+log(){ printf "%b\n" "[$(date +"%F %T")] $*"; }
 
-    # Download the file once, limiting the time to 10 seconds
-    DOWNLOAD_OUTPUT=$(timeout 10 wget --output-document=/dev/null $FILE_URL 2>&1)
+human(){ awk -v b="$1" 'BEGIN{
+  if (b>=1073741824) printf("%.2f GB/s", b/1073741824);
+  else if (b>=1048576) printf("%.2f MB/s", b/1048576);
+  else if (b>=1024) printf("%.2f KB/s", b/1024);
+  else printf("%.2f B/s", b);
+}'; }
 
-    # Extract the speed from the output
-    DOWNLOAD_SPEED=$(echo "$DOWNLOAD_OUTPUT" | grep -oP '[0-9.]+[KM]B/s' | tail -1)
+# 1. Check default gateway
+gateway=$(ip route | awk '/default/ {print $3; exit}')
+if ping -c1 -W1 "$gateway" >/dev/null 2>&1; then
+  log "Gateway ${gateway}: ${GREEN}OK${NC}"
+else
+  log "Gateway ${gateway}: ${RED}FAILED${NC}"
+fi
 
-    if [ -n "$DOWNLOAD_SPEED" ]; then
-        echo "Maximum observed download speed: $DOWNLOAD_SPEED"
-    else
-        echo "Could not determine download speed. The download might have been too short."
-    fi
-}
+# 2. Check DNS resolution
+if getent hosts "$TARGET" >/dev/null; then
+  log "DNS for $TARGET: ${GREEN}OK${NC}"
+else
+  log "DNS for $TARGET: ${RED}FAILED${NC}"
+fi
 
-# Start testing
-while true; do
-    # Get the current date and time
-    TIMESTAMP=$(date +"%Y-%m-%d %H:%M:%S")
+# 3. Ping external host
+if ping_out=$(ping -c1 -W2 "$TARGET" 2>&1); then
+  ip=$(printf "%s" "$ping_out" | head -n1 | awk -F'[()]' '{print $2}')
+  rtt=$(printf "%s" "$ping_out" | grep -Eo 'time=[0-9]+([.][0-9]+)?' | cut -d= -f2)
+  log "to $TARGET ($ip): ${GREEN}OK${NC} - ${rtt} ms"
+else
+  log "to $TARGET: ${RED}FAILED${NC}"
+fi
 
-    # Perform the ping and capture output
-    PING_OUTPUT=$(ping -c 1 -W 2 $TARGET 2>&1)
+# 4. HTTP reachability
+if curl -Is --max-time 5 "http://$TARGET" | head -n1 | grep -q "200\|301\|302"; then
+  log "HTTP to $TARGET: ${GREEN}OK${NC}"
+else
+  log "HTTP to $TARGET: ${RED}FAILED${NC}"
+fi
 
-    if echo "$PING_OUTPUT" | grep -q "1 received"; then
-        # Extract the IP address and time from the ping output
-        IP=$(echo "$PING_OUTPUT" | grep "PING" | awk -F'[()]' '{print $2}')
-        TIME=$(echo "$PING_OUTPUT" | grep "time=" | awk -F'time=' '{print $2}' | cut -d' ' -f1)
+# 5. Bandwidth test (tiny download)
+if command -v curl >/dev/null; then
+  log "${YELLOW}Downloading for ${DURATION}s to measure speed...${NC}"
+  sp=$(curl -s --max-time "$DURATION" --output /dev/null --write-out "%{speed_download}" "$URL" || echo 0)
 
-        echo -e "[$TIMESTAMP] Testing connection to $TARGET ($IP): ${GREEN}Success${NC} - Response time: $TIME ms"
-
-        # Increment the success count
-        ((SUCCESS_COUNT++))
-
-        # Check if we have 3 consecutive successes
-        if [ $SUCCESS_COUNT -ge 3 ]; then
-            echo -e "[$TIMESTAMP] 3 consecutive successful pings detected. Forcing maximum bandwidth..."
-            measure_max_bandwidth
-            SUCCESS_COUNT=0
-        fi
-    else
-        # Handle the failure case with more detailed output
-        ERROR_MSG=$(echo "$PING_OUTPUT" | grep -oP "(?<=ping: ).*")
-        echo -e "[$TIMESTAMP] Testing connection to $TARGET: ${RED}Failed${NC} - $ERROR_MSG"
-
-        # Reset the success count on failure
-        SUCCESS_COUNT=0
-    fi
-
-    # Wait for the specified interval before the next test
-    sleep $INTERVAL
-done
+  if [ "$sp" != "0" ]; then
+    hr=$(human "$sp")                             # human-readable in B/s
+    mbps=$(awk -v b="$sp" 'BEGIN{printf("%.2f", b*8/1000000)}')  # convert to megabits/s
+    log "speed: ${GREEN}${hr}${NC} (~${mbps} Mb/s)"
+  fi
+else
+  log "${YELLOW}curl not available, skipping speed test${NC}"
+fi

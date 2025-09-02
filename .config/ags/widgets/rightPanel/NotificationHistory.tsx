@@ -2,6 +2,7 @@ import { Gtk } from "astal/gtk3";
 import Notifd from "gi://AstalNotifd";
 import Notification from "./components/Notification";
 import { bind, Variable } from "astal";
+import CustomRevealer from "../CustomRevealer";
 
 interface Filter {
   name: string;
@@ -18,7 +19,7 @@ export default () => {
   ];
 
   const Filter = (
-    <box className="filter" hexpand={false}>
+    <box className="filter">
       {Filters.map((filter) => (
         <button
           label={filter.name}
@@ -92,7 +93,8 @@ export default () => {
     <scrollable
       hscroll={Gtk.PolicyType.NEVER}
       vexpand={true}
-      child={NotificationHistory}></scrollable>
+      child={NotificationHistory}
+    ></scrollable>
   );
 
   const ClearNotifications = (
@@ -109,9 +111,8 @@ export default () => {
 
   return (
     <box className="notification-history" vertical={true} spacing={5}>
-      {Filter}
+      <CustomRevealer trigger={Filter} child={ClearNotifications} />s
       {NotificationsDisplay}
-      {ClearNotifications}
     </box>
   );
 };
