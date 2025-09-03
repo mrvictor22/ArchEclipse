@@ -111,7 +111,7 @@ export default () => {
 
   return (
     <box className="notification-history" vertical={true} spacing={5}>
-      <CustomRevealer trigger={Filter} child={ClearNotifications} />s
+      <CustomRevealer trigger={Filter} child={ClearNotifications} />
       {NotificationsDisplay}
     </box>
   );

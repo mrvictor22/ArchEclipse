@@ -2,6 +2,8 @@ import { exec, execAsync } from "astal"
 import { notify } from "./notification"
 import { Waifu } from "../interfaces/waifu.interface";
 
+import GdkPixbuf from "gi://GdkPixbuf";
+
 const terminalWaifuPath = `$HOME/.config/fastfetch/assets/logo.webp`;
 
 export function getDominantColor(imagePath: string)
@@ -29,3 +31,12 @@ export const PinImageToTerminal = (image: Waifu) =>
         )
         .catch((err) => notify({ summary: "Error", body: err }));
 };
+
+export function getImageRatio(path: string): number | null {
+  try {
+    const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path);
+    return pixbuf.get_height() / pixbuf.get_width();
+  } catch {
+    return null;
+  }
+}

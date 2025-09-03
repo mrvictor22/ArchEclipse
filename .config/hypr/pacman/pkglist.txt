@@ -135,3 +135,6 @@ cmake
 meson
 cpio
 pkg-config
+git
+g++
+gcc
