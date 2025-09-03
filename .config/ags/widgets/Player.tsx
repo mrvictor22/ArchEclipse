@@ -1,5 +1,5 @@
 import AstalMpris from "gi://AstalMpris?version=0.1";
-import { getDominantColor } from "../utils/image";
+import { getDominantColor, getImageRatio } from "../utils/image";
 import { Gtk } from "astal/gtk3";
 import { rightPanelWidth } from "../variables";
 import { bind } from "astal";
@@ -39,7 +39,6 @@ export default ({
             css={bind(player, "coverArt").as(
               (p) => `
                     background-image: url('${p}');
-                    box-shadow: 0 0 5px 0 ${getDominantColor(p)};
                 `
             )}
           />
@@ -160,14 +159,20 @@ export default ({
     <box
       className={`player ${playerType}`}
       vexpand={false}
-      css={bind(player, "coverArt").as((p) =>
-        playerType == "widget"
-          ? `
-              min-height:${rightPanelWidth.get() - 20}px;
-              background-image: url('${p}');
-              `
-          : ``
-      )}
+      css={bind(player, "coverArt").as((p) => {
+        if (!p) return "";
+
+        const ratio = getImageRatio(p) || 1; // default to square
+        const width = rightPanelWidth.get();
+        const height = width * ratio;
+
+        return `
+    min-height: ${height}px;
+    background-image: url('${p}');
+    background-size: cover;
+    background-position: center;
+  `;
+      })}
     >
       {img()}
       <box vertical={true} hexpand={true}>
