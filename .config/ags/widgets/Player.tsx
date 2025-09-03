@@ -159,23 +159,24 @@ export default ({
     <box
       className={`player ${playerType}`}
       vexpand={false}
-      css={bind(player, "coverArt").as((p) => {
-        if (!p) return "";
+      setup={(self) => {
+        if (playerType == "popup") {
+          self.css = "";
+        } else {
+          bind(player, "coverArt").as((p) => {
+            if (!p) return "";
 
-        const ratio = getImageRatio(p) || 1; // default to square
-        const width = rightPanelWidth.get();
-        const height = width * ratio;
+            const ratio = getImageRatio(p) || 1; // default to square
+            const width = rightPanelWidth.get();
+            const height = width * ratio;
 
-        return `
+            self.css = `
     min-height: ${height}px;
     background-image: url('${p}');
     background-size: cover;
     background-position: center;
   `;
-      })}
-      setup={(self) => {
-        if (playerType == "popup") {
-          self.css = "";
+          });
         }
       }}
     >
