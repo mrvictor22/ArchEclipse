@@ -1,17 +1,10 @@
 import { Gtk } from "astal/gtk3";
-import {
-  focusedWorkspace,
-  globalTransition,
-  leftPanelLock,
-  leftPanelVisibility,
-  newAppWorkspace,
-} from "../../../variables";
+import { focusedWorkspace } from "../../../variables";
 
 import hyprland from "gi://AstalHyprland";
 import { bind, Variable } from "astal";
 import ToggleButton from "../../toggleButton";
 import { hideWindow, showWindow } from "../../../utils/window";
-import { LeftPanelVisibility } from "../../leftPanel/LeftPanel";
 const Hyprland = hyprland.get_default();
 
 // workspaces icons
@@ -93,7 +86,8 @@ function Workspaces() {
             <box
               className={`workspace-group ${
                 currentGroupIsActive ? "active" : "inactive"
-              }`}>
+              }`}
+            >
               {currentGroup}
             </box>
           );

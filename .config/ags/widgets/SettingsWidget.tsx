@@ -1,6 +1,7 @@
 import { App, Astal, Gdk, Gtk, Widget } from "astal/gtk3";
 import hyprland from "gi://AstalHyprland";
 import {
+  autoWorkspaceSwitching,
   barLayout,
   globalFontSize,
   globalIconSize,
@@ -342,6 +343,10 @@ const Settings = () => {
           <box className={"category"} vertical={true} spacing={5}>
             <label label="Hyprland" halign={Gtk.Align.START} />
             {hyprlandSettings}
+          </box>
+          <box className={"category"} vertical={true} spacing={5}>
+            <label label="Custom" halign={Gtk.Align.START} />
+            {agsSetting(autoWorkspaceSwitching)}
           </box>
         </box>
       }
