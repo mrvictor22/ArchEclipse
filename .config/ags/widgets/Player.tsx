@@ -173,6 +173,11 @@ export default ({
     background-position: center;
   `;
       })}
+      setup={(self) => {
+        if (playerType == "popup") {
+          self.css = "";
+        }
+      }}
     >
       {img()}
       <box vertical={true} hexpand={true}>
