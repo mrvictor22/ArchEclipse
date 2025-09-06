@@ -4,6 +4,7 @@ import { autoWorkspaceSwitching, focusedWorkspace } from "../variables";
 const Hyprland = hyprland.get_default();
 
 const GAMING_WORKSPACE = 10;
+let hasSwitchedToGaming = false; // <-- track if we've already switched
 
 Hyprland.connect("notify::clients", () => {
   const clients = Hyprland.clients;
@@ -12,11 +13,20 @@ Hyprland.connect("notify::clients", () => {
     (c) => c.workspace?.id === GAMING_WORKSPACE
   );
 
+  const current = focusedWorkspace.get().id;
+
   if (
     autoWorkspaceSwitching.get().value &&
     hasGamingWindow &&
-    focusedWorkspace.get().id !== GAMING_WORKSPACE
+    !hasSwitchedToGaming && // only if we haven't switched before
+    current !== GAMING_WORKSPACE
   ) {
     Hyprland.message_async(`dispatch workspace ${GAMING_WORKSPACE}`, () => {});
+    hasSwitchedToGaming = true; // mark as switched
+  }
+
+  // reset if workspace 10 becomes empty
+  if (!hasGamingWindow) {
+    hasSwitchedToGaming = false;
   }
 });

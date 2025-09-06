@@ -1,4 +1,6 @@
 custom/*
 !custom/.gitkeep
 
+lockscreen/*
+
 defaults
