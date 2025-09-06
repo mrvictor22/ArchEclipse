@@ -31,6 +31,7 @@ This branch adds comprehensive multi-monitor support to the ArchEclipse Hyprland
 - `Super + Ctrl + Shift + M`: Auto-configure monitors
 - `Super + Alt + Shift + M`: Redistribute workspaces across monitors
 - `Super + Shift + F12`: Show current monitor status
+- `Super + Shift + B`: Restart AGS bars for multi-monitor fixes
 
 #### Workspace Movement
 - `Super + Alt + →/←` or `Super + Alt + n/h`: Move current workspace to next/previous monitor
@@ -53,10 +54,12 @@ This branch adds comprehensive multi-monitor support to the ArchEclipse Hyprland
 - `scripts/multi-monitor-manager.sh`: Main multi-monitor management script
 - `scripts/lid-handler.sh`: Handles lid events automatically
 - `scripts/monitor-setup.sh`: Quick setup script for common scenarios
+- `scripts/monitor-hotplug.sh`: Automatic monitor hotplug detection and AGS restart
 
 ### New Configuration Files
 - `configs/multi-monitor-keybinds.conf`: All multi-monitor keybindings
 - `.config/systemd/user/hyprland-lid-handler.service`: Systemd service for lid events
+- `.config/systemd/user/hyprland-monitor-hotplug.service`: Systemd service for monitor hotplug detection
 
 ### Modified Files
 - `hyprland.conf`: Added multi-monitor configuration source
@@ -178,6 +181,7 @@ Your current setup:
 | Focus Monitor | `Super + Ctrl + Alt + →/←` | Switch focus between monitors |
 | Toggle Internal | `Super + Shift + I` | Enable/disable laptop screen |
 | Mirror Mode | `Super + Shift + P` | Enable presentation mirror mode |
+| Restart AGS | `Super + Shift + B` | Restart AGS bars for multi-monitor |
 | Status | `Super + Shift + F12` | Show current monitor configuration |
 
 ## 🔄 Automatic Features
@@ -185,4 +189,5 @@ Your current setup:
 - **Startup**: Monitors are auto-configured when Hyprland starts
 - **Lid Events**: Automatically handled via systemd service
 - **Hot Plugging**: Monitors are reconfigured when connected/disconnected
+- **AGS Bar Management**: Automatically restarts AGS when monitor configuration changes
 - **Workspace Management**: Workspaces automatically redistribute when monitor configuration changes
