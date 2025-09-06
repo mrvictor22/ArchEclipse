@@ -118,6 +118,22 @@ EOF
     fi
 }
 
+# Restart AGS to apply multi-monitor configuration
+restart_ags() {
+    log "Restarting AGS for multi-monitor support..."
+    
+    # Kill existing AGS instances more safely
+    pkill -x "ags" 2>/dev/null || true
+    
+    # Wait a moment for cleanup
+    sleep 1
+    
+    # Restart AGS
+    ags run --log-file /tmp/ags.log &
+    
+    log "AGS restarted successfully"
+}
+
 # Generate monitor configuration based on detected setup
 generate_monitor_config() {
     local device_type=$(detect_device_type)
@@ -186,6 +202,9 @@ generate_monitor_config() {
     echo -e "$config_content" > "$MONITORS_CONFIG"
     
     log "Monitor configuration generated and saved to $MONITORS_CONFIG"
+    
+    # Restart AGS to apply multi-monitor bars
+    restart_ags
 }
 
 # Handle lid events for laptops
@@ -220,6 +239,9 @@ handle_lid_event() {
             
             # Focus the external monitor
             hyprctl dispatch focusmonitor "$primary_external"
+            
+            # Restart AGS to update bars
+            restart_ags
         fi
         
     elif ! is_lid_closed; then
@@ -230,6 +252,9 @@ handle_lid_event() {
         
         # Optionally redistribute workspaces
         redistribute_workspaces
+        
+        # Restart AGS to update bars
+        restart_ags
     fi
 }
 
@@ -259,6 +284,9 @@ redistribute_workspaces() {
         hyprctl dispatch moveworkspacetomonitor "$workspace" "${monitors[$monitor_index]}"
         workspace_count=$((workspace_count + 1))
     done
+    
+    # Restart AGS after workspace redistribution
+    restart_ags
 }
 
 # Interactive monitor configuration

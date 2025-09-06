@@ -12,7 +12,9 @@
 - Enhanced keybinds for moving workspaces between monitors
 - `lid-handler.sh` script for automatic lid events
 - `monitor-setup.sh` script for common quick configurations
+- `monitor-hotplug.sh` script for automatic monitor hotplug detection
 - systemd service `hyprland-lid-handler.service` for automatic event handling
+- systemd service `hyprland-monitor-hotplug.service` for monitor hotplug detection
 - `multi-monitor-keybinds.conf` configuration file with specialized keybinds
 - Complete documentation in `README-MultiMonitor.md`
 
@@ -26,6 +28,10 @@
 
 - Fixed keybind syntax errors in multi-monitor configuration
 - Corrected dispatcher commands for window and workspace movement
+- Fixed AGS bar not appearing on external monitors
+- Fixed pkill command to avoid killing other applications (like Windsurf)
+- Added automatic AGS restart when monitor configuration changes
+- Added automatic monitor hotplug detection for seamless AGS bar management
 
 ### Features
 
