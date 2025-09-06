@@ -73,4 +73,8 @@
   .client-title {
     @extend .module;
   }
+
+  .weather {
+    @extend .module;
+  }
 }

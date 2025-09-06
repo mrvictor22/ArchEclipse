@@ -338,13 +338,11 @@ function Clock() {
     />
   );
 }
-
 function Bandwidth() {
   const bandwidth = Variable<number[]>([0, 0, 0, 0]).poll(
     BANDWIDTH_POLL_MS,
     ["./assets/binaries/bandwidth"],
     (out) => {
-      // parse once, return compact array
       try {
         const parsed = JSON.parse(out);
         return [parsed[0], parsed[1], parsed[2], parsed[3]];
@@ -354,7 +352,6 @@ function Bandwidth() {
     }
   );
 
-  // Format bytes -> human readable with reduced precision (less CPU)
   function formatKiloBytes(kb: number): string {
     const units = ["KB", "MB", "GB", "TB"];
     let idx = 0;
@@ -363,34 +360,66 @@ function Bandwidth() {
       val /= 1024;
       idx++;
     }
-    // reduce to 1 decimal place for less string work
     return `${val.toFixed(1)} ${units[idx]}`;
   }
 
-  const totalBandwidth = (
-    <label
-      className={"bandwidth-total"}
-      onDestroy={() => bandwidth.drop()}
-      label={bind(bandwidth).as(
-        (bw) => `${formatKiloBytes(bw[2])} | ${formatKiloBytes(bw[3])}`
-      )}
+  const uploadRevealer = (
+    <revealer
+      revealChild={false}
+      transitionDuration={globalTransition}
+      transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
+      child={
+        <label
+          label={bind(bandwidth).as((bw) => `[${formatKiloBytes(bw[2])}]`)}
+        />
+      }
+    />
+  );
+
+  const downloadRevealer = (
+    <revealer
+      revealChild={false}
+      transitionDuration={globalTransition}
+      transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
+      child={
+        <label
+          label={bind(bandwidth).as((bw) => `[${formatKiloBytes(bw[3])}]`)}
+        />
+      }
     />
   );
 
   const trigger = (
-    <label
-      className="packet"
-      label={bind(bandwidth).as((bw) => ` ↑ ${bw[0]} ↓ ${bw[1]} `)}
+    <box className="bandwidth" spacing={3}>
+      <label
+        className="packet upload"
+        label={bind(bandwidth).as((bw) => ` ${bw[0]}`)}
+      />
+      {uploadRevealer}
+      <label className="separator" label={"-"} />
+      <label
+        className="packet download"
+        label={bind(bandwidth).as((bw) => ` ${bw[1]}`)}
+      />
+      {downloadRevealer}
+    </box>
+  );
+
+  const parent = (
+    <eventbox
+      onHover={() => {
+        uploadRevealer.reveal_child = true;
+        downloadRevealer.reveal_child = true;
+      }}
+      onHoverLost={() => {
+        uploadRevealer.reveal_child = false;
+        downloadRevealer.reveal_child = false;
+      }}
+      child={trigger}
     />
   );
 
-  return (
-    <CustomRevealer
-      trigger={trigger}
-      child={totalBandwidth}
-      custom_class="bandwidth"
-    />
-  );
+  return parent;
 }
 
 function ClientTitle() {
@@ -414,6 +443,46 @@ function ClientTitle() {
     />
   );
 }
+function Weather() {
+  // Poll every 10 minutes (600,000 ms)
+  const weather = Variable<{ temp: number; wind: number } | null>(null).poll(
+    600000,
+    [
+      "curl",
+      "-s",
+      "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m",
+    ],
+    (out) => {
+      try {
+        const parsed = JSON.parse(out);
+        return {
+          temp: parsed.current.temperature_2m,
+          wind: parsed.current.wind_speed_10m,
+        };
+      } catch (e) {
+        return null;
+      }
+    }
+  );
+
+  const label = (
+    <label
+      className="weather"
+      truncate={true}
+      onDestroy={() => weather.drop()}
+      label={bind(weather).as((w) =>
+        w ? `  ${w.temp} -   ${w.wind} km/h` : "Weather N/A"
+      )}
+    />
+  );
+
+  return (
+    <eventbox
+      onClick={() => exec("xdg-open 'https://open-meteo.com/'")}
+      child={label}
+    />
+  );
+}
 
 export default ({
   monitorName,
@@ -427,6 +496,7 @@ export default ({
       <AudioVisualizer />
       <Media monitorName={monitorName} />
       <Clock />
+      <Weather />
       <Bandwidth />
       <ClientTitle />
     </box>
