@@ -55,6 +55,7 @@ This branch adds comprehensive multi-monitor support to the ArchEclipse Hyprland
 - `scripts/lid-handler.sh`: Handles lid events automatically
 - `scripts/monitor-setup.sh`: Quick setup script for common scenarios
 - `scripts/monitor-hotplug.sh`: Automatic monitor hotplug detection and AGS restart
+- `scripts/move-window-monitor.sh`: Dynamic window movement between monitors
 
 ### New Configuration Files
 - `configs/multi-monitor-keybinds.conf`: All multi-monitor keybindings
@@ -176,8 +177,8 @@ Your current setup:
 |--------|------------|-------------|
 | Open Manager | `Super + Shift + M` | Interactive multi-monitor manager |
 | Auto Configure | `Super + Ctrl + Shift + M` | Auto-detect and configure monitors |
-| Move Workspace | `Super + Alt + →/←` | Move current workspace between monitors |
-| Move Window | `Super + Shift + Alt + →/←` | Move active window between monitors |
+| Move Window Right | `Super + Ctrl + Shift + →` | Move active window to next monitor |
+| Move Window Left | `Super + Ctrl + Shift + ←` | Move active window to previous monitor |
 | Focus Monitor | `Super + Ctrl + Alt + →/←` | Switch focus between monitors |
 | Toggle Internal | `Super + Shift + I` | Enable/disable laptop screen |
 | Mirror Mode | `Super + Shift + P` | Enable presentation mirror mode |

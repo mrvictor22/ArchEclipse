@@ -13,6 +13,7 @@
 - `lid-handler.sh` script for automatic lid events
 - `monitor-setup.sh` script for common quick configurations
 - `monitor-hotplug.sh` script for automatic monitor hotplug detection
+- `move-window-monitor.sh` script for dynamic window movement between monitors
 - systemd service `hyprland-lid-handler.service` for automatic event handling
 - systemd service `hyprland-monitor-hotplug.service` for monitor hotplug detection
 - `multi-monitor-keybinds.conf` configuration file with specialized keybinds
@@ -32,6 +33,7 @@
 - Fixed pkill command to avoid killing other applications (like Windsurf)
 - Added automatic AGS restart when monitor configuration changes
 - Added automatic monitor hotplug detection for seamless AGS bar management
+- Fixed window movement keybinds to work dynamically with any monitor configuration
 
 ### Features
 
