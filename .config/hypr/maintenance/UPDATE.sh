@@ -14,8 +14,20 @@ else
 fi
 
 git checkout $BRANCH
-git fetch origin $BRANCH
-git reset --hard origin/$BRANCH
+git fetch upstream $BRANCH
+git reset --hard upstream/$BRANCH
+
+# Kill any hanging pacman processes and clean lock file
+echo "Cleaning up any hanging pacman processes..."
+sudo pkill -f pacman 2>/dev/null || true
+sudo pkill -f yay 2>/dev/null || true
+sudo pkill -f paru 2>/dev/null || true
+
+# Remove pacman lock file if it exists
+if [ -f /var/lib/pacman/db.lck ]; then
+    echo "Removing pacman lock file..."
+    sudo rm -f /var/lib/pacman/db.lck
+fi
 
 aur_helpers=("yay" "paru")
 
