@@ -1,0 +1,12 @@
+Backup creado: Thu Sep 11 10:05:22 AM CST 2025
+Rama actual: master
+Último commit: dda2de6 Add weather component and enhance workspace switching logic; update .gitignore for lockscreens
+Directorio original: /home/alphonse/.config/hypr
+
+Para restaurar este backup:
+1. Copia los archivos de vuelta a sus ubicaciones originales
+2. O aplica el diff: git apply multi-monitor-changes.diff
+
+Archivos incluidos en este backup:
+configs/general.conf
+configs/keybinds.conf

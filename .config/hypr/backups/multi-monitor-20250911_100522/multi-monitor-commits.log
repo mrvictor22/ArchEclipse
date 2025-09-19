@@ -1,0 +1,4 @@
+5ea9a2e Add modded monitor config
+6fc3535 fix: resolve keybind conflicts for window movement between monitors
+89eea9e fix: add automatic monitor hotplug detection for AGS multi-monitor support
+2028f0f feat: add comprehensive multi-monitor support with intelligent laptop handling

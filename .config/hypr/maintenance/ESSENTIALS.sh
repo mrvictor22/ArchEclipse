@@ -200,13 +200,15 @@ continue_prompt() {
     BOLD="\e[1m"
     RESET="\e[0m"
 
+    echo ""
+    echo -e "${CYAN}${BOLD}$1${RESET} ${GREEN}[Y]${RESET}/${RED}[N]${RESET}"
     while true; do
-        echo -e "${CYAN}${BOLD}$1${RESET} ${GREEN}[Y]${RESET}/${RED}[N]${RESET}: "
-        read -p "" choice
+        read -p "Enter your choice: " choice
         case "$choice" in
         [Yy]*)
             echo -e "${GREEN}Great! Continuing...${RESET}"
-            $2
+            echo "Executing: $2"
+            eval "$2"
             return 0
             ;;
         [Nn]*)

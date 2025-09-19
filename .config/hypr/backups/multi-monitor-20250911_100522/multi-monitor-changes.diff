@@ -1,0 +1,1454 @@
+diff --git a/.config/ags/scss/bar/information.scss b/.config/ags/scss/bar/information.scss
+index 7415b36..7695a70 100755
+--- a/.config/ags/scss/bar/information.scss
++++ b/.config/ags/scss/bar/information.scss
+@@ -73,8 +73,4 @@
+   .client-title {
+     @extend .module;
+   }
+-
+-  .weather {
+-    @extend .module;
+-  }
+ }
+diff --git a/.config/ags/services/autoSwitchWorkspace.ts b/.config/ags/services/autoSwitchWorkspace.ts
+old mode 100755
+new mode 100644
+index ab52058..fe163e9
+--- a/.config/ags/services/autoSwitchWorkspace.ts
++++ b/.config/ags/services/autoSwitchWorkspace.ts
+@@ -4,7 +4,6 @@ import { autoWorkspaceSwitching, focusedWorkspace } from "../variables";
+ const Hyprland = hyprland.get_default();
+ 
+ const GAMING_WORKSPACE = 10;
+-let hasSwitchedToGaming = false; // <-- track if we've already switched
+ 
+ Hyprland.connect("notify::clients", () => {
+   const clients = Hyprland.clients;
+@@ -13,20 +12,11 @@ Hyprland.connect("notify::clients", () => {
+     (c) => c.workspace?.id === GAMING_WORKSPACE
+   );
+ 
+-  const current = focusedWorkspace.get().id;
+-
+   if (
+     autoWorkspaceSwitching.get().value &&
+     hasGamingWindow &&
+-    !hasSwitchedToGaming && // only if we haven't switched before
+-    current !== GAMING_WORKSPACE
++    focusedWorkspace.get().id !== GAMING_WORKSPACE
+   ) {
+     Hyprland.message_async(`dispatch workspace ${GAMING_WORKSPACE}`, () => {});
+-    hasSwitchedToGaming = true; // mark as switched
+-  }
+-
+-  // reset if workspace 10 becomes empty
+-  if (!hasGamingWindow) {
+-    hasSwitchedToGaming = false;
+   }
+ });
+diff --git a/.config/ags/widgets/bar/components/Information.tsx b/.config/ags/widgets/bar/components/Information.tsx
+index 975b214..8449b8f 100755
+--- a/.config/ags/widgets/bar/components/Information.tsx
++++ b/.config/ags/widgets/bar/components/Information.tsx
+@@ -338,11 +338,13 @@ function Clock() {
+     />
+   );
+ }
++
+ function Bandwidth() {
+   const bandwidth = Variable<number[]>([0, 0, 0, 0]).poll(
+     BANDWIDTH_POLL_MS,
+     ["./assets/binaries/bandwidth"],
+     (out) => {
++      // parse once, return compact array
+       try {
+         const parsed = JSON.parse(out);
+         return [parsed[0], parsed[1], parsed[2], parsed[3]];
+@@ -352,6 +354,7 @@ function Bandwidth() {
+     }
+   );
+ 
++  // Format bytes -> human readable with reduced precision (less CPU)
+   function formatKiloBytes(kb: number): string {
+     const units = ["KB", "MB", "GB", "TB"];
+     let idx = 0;
+@@ -360,66 +363,34 @@ function Bandwidth() {
+       val /= 1024;
+       idx++;
+     }
++    // reduce to 1 decimal place for less string work
+     return `${val.toFixed(1)} ${units[idx]}`;
+   }
+ 
+-  const uploadRevealer = (
+-    <revealer
+-      revealChild={false}
+-      transitionDuration={globalTransition}
+-      transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
+-      child={
+-        <label
+-          label={bind(bandwidth).as((bw) => `[${formatKiloBytes(bw[2])}]`)}
+-        />
+-      }
+-    />
+-  );
+-
+-  const downloadRevealer = (
+-    <revealer
+-      revealChild={false}
+-      transitionDuration={globalTransition}
+-      transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
+-      child={
+-        <label
+-          label={bind(bandwidth).as((bw) => `[${formatKiloBytes(bw[3])}]`)}
+-        />
+-      }
++  const totalBandwidth = (
++    <label
++      className={"bandwidth-total"}
++      onDestroy={() => bandwidth.drop()}
++      label={bind(bandwidth).as(
++        (bw) => `${formatKiloBytes(bw[2])} | ${formatKiloBytes(bw[3])}`
++      )}
+     />
+   );
+ 
+   const trigger = (
+-    <box className="bandwidth" spacing={3}>
+-      <label
+-        className="packet upload"
+-        label={bind(bandwidth).as((bw) => ` ${bw[0]}`)}
+-      />
+-      {uploadRevealer}
+-      <label className="separator" label={"-"} />
+-      <label
+-        className="packet download"
+-        label={bind(bandwidth).as((bw) => ` ${bw[1]}`)}
+-      />
+-      {downloadRevealer}
+-    </box>
++    <label
++      className="packet"
++      label={bind(bandwidth).as((bw) => ` ↑ ${bw[0]} ↓ ${bw[1]} `)}
++    />
+   );
+ 
+-  const parent = (
+-    <eventbox
+-      onHover={() => {
+-        uploadRevealer.reveal_child = true;
+-        downloadRevealer.reveal_child = true;
+-      }}
+-      onHoverLost={() => {
+-        uploadRevealer.reveal_child = false;
+-        downloadRevealer.reveal_child = false;
+-      }}
+-      child={trigger}
++  return (
++    <CustomRevealer
++      trigger={trigger}
++      child={totalBandwidth}
++      custom_class="bandwidth"
+     />
+   );
+-
+-  return parent;
+ }
+ 
+ function ClientTitle() {
+@@ -443,46 +414,6 @@ function ClientTitle() {
+     />
+   );
+ }
+-function Weather() {
+-  // Poll every 10 minutes (600,000 ms)
+-  const weather = Variable<{ temp: number; wind: number } | null>(null).poll(
+-    600000,
+-    [
+-      "curl",
+-      "-s",
+-      "https://api.open-meteo.com/v1/forecast?latitude=52.52&longitude=13.41&current=temperature_2m,wind_speed_10m&hourly=temperature_2m,relative_humidity_2m,wind_speed_10m",
+-    ],
+-    (out) => {
+-      try {
+-        const parsed = JSON.parse(out);
+-        return {
+-          temp: parsed.current.temperature_2m,
+-          wind: parsed.current.wind_speed_10m,
+-        };
+-      } catch (e) {
+-        return null;
+-      }
+-    }
+-  );
+-
+-  const label = (
+-    <label
+-      className="weather"
+-      truncate={true}
+-      onDestroy={() => weather.drop()}
+-      label={bind(weather).as((w) =>
+-        w ? `  ${w.temp} -   ${w.wind} km/h` : "Weather N/A"
+-      )}
+-    />
+-  );
+-
+-  return (
+-    <eventbox
+-      onClick={() => exec("xdg-open 'https://open-meteo.com/'")}
+-      child={label}
+-    />
+-  );
+-}
+ 
+ export default ({
+   monitorName,
+@@ -496,7 +427,6 @@ export default ({
+       <AudioVisualizer />
+       <Media monitorName={monitorName} />
+       <Clock />
+-      <Weather />
+       <Bandwidth />
+       <ClientTitle />
+     </box>
+diff --git a/.config/hypr/CHANGELOG.md b/.config/hypr/CHANGELOG.md
+new file mode 100644
+index 0000000..9482164
+--- /dev/null
++++ b/.config/hypr/CHANGELOG.md
+@@ -0,0 +1,64 @@
++# Changelog
++
++## [Unreleased]
++
++### Added
++
++- Comprehensive multi-monitor support with automatic device detection
++- `multi-monitor-manager.sh` script for intelligent monitor management
++- Automatic device type detection (laptop/desktop)
++- Intelligent lid event handling for laptops
++- Automatic resolution configuration for secondary monitors
++- Enhanced keybinds for moving workspaces between monitors
++- `lid-handler.sh` script for automatic lid events
++- `monitor-setup.sh` script for common quick configurations
++- `monitor-hotplug.sh` script for automatic monitor hotplug detection
++- `move-window-monitor.sh` script for dynamic window movement between monitors
++- systemd service `hyprland-lid-handler.service` for automatic event handling
++- systemd service `hyprland-monitor-hotplug.service` for monitor hotplug detection
++- `multi-monitor-keybinds.conf` configuration file with specialized keybinds
++- Complete documentation in `README-MultiMonitor.md`
++
++### Changed
++
++- Updated `hyprland.conf` to include multi-monitor configuration
++- Modified `configs/exec.conf` for startup auto-configuration
++- Enhanced `configs/monitors.conf` with automatic generation
++
++### Fixed
++
++- Fixed keybind syntax errors in multi-monitor configuration
++- Corrected dispatcher commands for window and workspace movement
++- Fixed AGS bar not appearing on external monitors
++- Fixed pkill command to avoid killing other applications (like Windsurf)
++- Added automatic AGS restart when monitor configuration changes
++- Added automatic monitor hotplug detection for seamless AGS bar management
++- Fixed window movement keybinds to work dynamically with any monitor configuration
++
++### Features
++
++- **Automatic Detection**: Identifies laptops vs desktops automatically
++- **Smart Lid Management**: When lid closes with AC power and external monitor connected:
++  - Disables internal monitor
++  - Moves all workspaces to external monitor
++  - Prevents system suspension
++- **Workspace Redistribution**: Automatically distributes workspaces across monitors
++- **Resolution Configuration**: Easy interface for configuring secondary monitor resolutions
++- **Advanced Keybinds**: 
++  - `Super + Alt + →/←`: Move current workspace between monitors
++  - `Super + Shift + Alt + →/←`: Move active window between monitors
++  - `Super + Ctrl + Alt + →/←`: Focus between monitors
++  - `Super + Shift + M`: Open interactive multi-monitor manager
++  - `Super + Shift + P`: Mirror mode for presentations
++  - `Super + Shift + I`: Toggle internal monitor
++
++## [2025-09-06]
++
++### Added
++
++- Initial implementation of multi-monitor support for ArchEclipse Rice
++- Complete system for automatic monitor detection and configuration
++- Intelligent laptop event handling (lid close/open)
++- Management and automated configuration scripts
++- Specialized keybindings for multi-monitor workflows
++- Complete system documentation
+diff --git a/.config/hypr/README-MultiMonitor.md b/.config/hypr/README-MultiMonitor.md
+new file mode 100644
+index 0000000..ccfc36e
+--- /dev/null
++++ b/.config/hypr/README-MultiMonitor.md
+@@ -0,0 +1,194 @@
++# Multi-Monitor Support for ArchEclipse Hyprland Rice
++
++## 🖥️ Overview
++
++This branch adds comprehensive multi-monitor support to the ArchEclipse Hyprland configuration, featuring:
++
++- **Automatic device detection** (laptop vs desktop)
++- **Intelligent lid handling** for laptops with external monitors
++- **Dynamic workspace management** across monitors
++- **Easy resolution configuration** for secondary monitors
++- **Enhanced keybindings** for multi-monitor workflows
++
++## 🚀 Features
++
++### 🔍 Automatic Detection
++- Detects if you're using a laptop or desktop
++- Automatically configures monitors on startup
++- Handles AC power and lid state detection
++
++### 💻 Laptop-Specific Features
++- **Smart lid behavior**: When lid is closed with AC power and external monitor connected:
++  - Internal monitor is disabled
++  - All workspaces move to external monitor
++  - System doesn't suspend
++- **Automatic re-enabling** when lid is opened
++
++### ⌨️ Enhanced Keybindings
++
++#### Monitor Management
++- `Super + Shift + M`: Open multi-monitor manager (interactive)
++- `Super + Ctrl + Shift + M`: Auto-configure monitors
++- `Super + Alt + Shift + M`: Redistribute workspaces across monitors
++- `Super + Shift + F12`: Show current monitor status
++- `Super + Shift + B`: Restart AGS bars for multi-monitor fixes
++
++#### Workspace Movement
++- `Super + Alt + →/←` or `Super + Alt + n/h`: Move current workspace to next/previous monitor
++- `Super + Shift + Alt + →/←` or `Super + Shift + Alt + n/h`: Move active window to next/previous monitor
++- `Super + Ctrl + Alt + →/←` or `Super + Ctrl + Alt + n/h`: Focus next/previous monitor
++
++#### Quick Monitor Setups
++- `Super + Shift + I`: Toggle internal monitor on/off
++- `Super + Shift + E`: Auto-detect and setup external monitors
++- `Super + Shift + P`: Mirror mode (presentation)
++- `Super + Shift + X`: Extend mode (default multi-monitor)
++
++#### Advanced Workspace Management
++- `Super + Ctrl + Shift + S`: Swap workspaces between monitors
++- `Super + grave`: Quick switch between monitors with workspace focus
++
++## 📁 Files Added/Modified
++
++### New Scripts
++- `scripts/multi-monitor-manager.sh`: Main multi-monitor management script
++- `scripts/lid-handler.sh`: Handles lid events automatically
++- `scripts/monitor-setup.sh`: Quick setup script for common scenarios
++- `scripts/monitor-hotplug.sh`: Automatic monitor hotplug detection and AGS restart
++- `scripts/move-window-monitor.sh`: Dynamic window movement between monitors
++
++### New Configuration Files
++- `configs/multi-monitor-keybinds.conf`: All multi-monitor keybindings
++- `.config/systemd/user/hyprland-lid-handler.service`: Systemd service for lid events
++- `.config/systemd/user/hyprland-monitor-hotplug.service`: Systemd service for monitor hotplug detection
++
++### Modified Files
++- `hyprland.conf`: Added multi-monitor configuration source
++- `configs/exec.conf`: Added auto-configuration on startup
++- `configs/monitors.conf`: Auto-generated monitor configuration
++
++## 🛠️ Usage
++
++### Interactive Configuration
++```bash
++# Run the interactive multi-monitor manager
++~/.config/hypr/scripts/multi-monitor-manager.sh
++```
++
++### Quick Setups
++```bash
++# Auto-configure all monitors
++~/.config/hypr/scripts/monitor-setup.sh auto
++
++# Laptop screen only
++~/.config/hypr/scripts/monitor-setup.sh laptop-only
++
++# External monitor only
++~/.config/hypr/scripts/monitor-setup.sh external-only
++
++# Dual monitor extended
++~/.config/hypr/scripts/monitor-setup.sh dual-extend
++
++# Mirror mode for presentations
++~/.config/hypr/scripts/monitor-setup.sh dual-mirror
++```
++
++### Command Line Options
++```bash
++# Show current status
++./multi-monitor-manager.sh status
++
++# Auto-configure monitors
++./multi-monitor-manager.sh auto
++
++# Handle lid event (used by systemd service)
++./multi-monitor-manager.sh lid
++
++# Setup lid behavior and auto-configure
++./multi-monitor-manager.sh setup
++
++# Redistribute workspaces
++./multi-monitor-manager.sh redistribute
++```
++
++## 🔧 Configuration
++
++### Monitor Resolution Configuration
++The system automatically detects available resolutions. For manual configuration:
++
++1. Use the interactive manager: `Super + Shift + M`
++2. Select option 2 for specific monitor configuration
++3. Choose your monitor and desired resolution
++
++### Lid Behavior Customization
++The lid handler is configured to:
++- Ignore lid events when external monitor is connected and AC power is available
++- Move all workspaces to external monitor when lid closes
++- Re-enable internal monitor when lid opens
++
++### Workspace Distribution
++By default, workspaces are distributed as:
++- Workspaces 1-5: Internal monitor (laptop) or primary monitor (desktop)
++- Workspaces 6-10: External monitor
++
++## 🐛 Troubleshooting
++
++### Lid Events Not Working
++1. Check if the systemd service is running:
++   ```bash
++   systemctl --user status hyprland-lid-handler.service
++   ```
++
++2. Enable the service if not running:
++   ```bash
++   systemctl --user enable --now hyprland-lid-handler.service
++   ```
++
++### Monitor Not Detected
++1. Check available monitors:
++   ```bash
++   hyprctl monitors
++   ```
++
++2. Run auto-configuration:
++   ```bash
++   ~/.config/hypr/scripts/multi-monitor-manager.sh auto
++   ```
++
++### Resolution Issues
++1. Check available modes for your monitor:
++   ```bash
++   hyprctl monitors -j | jq '.[].availableModes'
++   ```
++
++2. Use the interactive configuration to set specific resolution
++
++## 📊 Current Setup Detection
++
++Your current setup:
++- **Device Type**: Laptop (Lenovo with eDP-1 internal display)
++- **Internal Monitor**: eDP-1 (1920x1200@60Hz)
++- **External Monitor**: HDMI-A-1 (ASUS VG27AQ1A, 3840x2160@60Hz)
++- **Configuration**: Dual monitor extended mode
++
++## 🎯 Keybinding Quick Reference
++
++| Action | Keybinding | Description |
++|--------|------------|-------------|
++| Open Manager | `Super + Shift + M` | Interactive multi-monitor manager |
++| Auto Configure | `Super + Ctrl + Shift + M` | Auto-detect and configure monitors |
++| Move Window Right | `Super + Ctrl + Shift + →` | Move active window to next monitor |
++| Move Window Left | `Super + Ctrl + Shift + ←` | Move active window to previous monitor |
++| Focus Monitor | `Super + Ctrl + Alt + →/←` | Switch focus between monitors |
++| Toggle Internal | `Super + Shift + I` | Enable/disable laptop screen |
++| Mirror Mode | `Super + Shift + P` | Enable presentation mirror mode |
++| Restart AGS | `Super + Shift + B` | Restart AGS bars for multi-monitor |
++| Status | `Super + Shift + F12` | Show current monitor configuration |
++
++## 🔄 Automatic Features
++
++- **Startup**: Monitors are auto-configured when Hyprland starts
++- **Lid Events**: Automatically handled via systemd service
++- **Hot Plugging**: Monitors are reconfigured when connected/disconnected
++- **AGS Bar Management**: Automatically restarts AGS when monitor configuration changes
++- **Workspace Management**: Workspaces automatically redistribute when monitor configuration changes
+diff --git a/.config/hypr/configs/exec.conf b/.config/hypr/configs/exec.conf
+index 51f3a97..a23cb75 100755
+--- a/.config/hypr/configs/exec.conf
++++ b/.config/hypr/configs/exec.conf
+@@ -39,4 +39,12 @@ exec-once = wl-paste --watch bash -c "$HOME/.config/hypr/scripts/clipboard-monit
+ # Bluetooth
+ exec = blueman-applet
+ 
++### MULTI-MONITOR SUPPORT ###
++# Auto-configure monitors on startup
++exec-once = $scriptsDir/multi-monitor-manager.sh auto
++# Start lid event handler service
++exec-once = systemctl --user start hyprland-lid-handler.service
++# Start monitor hotplug detection service
++exec-once = systemctl --user start hyprland-monitor-hotplug.service
++
+ 
+diff --git a/.config/hypr/configs/monitors.conf b/.config/hypr/configs/monitors.conf
+index 8d9b493..bf7df14 100755
+--- a/.config/hypr/configs/monitors.conf
++++ b/.config/hypr/configs/monitors.conf
+@@ -1,16 +1,8 @@
+-#Monitor Configuration
+-# Configure your Display resolution, offset, scale and Monitors here, use `hyprctl monitors` to get the info.
++#Monitor Configuration - Auto-generated by multi-monitor-manager
++# Device Type: laptop
++# Generated: Mon Sep  8 03:05:03 AM CST 2025
+ 
+-# Monitors
+-# Desktop / Laptop
+-monitor = ,highres,auto,1
+-# monitor = DP-2,1920x1080@165,auto,1
++# Internal laptop display
++monitor = eDP-1, preferred, 0x0, 1
+ 
+-# Other Monitors
+-monitor = HDMI-A-1, highres, auto, 1
+ 
+-# Presentation from laptop
+-# monitor = HDMI-A-1,highrr,auto,1,mirror,eDP-1
+-
+-# QEMU
+-# monitor = Virtual-1,1440x900@60,auto,1
+diff --git a/.config/hypr/configs/multi-monitor-keybinds.conf b/.config/hypr/configs/multi-monitor-keybinds.conf
+new file mode 100644
+index 0000000..38ea1db
+--- /dev/null
++++ b/.config/hypr/configs/multi-monitor-keybinds.conf
+@@ -0,0 +1,136 @@
++# Multi-Monitor Keybinds Configuration
++# Enhanced keybinds for multi-monitor workspace management
++
++# Variables for multi-monitor scripts
++$multiMonitorManager = $scriptsDir/multi-monitor-manager.sh
++
++# ███╗   ███╗██╗   ██╗██╗  ████████╗██╗      ███╗   ███╗ ██████╗ ███╗   ██╗██╗████████╗ ██████╗ ██████╗ 
++# ████╗ ████║██║   ██║██║  ╚══██╔══╝██║      ████╗ ████║██╔═══██╗████╗  ██║██║╚══██╔══╝██╔═══██╗██╔══██╗
++# ██╔████╔██║██║   ██║██║     ██║   ██║█████╗██╔████╔██║██║   ██║██╔██╗ ██║██║   ██║   ██║   ██║██████╔╝
++# ██║╚██╔╝██║██║   ██║██║     ██║   ██║╚════╝██║╚██╔╝██║██║   ██║██║╚██╗██║██║   ██║   ██║   ██║██╔══██╗
++# ██║ ╚═╝ ██║╚██████╔╝███████╗██║   ██║      ██║ ╚═╝ ██║╚██████╔╝██║ ╚████║██║   ██║   ╚██████╔╝██║  ██║
++# ╚═╝     ╚═╝ ╚═════╝ ╚══════╝╚═╝   ╚═╝      ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝
++
++# ██╗  ██╗███████╗██╗   ██╗██████╗ ██╗███╗   ██╗██████╗ ███████╗
++# ██║ ██╔╝██╔════╝╚██╗ ██╔╝██╔══██╗██║████╗  ██║██╔══██╗██╔════╝
++# █████╔╝ █████╗   ╚████╔╝ ██████╔╝██║██╔██╗ ██║██║  ██║███████╗
++# ██╔═██╗ ██╔══╝    ╚██╔╝  ██╔══██╗██║██║╚██╗██║██║  ██║╚════██║
++# ██║  ██╗███████╗   ██║   ██████╔╝██║██║ ╚████║██████╔╝███████║
++# ╚═╝  ╚═╝╚══════╝   ╚═╝   ╚═════╝ ╚═╝╚═╝  ╚═══╝╚═════╝ ╚══════╝
++
++# Move workspace to next/previous monitor
++bind = $mainMod ALT, right, movecurrentworkspacetomonitor, +1
++bind = $mainMod ALT, left, movecurrentworkspacetomonitor, -1
++bind = $mainMod ALT, n, movecurrentworkspacetomonitor, +1
++bind = $mainMod ALT, h, movecurrentworkspacetomonitor, -1
++
++# Move active window to next/previous monitor (dynamic)
++bind = $mainMod CTRL SHIFT, right, exec, $scriptsDir/move-window-monitor.sh next
++bind = $mainMod CTRL SHIFT, left, exec, $scriptsDir/move-window-monitor.sh prev
++bind = $mainMod CTRL SHIFT, n, exec, $scriptsDir/move-window-monitor.sh next
++bind = $mainMod CTRL SHIFT, h, exec, $scriptsDir/move-window-monitor.sh prev
++
++# Focus next/previous monitor
++bind = $mainMod CTRL ALT, right, focusmonitor, +1
++bind = $mainMod CTRL ALT, left, focusmonitor, -1
++bind = $mainMod CTRL ALT, n, focusmonitor, +1
++bind = $mainMod CTRL ALT, h, focusmonitor, -1
++
++# Move specific workspace to specific monitor (1-9 for workspaces, F1-F12 for monitors)
++bind = $mainMod ALT, F1, moveworkspacetomonitor, 1 0
++bind = $mainMod ALT, F2, moveworkspacetomonitor, 1 1
++bind = $mainMod ALT, F3, moveworkspacetomonitor, 2 0
++bind = $mainMod ALT, F4, moveworkspacetomonitor, 2 1
++bind = $mainMod ALT, F5, moveworkspacetomonitor, 3 0
++bind = $mainMod ALT, F6, moveworkspacetomonitor, 3 1
++bind = $mainMod ALT, F7, moveworkspacetomonitor, 4 0
++bind = $mainMod ALT, F8, moveworkspacetomonitor, 4 1
++bind = $mainMod ALT, F9, moveworkspacetomonitor, 5 0
++bind = $mainMod ALT, F10, moveworkspacetomonitor, 5 1
++
++# ███╗   ███╗ ██████╗ ███╗   ██╗██╗████████╗ ██████╗ ██████╗     ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗███╗   ███╗███████╗███╗   ██╗████████╗
++# ████╗ ████║██╔═══██╗████╗  ██║██║╚══██╔══╝██╔═══██╗██╔══██╗    ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
++# ██╔████╔██║██║   ██║██╔██╗ ██║██║   ██║   ██║   ██║██████╔╝    ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
++# ██║╚██╔╝██║██║   ██║██║╚██╗██║██║   ██║   ██║   ██║██╔══██╗    ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
++# ██║ ╚═╝ ██║╚██████╔╝██║ ╚████║██║   ██║   ╚██████╔╝██║  ██║    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
++# ╚═╝     ╚═╝ ╚═════╝ ╚═╝  ╚═══╝╚═╝   ╚═╝    ╚═════╝ ╚═╝  ╚═╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
++
++# Multi-monitor management shortcuts
++bind = $mainMod SHIFT, M, exec, $multiMonitorManager
++bind = $mainMod CTRL SHIFT, M, exec, $multiMonitorManager auto
++bind = $mainMod ALT SHIFT, M, exec, $multiMonitorManager redistribute
++
++# AGS bar restart for multi-monitor fixes
++bind = $mainMod SHIFT, B, exec, pkill -x ags && sleep 1 && ags run --log-file /tmp/ags.log
++
++# Quick monitor configuration
++bind = $mainMod SHIFT, F12, exec, $multiMonitorManager status
++
++# ██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗  █████╗  ██████╗███████╗    ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗███╗   ███╗███████╗███╗   ██╗████████╗
++# ██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝    ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
++# ██║ █╗ ██║██║   ██║██████╔╝██████╔╝ ███████╗██████╔╝███████║██║     █████╗      ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
++# ██║███╗██║██║   ██║██╔══██╗██╔═██╗ ╚════██║██╔═══╝ ██╔══██║██║     ██╔══╝      ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
++# ╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗███████║██║     ██║  ██║╚██████╗███████╗    ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
++#  ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝╚══════╝    ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
++
++# Enhanced workspace management for multi-monitor setups
++# Move workspace to specific monitor by name (requires monitor names)
++# These will be dynamically generated based on detected monitors
++
++# Swap workspaces between monitors
++bind = $mainMod CTRL SHIFT, S, swapactiveworkspaces, 0 1
++
++# Clone current workspace to another monitor (useful for presentations)
++bind = $mainMod SHIFT, C, exec, hyprctl dispatch moveworkspacetomonitor $(hyprctl activeworkspace -j | jq -r '.id') +1
++
++# ██╗      █████╗ ██████╗ ████████╗ ██████╗ ██████╗     ███████╗██████╗ ███████╗ ██████╗██╗ █████╗ ██╗     
++# ██║     ██╔══██╗██╔══██╗╚══██╔══╝██╔═══██╗██╔══██╗    ██╔════╝██╔══██╗██╔════╝██╔════╝██║██╔══██╗██║     
++# ██║     ███████║██████╔╝   ██║   ██║   ██║██████╔╝    ███████╗██████╔╝█████╗  ██║     ██║███████║██║     
++# ██║     ██╔══██║██╔═══╝    ██║   ██║   ██║██╔═══╝     ╚════██║██╔═══╝ ██╔══╝  ██║     ██║██╔══██║██║     
++# ███████╗██║  ██║██║        ██║   ╚██████╔╝██║         ███████║██║     ███████╗╚██████╗██║██║  ██║███████╗
++# ╚══════╝╚═╝  ╚═╝╚═╝        ╚═╝    ╚═════╝ ╚═╝         ╚══════╝╚═╝     ╚══════╝ ╚═════╝╚═╝╚═╝  ╚═╝╚══════╝
++
++# Laptop-specific keybinds
++# Toggle internal monitor (useful when docked)
++bind = $mainMod SHIFT, I, exec, hyprctl keyword monitor "eDP-1,disable" || hyprctl keyword monitor "eDP-1,preferred,0x0,1"
++
++# Quick external monitor detection and setup
++bind = $mainMod SHIFT, E, exec, $multiMonitorManager auto
++
++# ██████╗ ██████╗ ███████╗███████╗███████╗███╗   ██╗████████╗ █████╗ ████████╗██╗ ██████╗ ███╗   ██╗    ███╗   ███╗ ██████╗ ██████╗ ███████╗
++# ██╔══██╗██╔══██╗██╔════╝██╔════╝██╔════╝████╗  ██║╚══██╔══╝██╔══██╗╚══██╔══╝██║██╔═══██╗████╗  ██║    ████╗ ████║██╔═══██╗██╔══██╗██╔════╝
++# ██████╔╝██████╔╝█████╗  ███████╗█████╗  ██╔██╗ ██║   ██║   ███████║   ██║   ██║██║   ██║██╔██╗ ██║    ██╔████╔██║██║   ██║██║  ██║█████╗  
++# ██╔═══╝ ██╔══██╗██╔══╝  ╚════██║██╔══╝  ██║╚██╗██║   ██║   ██╔══██║   ██║   ██║██║   ██║██║╚██╗██║    ██║╚██╔╝██║██║   ██║██║  ██║██╔══╝  
++# ██║     ██║  ██║███████╗███████║███████╗██║ ╚████║   ██║   ██║  ██║   ██║   ██║╚██████╔╝██║ ╚████║    ██║ ╚═╝ ██║╚██████╔╝██████╔╝███████╗
++# ╚═╝     ╚═╝  ╚═╝╚══════╝╚══════╝╚══════╝╚═╝  ╚═══╝   ╚═╝   ╚═╝  ╚═╝   ╚═╝   ╚═╝ ╚═════╝ ╚═╝  ╚═══╝    ╚═╝     ╚═╝ ╚═════╝ ╚═════╝ ╚══════╝
++
++# Mirror mode for presentations
++bind = $mainMod SHIFT, P, exec, hyprctl keyword monitor "HDMI-A-1,preferred,auto,1,mirror,eDP-1"
++
++# Extend mode (default multi-monitor setup)
++bind = $mainMod SHIFT, X, exec, $multiMonitorManager auto
++
++# ██╗  ██╗██╗   ██╗██████╗ ██████╗ ██╗      █████╗ ███╗   ██╗██████╗     ██╗    ██╗ ██████╗ ██████╗ ██╗  ██╗███████╗██████╗  █████╗  ██████╗███████╗
++# ██║  ██║╚██╗ ██╔╝██╔══██╗██╔══██╗██║     ██╔══██╗████╗  ██║██╔══██╗    ██║    ██║██╔═══██╗██╔══██╗██║ ██╔╝██╔════╝██╔══██╗██╔══██╗██╔════╝██╔════╝
++# ███████║ ╚████╔╝ ██████╔╝██████╔╝██║     ███████║██╔██╗ ██║██║  ██║    ██║ █╗ ██║██║   ██║██████╔╝██████╔╝ ███████╗██████╔╝███████║██║     █████╗  
++# ██╔══██║  ╚██╔╝  ██╔═══╝ ██╔══██╗██║     ██╔══██║██║╚██╗██║██║  ██║    ██║███╗██║██║   ██║██╔══██╗██╔═██╗ ╚════██║██╔═══╝ ██╔══██║██║     ██╔══╝  
++# ██║  ██║   ██║   ██║     ██║  ██║███████╗██║  ██║██║ ╚████║██████╔╝    ╚███╔███╔╝╚██████╔╝██║  ██║██║  ██╗███████║██║     ██║  ██║╚██████╗███████╗
++# ╚═╝  ╚═╝   ╚═╝   ╚═╝     ╚═╝  ╚═╝╚══════╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═════╝      ╚══╝╚══╝  ╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝╚══════╝╚═╝     ╚═╝  ╚═╝ ╚═════╝ ╚══════╝
++
++# ███╗   ███╗ █████╗ ███╗   ██╗ █████╗  ██████╗ ███████╗███╗   ███╗███████╗███╗   ██╗████████╗
++# ████╗ ████║██╔══██╗████╗  ██║██╔══██╗██╔════╝ ██╔════╝████╗ ████║██╔════╝████╗  ██║╚══██╔══╝
++# ██╔████╔██║███████║██╔██╗ ██║███████║██║  ███╗█████╗  ██╔████╔██║█████╗  ██╔██╗ ██║   ██║   
++# ██║╚██╔╝██║██╔══██║██║╚██╗██║██╔══██║██║   ██║██╔══╝  ██║╚██╔╝██║██╔══╝  ██║╚██╗██║   ██║   
++# ██║ ╚═╝ ██║██║  ██║██║ ╚████║██║  ██║╚██████╔╝███████╗██║ ╚═╝ ██║███████╗██║ ╚████║   ██║   
++# ╚═╝     ╚═╝╚═╝  ╚═╝╚═╝  ╚═══╝╚═╝  ╚═╝ ╚═════╝ ╚══════╝╚═╝     ╚═╝╚══════╝╚═╝  ╚═══╝   ╚═╝   
++
++# Enhanced workspace navigation for multi-monitor
++# Jump to workspace on specific monitor
++bind = $mainMod CTRL, 1, exec, hyprctl dispatch workspace 1 && hyprctl dispatch focusmonitor 0
++bind = $mainMod CTRL, 2, exec, hyprctl dispatch workspace 2 && hyprctl dispatch focusmonitor 0
++bind = $mainMod CTRL, 3, exec, hyprctl dispatch workspace 3 && hyprctl dispatch focusmonitor 1
++bind = $mainMod CTRL, 4, exec, hyprctl dispatch workspace 4 && hyprctl dispatch focusmonitor 1
++bind = $mainMod CTRL, 5, exec, hyprctl dispatch workspace 5 && hyprctl dispatch focusmonitor 0
++
++# Quick workspace switching between monitors
++bind = $mainMod, grave, exec, hyprctl dispatch focusmonitor +1 && hyprctl dispatch workspace previous
+diff --git a/.config/hypr/hyprland.conf b/.config/hypr/hyprland.conf
+index 422a7f2..4e4997f 100755
+--- a/.config/hypr/hyprland.conf
++++ b/.config/hypr/hyprland.conf
+@@ -7,3 +7,6 @@ source=~/.config/hypr/configs/*
+ source=~/.config/hypr/configs/custom/*
+ 
+ source=~/.config/hypr/configs/plugins/*
++
++# Multi-monitor support configuration
++source=~/.config/hypr/configs/multi-monitor-keybinds.conf
+diff --git a/.config/hypr/scripts/lid-handler.sh b/.config/hypr/scripts/lid-handler.sh
+new file mode 100755
+index 0000000..8707514
+--- /dev/null
++++ b/.config/hypr/scripts/lid-handler.sh
+@@ -0,0 +1,47 @@
++#!/bin/bash
++
++# Lid Event Handler for Hyprland Multi-Monitor Setup
++# Automatically handles lid open/close events for laptops
++
++SCRIPT_DIR="$(dirname "$0")"
++MULTI_MONITOR_SCRIPT="$SCRIPT_DIR/multi-monitor-manager.sh"
++
++# Log file for debugging
++LOG_FILE="/tmp/hyprland-lid-handler.log"
++
++log() {
++    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
++}
++
++# Handle lid event
++handle_lid() {
++    log "Lid event detected, calling multi-monitor manager"
++    
++    if [ -x "$MULTI_MONITOR_SCRIPT" ]; then
++        "$MULTI_MONITOR_SCRIPT" lid
++        log "Multi-monitor manager executed successfully"
++    else
++        log "ERROR: Multi-monitor manager script not found or not executable"
++    fi
++}
++
++# Monitor lid events using acpi_listen
++monitor_lid_events() {
++    log "Starting lid event monitoring"
++    
++    acpi_listen | while read -r event; do
++        case "$event" in
++            *"button/lid"*)
++                log "Lid event received: $event"
++                handle_lid
++                ;;
++        esac
++    done
++}
++
++# Check if running as systemd service or standalone
++if [ "$1" = "monitor" ]; then
++    monitor_lid_events
++else
++    handle_lid
++fi
+diff --git a/.config/hypr/scripts/monitor-hotplug.sh b/.config/hypr/scripts/monitor-hotplug.sh
+new file mode 100755
+index 0000000..2263d15
+--- /dev/null
++++ b/.config/hypr/scripts/monitor-hotplug.sh
+@@ -0,0 +1,95 @@
++#!/bin/bash
++
++# Monitor Hotplug Detection Script for AGS Multi-Monitor Support
++# Automatically restarts AGS when monitors are connected/disconnected
++
++SCRIPT_DIR="$(dirname "$0")"
++MULTI_MONITOR_SCRIPT="$SCRIPT_DIR/multi-monitor-manager.sh"
++LOG_FILE="/tmp/hyprland-monitor-hotplug.log"
++STATE_FILE="/tmp/hyprland-monitor-state"
++
++log() {
++    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
++}
++
++# Get current monitor configuration
++get_monitor_state() {
++    hyprctl monitors -j | jq -r 'sort_by(.name) | map(.name) | join(",")'
++}
++
++# Restart AGS safely
++restart_ags() {
++    log "Restarting AGS due to monitor configuration change"
++    
++    # Kill existing AGS instances
++    pkill -x "ags" 2>/dev/null || true
++    
++    # Wait for cleanup
++    sleep 1
++    
++    # Restart AGS
++    ags run --log-file /tmp/ags.log &
++    
++    log "AGS restarted successfully"
++}
++
++# Initialize state file if it doesn't exist
++if [ ! -f "$STATE_FILE" ]; then
++    get_monitor_state > "$STATE_FILE"
++    log "Initialized monitor state: $(cat "$STATE_FILE")"
++fi
++
++# Monitor for changes
++monitor_changes() {
++    log "Starting monitor hotplug detection"
++    
++    while true; do
++        current_state=$(get_monitor_state)
++        previous_state=$(cat "$STATE_FILE" 2>/dev/null || echo "")
++        
++        if [ "$current_state" != "$previous_state" ]; then
++            log "Monitor configuration changed:"
++            log "  Previous: $previous_state"
++            log "  Current:  $current_state"
++            
++            # Update state file
++            echo "$current_state" > "$STATE_FILE"
++            
++            # Wait a moment for monitor setup to stabilize
++            sleep 2
++            
++            # Restart AGS
++            restart_ags
++            
++            # Run multi-monitor auto-configuration
++            if [ -x "$MULTI_MONITOR_SCRIPT" ]; then
++                log "Running multi-monitor auto-configuration"
++                "$MULTI_MONITOR_SCRIPT" auto >> "$LOG_FILE" 2>&1
++            fi
++        fi
++        
++        # Check every 2 seconds
++        sleep 2
++    done
++}
++
++# Handle different modes
++case "${1:-}" in
++    "monitor")
++        monitor_changes
++        ;;
++    "restart-ags")
++        restart_ags
++        ;;
++    "check")
++        current_state=$(get_monitor_state)
++        echo "Current monitor state: $current_state"
++        ;;
++    *)
++        echo "Monitor Hotplug Detection Script"
++        echo "Usage: $0 [monitor|restart-ags|check]"
++        echo "  monitor     - Start monitoring for hotplug events"
++        echo "  restart-ags - Restart AGS immediately"
++        echo "  check       - Check current monitor state"
++        ;;
++esac
+diff --git a/.config/hypr/scripts/monitor-setup.sh b/.config/hypr/scripts/monitor-setup.sh
+new file mode 100755
+index 0000000..50b6a4b
+--- /dev/null
++++ b/.config/hypr/scripts/monitor-setup.sh
+@@ -0,0 +1,42 @@
++#!/bin/bash
++
++# Monitor Setup Script - Simplified interface for common monitor operations
++# Part of the ArchEclipse Multi-Monitor Support
++
++SCRIPT_DIR="$(dirname "$0")"
++MULTI_MONITOR_SCRIPT="$SCRIPT_DIR/multi-monitor-manager.sh"
++
++# Quick setup for common scenarios
++case "${1:-}" in
++    "laptop-only")
++        echo "Setting up laptop-only configuration..."
++        hyprctl keyword monitor "eDP-1,preferred,0x0,1"
++        hyprctl keyword monitor "HDMI-A-1,disable"
++        ;;
++    "external-only")
++        echo "Setting up external monitor only..."
++        hyprctl keyword monitor "HDMI-A-1,preferred,0x0,1"
++        hyprctl keyword monitor "eDP-1,disable"
++        ;;
++    "dual-extend")
++        echo "Setting up dual monitor extended..."
++        hyprctl keyword monitor "eDP-1,1920x1200@60,0x0,1"
++        hyprctl keyword monitor "HDMI-A-1,3840x2160@60,1920x0,1"
++        ;;
++    "dual-mirror")
++        echo "Setting up dual monitor mirrored..."
++        hyprctl keyword monitor "HDMI-A-1,1920x1200@60,0x0,1,mirror,eDP-1"
++        ;;
++    "auto")
++        echo "Auto-configuring monitors..."
++        "$MULTI_MONITOR_SCRIPT" auto
++        ;;
++    *)
++        echo "Monitor Setup Options:"
++        echo "  laptop-only  - Use only laptop screen"
++        echo "  external-only - Use only external monitor"
++        echo "  dual-extend  - Extend desktop across both monitors"
++        echo "  dual-mirror  - Mirror laptop screen to external"
++        echo "  auto         - Auto-detect and configure"
++        ;;
++esac
+diff --git a/.config/hypr/scripts/move-window-monitor.sh b/.config/hypr/scripts/move-window-monitor.sh
+new file mode 100755
+index 0000000..cb4bba5
+--- /dev/null
++++ b/.config/hypr/scripts/move-window-monitor.sh
+@@ -0,0 +1,112 @@
++#!/bin/bash
++
++# Dynamic Window Movement Script for Multi-Monitor Setup
++# Moves active window to next/previous monitor dynamically
++
++SCRIPT_DIR="$(dirname "$0")"
++LOG_FILE="/tmp/hyprland-window-movement.log"
++
++log() {
++    echo "[$(date '+%Y-%m-%d %H:%M:%S')] $1" >> "$LOG_FILE"
++}
++
++# Get all connected monitors in order
++get_monitors() {
++    hyprctl monitors -j | jq -r 'sort_by(.x) | .[].name'
++}
++
++# Get current focused monitor
++get_focused_monitor() {
++    hyprctl monitors -j | jq -r '.[] | select(.focused == true) | .name'
++}
++
++# Get monitor by direction (next/previous)
++get_target_monitor() {
++    local direction="$1"
++    local monitors=($(get_monitors))
++    local current_monitor=$(get_focused_monitor)
++    local current_index=-1
++    
++    # Find current monitor index
++    for i in "${!monitors[@]}"; do
++        if [[ "${monitors[$i]}" == "$current_monitor" ]]; then
++            current_index=$i
++            break
++        fi
++    done
++    
++    if [[ $current_index -eq -1 ]]; then
++        log "Error: Could not find current monitor in list"
++        return 1
++    fi
++    
++    local target_index
++    case "$direction" in
++        "next"|"+1"|"right")
++            target_index=$(( (current_index + 1) % ${#monitors[@]} ))
++            ;;
++        "prev"|"-1"|"left")
++            target_index=$(( (current_index - 1 + ${#monitors[@]}) % ${#monitors[@]} ))
++            ;;
++        *)
++            log "Error: Invalid direction '$direction'"
++            return 1
++            ;;
++    esac
++    
++    echo "${monitors[$target_index]}"
++}
++
++# Move active window to target monitor
++move_window() {
++    local direction="$1"
++    local target_monitor=$(get_target_monitor "$direction")
++    
++    if [[ -z "$target_monitor" ]]; then
++        log "Error: Could not determine target monitor for direction '$direction'"
++        return 1
++    fi
++    
++    log "Moving active window from $(get_focused_monitor) to $target_monitor (direction: $direction)"
++    
++    # Move window to target monitor
++    hyprctl dispatch movewindow "mon:$target_monitor"
++    
++    if [[ $? -eq 0 ]]; then
++        log "Successfully moved window to $target_monitor"
++    else
++        log "Error: Failed to move window to $target_monitor"
++        return 1
++    fi
++}
++
++# Handle different commands
++case "${1:-}" in
++    "next"|"right"|"+1")
++        move_window "next"
++        ;;
++    "prev"|"previous"|"left"|"-1")
++        move_window "prev"
++        ;;
++    "list-monitors")
++        get_monitors
++        ;;
++    "current-monitor")
++        get_focused_monitor
++        ;;
++    "debug")
++        echo "Available monitors: $(get_monitors | tr '\n' ' ')"
++        echo "Current monitor: $(get_focused_monitor)"
++        echo "Next monitor: $(get_target_monitor next)"
++        echo "Previous monitor: $(get_target_monitor prev)"
++        ;;
++    *)
++        echo "Dynamic Window Movement Script"
++        echo "Usage: $0 [next|prev|list-monitors|current-monitor|debug]"
++        echo "  next/right     - Move active window to next monitor"
++        echo "  prev/left      - Move active window to previous monitor"
++        echo "  list-monitors  - List all connected monitors"
++        echo "  current-monitor- Show currently focused monitor"
++        echo "  debug          - Show debug information"
++        ;;
++esac
+diff --git a/.config/hypr/scripts/multi-monitor-manager.sh b/.config/hypr/scripts/multi-monitor-manager.sh
+new file mode 100755
+index 0000000..ed97071
+--- /dev/null
++++ b/.config/hypr/scripts/multi-monitor-manager.sh
+@@ -0,0 +1,434 @@
++#!/bin/bash
++
++# Multi-Monitor Manager for Hyprland
++# Detects device type, manages monitor configurations, and handles lid events
++# Author: ArchEclipse Rice Configuration
++
++# Configuration paths
++HYPR_CONFIG_DIR="$HOME/.config/hypr"
++MONITORS_CONFIG="$HYPR_CONFIG_DIR/configs/monitors.conf"
++CUSTOM_MONITORS_CONFIG="$HYPR_CONFIG_DIR/configs/custom/monitors.conf"
++LOGIND_CONFIG="/etc/systemd/logind.conf"
++
++# Colors for output
++RED='\033[0;31m'
++GREEN='\033[0;32m'
++YELLOW='\033[1;33m'
++BLUE='\033[0;34m'
++NC='\033[0m' # No Color
++
++# Logging function
++log() {
++    echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
++}
++
++warn() {
++    echo -e "${YELLOW}[WARNING]${NC} $1"
++}
++
++error() {
++    echo -e "${RED}[ERROR]${NC} $1"
++}
++
++# Detect device type (laptop or desktop)
++detect_device_type() {
++    local device_type=""
++    
++    # Check for laptop indicators
++    if [ -d "/proc/acpi/button/lid" ] || [ -f "/sys/class/power_supply/BAT0/present" ] || [ -f "/sys/class/power_supply/BAT1/present" ]; then
++        device_type="laptop"
++    elif lscpu | grep -q "Mobile"; then
++        device_type="laptop"
++    else
++        device_type="desktop"
++    fi
++    
++    # Check for internal display (eDP)
++    if hyprctl monitors -j | jq -r '.[].name' | grep -q "eDP"; then
++        device_type="laptop"
++    fi
++    
++    echo "$device_type"
++}
++
++# Get monitor information
++get_monitors_info() {
++    hyprctl monitors -j
++}
++
++# Get internal monitor name (usually eDP-1 for laptops)
++get_internal_monitor() {
++    hyprctl monitors -j | jq -r '.[] | select(.name | startswith("eDP")) | .name' | head -1
++}
++
++# Get external monitors
++get_external_monitors() {
++    hyprctl monitors -j | jq -r '.[] | select(.name | startswith("eDP") | not) | .name'
++}
++
++# Check if AC adapter is connected
++is_ac_connected() {
++    local ac_status=""
++    for ac in /sys/class/power_supply/A{C,DP}*; do
++        if [ -f "$ac/online" ]; then
++            ac_status=$(cat "$ac/online")
++            if [ "$ac_status" = "1" ]; then
++                return 0
++            fi
++        fi
++    done
++    return 1
++}
++
++# Check if lid is closed
++is_lid_closed() {
++    if [ -f "/proc/acpi/button/lid/LID0/state" ]; then
++        grep -q "closed" /proc/acpi/button/lid/LID0/state
++    elif [ -f "/proc/acpi/button/lid/LID/state" ]; then
++        grep -q "closed" /proc/acpi/button/lid/LID/state
++    else
++        return 1
++    fi
++}
++
++# Configure lid behavior for laptops
++configure_lid_behavior() {
++    local device_type=$(detect_device_type)
++    
++    if [ "$device_type" = "laptop" ]; then
++        log "Configuring laptop lid behavior..."
++        
++        # Create systemd logind configuration for lid handling
++        if [ ! -f "$LOGIND_CONFIG.backup" ]; then
++            sudo cp "$LOGIND_CONFIG" "$LOGIND_CONFIG.backup" 2>/dev/null || true
++        fi
++        
++        # Configure logind to ignore lid switch when external monitor is connected
++        cat << EOF | sudo tee /etc/systemd/logind.conf.d/99-hyprland-lid.conf > /dev/null
++[Login]
++HandleLidSwitch=ignore
++HandleLidSwitchExternalPower=ignore
++HandleLidSwitchDocked=ignore
++EOF
++        
++        # Restart logind service
++        sudo systemctl restart systemd-logind
++        
++        log "Lid behavior configured successfully"
++    fi
++}
++
++# Restart AGS to apply multi-monitor configuration
++restart_ags() {
++    log "Restarting AGS for multi-monitor support..."
++    
++    # Kill existing AGS instances more safely
++    pkill -x "ags" 2>/dev/null || true
++    
++    # Wait a moment for cleanup
++    sleep 1
++    
++    # Restart AGS
++    ags run --log-file /tmp/ags.log &
++    
++    log "AGS restarted successfully"
++}
++
++# Generate monitor configuration based on detected setup
++generate_monitor_config() {
++    local device_type=$(detect_device_type)
++    local internal_monitor=$(get_internal_monitor)
++    local external_monitors=($(get_external_monitors))
++    local config_content=""
++    
++    log "Generating monitor configuration for $device_type..."
++    
++    # Base configuration header
++    config_content+="#Monitor Configuration - Auto-generated by multi-monitor-manager\n"
++    config_content+="# Device Type: $device_type\n"
++    config_content+="# Generated: $(date)\n\n"
++    
++    if [ "$device_type" = "laptop" ]; then
++        if [ -n "$internal_monitor" ]; then
++            config_content+="# Internal laptop display\n"
++            config_content+="monitor = $internal_monitor, preferred, 0x0, 1\n\n"
++        fi
++        
++        # Configure external monitors
++        local x_offset=1920  # Default offset, will be adjusted based on internal monitor resolution
++        if [ -n "$internal_monitor" ]; then
++            local internal_width=$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$internal_monitor\") | .width")
++            x_offset=$internal_width
++        fi
++        
++        for monitor in "${external_monitors[@]}"; do
++            if [ -n "$monitor" ]; then
++                config_content+="# External monitor: $monitor\n"
++                config_content+="monitor = $monitor, preferred, ${x_offset}x0, 1\n\n"
++                
++                # Update offset for next monitor
++                local monitor_width=$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$monitor\") | .width")
++                x_offset=$((x_offset + monitor_width))
++            fi
++        done
++        
++        # Add lid-closed configuration
++        if [ ${#external_monitors[@]} -gt 0 ]; then
++            config_content+="# Lid closed configuration - disable internal when external is connected\n"
++            config_content+="# This will be managed dynamically by the lid event handler\n\n"
++        fi
++        
++    else
++        # Desktop configuration
++        config_content+="# Desktop multi-monitor setup\n"
++        config_content+="monitor = , preferred, auto, 1\n\n"
++        
++        # Configure each monitor explicitly if multiple are detected
++        local x_offset=0
++        local monitors_info=$(get_monitors_info)
++        local monitor_count=$(echo "$monitors_info" | jq length)
++        
++        if [ "$monitor_count" -gt 1 ]; then
++            for monitor in $(echo "$monitors_info" | jq -r '.[].name'); do
++                config_content+="monitor = $monitor, preferred, ${x_offset}x0, 1\n"
++                local monitor_width=$(echo "$monitors_info" | jq -r ".[] | select(.name == \"$monitor\") | .width")
++                x_offset=$((x_offset + monitor_width))
++            done
++        fi
++    fi
++    
++    # Write configuration
++    mkdir -p "$(dirname "$MONITORS_CONFIG")"
++    echo -e "$config_content" > "$MONITORS_CONFIG"
++    
++    log "Monitor configuration generated and saved to $MONITORS_CONFIG"
++    
++    # Restart AGS to apply multi-monitor bars
++    restart_ags
++}
++
++# Handle lid events for laptops
++handle_lid_event() {
++    local device_type=$(detect_device_type)
++    
++    if [ "$device_type" != "laptop" ]; then
++        return 0
++    fi
++    
++    local internal_monitor=$(get_internal_monitor)
++    local external_monitors=($(get_external_monitors))
++    
++    if [ -z "$internal_monitor" ]; then
++        warn "No internal monitor detected"
++        return 1
++    fi
++    
++    if is_lid_closed && is_ac_connected && [ ${#external_monitors[@]} -gt 0 ]; then
++        log "Lid closed with AC power and external monitor detected"
++        log "Disabling internal monitor and moving workspaces to external monitor"
++        
++        # Disable internal monitor
++        hyprctl keyword monitor "$internal_monitor,disable"
++        
++        # Move all workspaces to the first external monitor
++        local primary_external="${external_monitors[0]}"
++        if [ -n "$primary_external" ]; then
++            for workspace in $(hyprctl workspaces -j | jq -r '.[].id'); do
++                hyprctl dispatch moveworkspacetomonitor "$workspace" "$primary_external"
++            done
++            
++            # Focus the external monitor
++            hyprctl dispatch focusmonitor "$primary_external"
++            
++            # Restart AGS to update bars
++            restart_ags
++        fi
++        
++    elif ! is_lid_closed; then
++        log "Lid opened, re-enabling internal monitor"
++        
++        # Re-enable internal monitor
++        hyprctl keyword monitor "$internal_monitor,preferred,0x0,1"
++        
++        # Optionally redistribute workspaces
++        redistribute_workspaces
++        
++        # Restart AGS to update bars
++        restart_ags
++    fi
++}
++
++# Redistribute workspaces across available monitors
++redistribute_workspaces() {
++    local monitors=($(hyprctl monitors -j | jq -r '.[] | select(.disabled == false) | .name'))
++    local monitor_count=${#monitors[@]}
++    
++    if [ "$monitor_count" -le 1 ]; then
++        return 0
++    fi
++    
++    log "Redistributing workspaces across $monitor_count monitors"
++    
++    local workspaces=($(hyprctl workspaces -j | jq -r '.[].id' | sort -n))
++    local workspaces_per_monitor=$((10 / monitor_count))
++    
++    local monitor_index=0
++    local workspace_count=0
++    
++    for workspace in "${workspaces[@]}"; do
++        if [ "$workspace_count" -ge "$workspaces_per_monitor" ] && [ "$monitor_index" -lt $((monitor_count - 1)) ]; then
++            monitor_index=$((monitor_index + 1))
++            workspace_count=0
++        fi
++        
++        hyprctl dispatch moveworkspacetomonitor "$workspace" "${monitors[$monitor_index]}"
++        workspace_count=$((workspace_count + 1))
++    done
++    
++    # Restart AGS after workspace redistribution
++    restart_ags
++}
++
++# Interactive monitor configuration
++interactive_config() {
++    local monitors_info=$(get_monitors_info)
++    local monitor_count=$(echo "$monitors_info" | jq length)
++    
++    echo -e "${BLUE}=== Multi-Monitor Configuration ===${NC}"
++    echo "Detected $monitor_count monitor(s):"
++    echo
++    
++    echo "$monitors_info" | jq -r '.[] | "  \(.name): \(.width)x\(.height)@\(.refreshRate)Hz (\(.make) \(.model))"'
++    echo
++    
++    echo "Available actions:"
++    echo "1) Auto-configure monitors"
++    echo "2) Configure specific monitor resolution"
++    echo "3) Setup lid behavior (laptop only)"
++    echo "4) Redistribute workspaces"
++    echo "5) Show current configuration"
++    echo "6) Exit"
++    echo
++    
++    read -p "Select an option (1-6): " choice
++    
++    case $choice in
++        1)
++            generate_monitor_config
++            hyprctl reload
++            ;;
++        2)
++            configure_specific_monitor
++            ;;
++        3)
++            configure_lid_behavior
++            ;;
++        4)
++            redistribute_workspaces
++            ;;
++        5)
++            show_current_config
++            ;;
++        6)
++            exit 0
++            ;;
++        *)
++            error "Invalid option"
++            ;;
++    esac
++}
++
++# Configure specific monitor resolution
++configure_specific_monitor() {
++    local monitors=($(hyprctl monitors -j | jq -r '.[].name'))
++    
++    echo "Available monitors:"
++    for i in "${!monitors[@]}"; do
++        echo "$((i+1))) ${monitors[$i]}"
++    done
++    echo
++    
++    read -p "Select monitor number: " monitor_num
++    
++    if [ "$monitor_num" -lt 1 ] || [ "$monitor_num" -gt "${#monitors[@]}" ]; then
++        error "Invalid monitor selection"
++        return 1
++    fi
++    
++    local selected_monitor="${monitors[$((monitor_num-1))]}"
++    local available_modes=$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$selected_monitor\") | .availableModes[]")
++    
++    echo "Available modes for $selected_monitor:"
++    echo "$available_modes" | nl
++    echo
++    
++    read -p "Enter desired resolution (e.g., 1920x1080@60): " resolution
++    
++    if [ -n "$resolution" ]; then
++        hyprctl keyword monitor "$selected_monitor,$resolution,auto,1"
++        log "Resolution updated for $selected_monitor to $resolution"
++    fi
++}
++
++# Show current configuration
++show_current_config() {
++    echo -e "${BLUE}=== Current Monitor Configuration ===${NC}"
++    echo
++    
++    local device_type=$(detect_device_type)
++    echo "Device Type: $device_type"
++    echo
++    
++    echo "Active Monitors:"
++    hyprctl monitors -j | jq -r '.[] | "  \(.name): \(.width)x\(.height)@\(.refreshRate)Hz (Position: \(.x),\(.y)) [Focus: \(.focused)]"'
++    echo
++    
++    if [ "$device_type" = "laptop" ]; then
++        echo "Laptop Status:"
++        if is_lid_closed; then
++            echo "  Lid: Closed"
++        else
++            echo "  Lid: Open"
++        fi
++        
++        if is_ac_connected; then
++            echo "  AC Power: Connected"
++        else
++            echo "  AC Power: Disconnected"
++        fi
++        echo
++    fi
++    
++    echo "Workspace Distribution:"
++    hyprctl workspaces -j | jq -r '.[] | "  Workspace \(.id): Monitor \(.monitor)"'
++}
++
++# Main function
++main() {
++    case "${1:-}" in
++        "auto")
++            generate_monitor_config
++            hyprctl reload
++            ;;
++        "lid")
++            handle_lid_event
++            ;;
++        "setup")
++            configure_lid_behavior
++            generate_monitor_config
++            hyprctl reload
++            ;;
++        "redistribute")
++            redistribute_workspaces
++            ;;
++        "status")
++            show_current_config
++            ;;
++        *)
++            interactive_config
++            ;;
++    esac
++}
++
++# Run main function with all arguments
++main "$@"
+diff --git a/.config/lsfg-vk/conf.toml b/.config/lsfg-vk/conf.toml
+old mode 100755
+new mode 100644
+diff --git a/.config/wallpapers/.gitignore b/.config/wallpapers/.gitignore
+index 6239336..72bfcb9 100755
+--- a/.config/wallpapers/.gitignore
++++ b/.config/wallpapers/.gitignore
+@@ -1,6 +1,4 @@
+ custom/*
+ !custom/.gitkeep
+ 
+-lockscreen/*
+-
+ defaults
