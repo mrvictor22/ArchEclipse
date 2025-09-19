@@ -207,11 +207,11 @@ continue_prompt() {
         [Yy]*)
             echo -e "${GREEN}Great! Continuing...${RESET}"
             $2
-            break
+            return 0
             ;;
         [Nn]*)
-            echo -e "${RED}Okay, exiting...${RESET}"
-            break
+            echo -e "${RED}Okay, skipping this step...${RESET}"
+            return 1
             ;;
         *) echo -e "${RED}Please answer with Y or N.${RESET}" ;;
         esac
