@@ -71,8 +71,16 @@ source $HOME/.config/hypr/maintenance/ESSENTIALS.sh # source the essentials file
 # Developer mode: save local changes before updating
 if [ "$DEV_MODE" = true ]; then
     echo "💾 Saving local changes..."
-    git add -A 2>/dev/null || true
-    git stash push -m "Auto-stash before dev update $(date)" 2>/dev/null || true
+    if git diff --quiet && git diff --cached --quiet; then
+        echo "ℹ️  No local changes to save"
+    else
+        git add -A 2>/dev/null || true
+        if git stash push -m "Auto-stash before dev update $(date)" 2>/dev/null; then
+            echo "✅ Local changes saved successfully"
+        else
+            echo "⚠️  Could not save local changes, continuing anyway..."
+        fi
+    fi
 fi
 
 git checkout $BRANCH
@@ -90,10 +98,12 @@ if [ "$DEV_MODE" = true ]; then
             echo "   git status"
             echo "   git add <resolved-files>"
             echo "   git stash drop"
+            echo "🔄 Continuing with the update process..."
         fi
     else
         echo "ℹ️  No local changes to restore"
     fi
+    echo "📋 Proceeding with maintenance scripts..."
 fi
 
 # Kill any hanging pacman processes and clean lock file
