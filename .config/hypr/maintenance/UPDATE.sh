@@ -5,7 +5,7 @@ MAINTENANCE_DIR="$HOME/.config/hypr/maintenance"
 # Parse arguments
 DEV_MODE=false
 USE_UPSTREAM=false
-BRANCH="master"
+BRANCH=""
 REMOTE="origin"
 
 for arg in "$@"; do
@@ -23,16 +23,16 @@ for arg in "$@"; do
             echo "Usage: $0 [OPTIONS] [BRANCH]"
             echo ""
             echo "Options:"
-            echo "  --dev        Developer mode: preserves local changes during update"
+            echo "  --dev        Developer mode: preserves local changes and current branch"
             echo "  --upstream   Use upstream repository instead of your fork"
             echo "  --help       Show this help message"
             echo ""
             echo "Arguments:"
-            echo "  BRANCH       Git branch to update from (default: master)"
+            echo "  BRANCH       Git branch to update from (default: current branch in dev mode, master otherwise)"
             echo ""
             echo "Examples:"
             echo "  $0                    # Normal update from your fork (origin/master)"
-            echo "  $0 --dev             # Developer update preserving local changes from fork"
+            echo "  $0 --dev             # Developer update preserving current branch and changes"
             echo "  $0 --upstream        # Update from upstream (AymanLyesri/ArchEclipse)"
             echo "  $0 --dev --upstream  # Developer mode using upstream"
             echo "  $0 --upstream develop # Update from upstream/develop"
@@ -40,6 +40,7 @@ for arg in "$@"; do
             echo "Repository modes:"
             echo "  Default:    Updates from your fork (mrvictor22/ArchEclipse)"
             echo "  --upstream: Updates from upstream (AymanLyesri/ArchEclipse)"
+            echo "  --dev:      Preserves current branch and local changes"
             exit 0
             ;;
         *)
@@ -51,6 +52,21 @@ for arg in "$@"; do
 done
 
 figlet "Updating Config"
+
+# Set branch logic
+if [ "$DEV_MODE" = true ]; then
+    if [ -z "$BRANCH" ]; then
+        CURRENT_BRANCH=$(git branch --show-current)
+        BRANCH="$CURRENT_BRANCH"
+        echo "🔧 Developer mode: staying on current branch '$BRANCH'"
+    else
+        echo "🔧 Developer mode: switching to specified branch '$BRANCH'"
+    fi
+else
+    if [ -z "$BRANCH" ]; then
+        BRANCH="master"
+    fi
+fi
 
 # Display current mode
 if [ "$DEV_MODE" = true ] && [ "$USE_UPSTREAM" = true ]; then
@@ -83,9 +99,21 @@ if [ "$DEV_MODE" = true ]; then
     fi
 fi
 
-git checkout $BRANCH
+# Only checkout if we're not already on the target branch
+CURRENT_BRANCH=$(git branch --show-current)
+if [ "$CURRENT_BRANCH" != "$BRANCH" ]; then
+    git checkout $BRANCH
+fi
+
 git fetch $REMOTE $BRANCH
-git reset --hard $REMOTE/$BRANCH
+
+# In dev mode, merge instead of hard reset to preserve work
+if [ "$DEV_MODE" = true ]; then
+    echo "🔄 Merging updates from $REMOTE/$BRANCH..."
+    git merge $REMOTE/$BRANCH --no-edit
+else
+    git reset --hard $REMOTE/$BRANCH
+fi
 
 # Developer mode: restore local changes after update
 if [ "$DEV_MODE" = true ]; then
