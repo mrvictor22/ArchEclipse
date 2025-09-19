@@ -4,9 +4,9 @@ MAINTENANCE_DIR="$HOME/.config/hypr/maintenance"
 
 # Parse arguments
 DEV_MODE=false
-USE_FORK=false
+USE_UPSTREAM=false
 BRANCH="master"
-REMOTE="upstream"
+REMOTE="origin"
 
 for arg in "$@"; do
     case $arg in
@@ -14,32 +14,32 @@ for arg in "$@"; do
             DEV_MODE=true
             shift
             ;;
-        --fork)
-            USE_FORK=true
-            REMOTE="origin"
+        --upstream)
+            USE_UPSTREAM=true
+            REMOTE="upstream"
             shift
             ;;
         --help|-h)
             echo "Usage: $0 [OPTIONS] [BRANCH]"
             echo ""
             echo "Options:"
-            echo "  --dev     Developer mode: preserves local changes during update"
-            echo "  --fork    Use forked repository instead of upstream"
-            echo "  --help    Show this help message"
+            echo "  --dev        Developer mode: preserves local changes during update"
+            echo "  --upstream   Use upstream repository instead of your fork"
+            echo "  --help       Show this help message"
             echo ""
             echo "Arguments:"
-            echo "  BRANCH    Git branch to update from (default: master)"
+            echo "  BRANCH       Git branch to update from (default: master)"
             echo ""
             echo "Examples:"
-            echo "  $0                    # Normal update from upstream/master"
-            echo "  $0 --dev             # Developer update preserving local changes"
-            echo "  $0 --fork            # Update from your fork (origin/master)"
-            echo "  $0 --dev --fork      # Developer mode using your fork"
-            echo "  $0 --fork develop    # Update from origin/develop"
+            echo "  $0                    # Normal update from your fork (origin/master)"
+            echo "  $0 --dev             # Developer update preserving local changes from fork"
+            echo "  $0 --upstream        # Update from upstream (AymanLyesri/ArchEclipse)"
+            echo "  $0 --dev --upstream  # Developer mode using upstream"
+            echo "  $0 --upstream develop # Update from upstream/develop"
             echo ""
             echo "Repository modes:"
-            echo "  Default: Updates from upstream (AymanLyesri/ArchEclipse)"
-            echo "  --fork:  Updates from your fork (mrvictor22/ArchEclipse)"
+            echo "  Default:    Updates from your fork (mrvictor22/ArchEclipse)"
+            echo "  --upstream: Updates from upstream (AymanLyesri/ArchEclipse)"
             exit 0
             ;;
         *)
@@ -53,14 +53,14 @@ done
 figlet "Updating Config"
 
 # Display current mode
-if [ "$DEV_MODE" = true ] && [ "$USE_FORK" = true ]; then
-    echo "🔧🍴 Developer mode + Fork: preserving changes, using your fork"
+if [ "$DEV_MODE" = true ] && [ "$USE_UPSTREAM" = true ]; then
+    echo "🔧⬆️ Developer mode + Upstream: preserving changes, using upstream"
 elif [ "$DEV_MODE" = true ]; then
-    echo "🔧 Developer mode: preserving local changes from upstream"
-elif [ "$USE_FORK" = true ]; then
-    echo "🍴 Fork mode: updating from your fork (origin)"
+    echo "🔧🍴 Developer mode: preserving local changes from your fork"
+elif [ "$USE_UPSTREAM" = true ]; then
+    echo "⬆️ Upstream mode: updating from upstream (AymanLyesri/ArchEclipse)"
 else
-    echo "📦 Standard mode: updating from upstream"
+    echo "🍴 Fork mode: updating from your fork (default)"
 fi
 
 echo "📍 Repository: $REMOTE"
