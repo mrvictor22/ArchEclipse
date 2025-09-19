@@ -9,4 +9,4 @@ else
     package_manager=$1
 fi
 
-sudo grep -vE '^\s*#|^\s*$' $HOME/.config/hypr/pacman/pkglist.txt | xargs $package_manager -Syu --needed
+sudo grep -vE '^\s*#|^\s*$' $HOME/.config/hypr/pacman/pkglist.txt | xargs $package_manager -S --needed
