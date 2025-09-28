@@ -6,6 +6,10 @@
 
 - Comprehensive multi-monitor support with automatic device detection
 - `multi-monitor-manager.sh` script for intelligent monitor management
+- `refresh-rate-manager.sh` script for dynamic refresh rate management (f4a6e40)
+- Interactive refresh rate selection with terminal-based menus (f4a6e40)
+- Direct refresh rate keybinds for 60/75/120/144Hz (f4a6e40)
+- Comprehensive English documentation in `MULTI_MONITOR_KEYBINDS.md` (f4a6e40)
 - Automatic device type detection (laptop/desktop)
 - Intelligent lid event handling for laptops
 - Automatic resolution configuration for secondary monitors
@@ -34,6 +38,9 @@
 - Added automatic AGS restart when monitor configuration changes
 - Added automatic monitor hotplug detection for seamless AGS bar management
 - Fixed window movement keybinds to work dynamically with any monitor configuration
+- Fixed multi-monitor keybinds by adding missing variable definitions (f4a6e40)
+- Removed duplicate configuration includes in hyprland.conf (f4a6e40)
+- Improved monitor mode selection with numerical interface (f4a6e40)
 
 ### Features
 
@@ -51,6 +58,13 @@
   - `Super + Shift + M`: Open interactive multi-monitor manager
   - `Super + Shift + P`: Mirror mode for presentations
   - `Super + Shift + I`: Toggle internal monitor
+  - `Super + Shift + R`: Interactive refresh rate manager (f4a6e40)
+  - `Super + Alt + F1-F4`: Direct refresh rate changes (60/75/120/144Hz) (f4a6e40)
+- **Refresh Rate Management**: Intelligent refresh rate switching with:
+  - Automatic detection of available refresh rates
+  - Position preservation during rate changes
+  - Interactive terminal-based selection menu
+  - Notification support for configuration changes (f4a6e40)
 
 ## [2025-09-06]
 
