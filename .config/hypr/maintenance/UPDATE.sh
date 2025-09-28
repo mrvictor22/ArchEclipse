@@ -96,17 +96,57 @@ if [ "$DEV_MODE" = true ]; then
     fi
 fi
 
-# Kill any hanging pacman processes and clean lock file
-echo "Cleaning up any hanging pacman processes..."
-sudo pkill -f pacman 2>/dev/null || true
-sudo pkill -f yay 2>/dev/null || true
-sudo pkill -f paru 2>/dev/null || true
+# Advanced cleanup function for hanging package manager processes
+cleanup_package_managers() {
+    echo "🧹 Cleaning up any hanging package manager processes..."
+    
+    # Find specific PIDs instead of using pkill -f (which can hang)
+    local pacman_pids=$(ps aux | grep -E "(pacman|yay|paru)" | grep -v grep | awk '{print $2}' | tr '\n' ' ')
+    
+    if [ -n "$pacman_pids" ]; then
+        echo "📋 Found hanging processes: $pacman_pids"
+        
+        # Kill processes individually with timeout
+        for pid in $pacman_pids; do
+            if kill -0 "$pid" 2>/dev/null; then
+                echo "🔪 Killing process $pid..."
+                sudo kill -TERM "$pid" 2>/dev/null || true
+                sleep 1
+                
+                # Force kill if still running
+                if kill -0 "$pid" 2>/dev/null; then
+                    echo "💀 Force killing stubborn process $pid..."
+                    sudo kill -9 "$pid" 2>/dev/null || true
+                fi
+            fi
+        done
+        
+        # Clean up any remaining pkill processes that might be stuck
+        local stuck_pkill=$(ps aux | grep "pkill.*pacman" | grep -v grep | awk '{print $2}' | tr '\n' ' ')
+        if [ -n "$stuck_pkill" ]; then
+            echo "🚫 Cleaning stuck pkill processes: $stuck_pkill"
+            for pid in $stuck_pkill; do
+                sudo kill -9 "$pid" 2>/dev/null || true
+            done
+        fi
+    else
+        echo "✅ No hanging package manager processes found"
+    fi
+    
+    # Remove pacman lock file if it exists
+    if [ -f /var/lib/pacman/db.lck ]; then
+        echo "🔓 Removing pacman lock file..."
+        sudo rm -f /var/lib/pacman/db.lck
+        echo "✅ Lock file removed"
+    else
+        echo "✅ No pacman lock file found"
+    fi
+    
+    echo "🎯 Package manager cleanup completed"
+}
 
-# Remove pacman lock file if it exists
-if [ -f /var/lib/pacman/db.lck ]; then
-    echo "Removing pacman lock file..."
-    sudo rm -f /var/lib/pacman/db.lck
-fi
+# Execute the cleanup function
+cleanup_package_managers
 
 aur_helpers=("yay" "paru")
 

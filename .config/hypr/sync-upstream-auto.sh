@@ -8,6 +8,42 @@ set -e
 
 echo "🤖 Sincronización automática iniciada..."
 
+# Función para limpiar procesos colgados de package managers
+cleanup_hanging_processes() {
+    echo "🧹 Limpiando procesos colgados de package managers..."
+    
+    local pacman_pids=$(ps aux | grep -E "(pacman|yay|paru)" | grep -v grep | awk '{print $2}' | tr '\n' ' ')
+    
+    if [ -n "$pacman_pids" ]; then
+        echo "📋 Procesos colgados encontrados: $pacman_pids"
+        for pid in $pacman_pids; do
+            if kill -0 "$pid" 2>/dev/null; then
+                sudo kill -TERM "$pid" 2>/dev/null || true
+                sleep 1
+                if kill -0 "$pid" 2>/dev/null; then
+                    sudo kill -9 "$pid" 2>/dev/null || true
+                fi
+            fi
+        done
+        
+        # Limpiar pkill colgados
+        local stuck_pkill=$(ps aux | grep "pkill.*pacman" | grep -v grep | awk '{print $2}' | tr '\n' ' ')
+        if [ -n "$stuck_pkill" ]; then
+            for pid in $stuck_pkill; do
+                sudo kill -9 "$pid" 2>/dev/null || true
+            done
+        fi
+    fi
+    
+    # Remover lock file si existe
+    if [ -f /var/lib/pacman/db.lck ]; then
+        sudo rm -f /var/lib/pacman/db.lck
+    fi
+}
+
+# Ejecutar limpieza preventiva
+cleanup_hanging_processes
+
 # Verificar que estamos en un repositorio git
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
     echo "❌ Error: No estás en un repositorio Git"
