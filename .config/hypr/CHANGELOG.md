@@ -39,6 +39,12 @@
 
 ### Fixed
 
+- **Package Manager Process Cleanup** (6b2a781)
+  - Fixed hanging pkill processes that could freeze UPDATE.sh script
+  - Replaced problematic `pkill -f` commands with targeted PID-based cleanup
+  - Added graceful termination (TERM) before force kill (KILL -9)
+  - Created standalone `cleanup-pacman.sh` script for manual cleanup
+  - Added preventive cleanup to sync scripts
 - Fixed keybind syntax errors in multi-monitor configuration
 - Corrected dispatcher commands for window and workspace movement
 - Fixed AGS bar not appearing on external monitors
