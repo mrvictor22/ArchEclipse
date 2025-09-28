@@ -291,51 +291,71 @@ redistribute_workspaces() {
 
 # Interactive monitor configuration
 interactive_config() {
-    local monitors_info=$(get_monitors_info)
-    local monitor_count=$(echo "$monitors_info" | jq length)
-    
-    echo -e "${BLUE}=== Multi-Monitor Configuration ===${NC}"
-    echo "Detected $monitor_count monitor(s):"
-    echo
-    
-    echo "$monitors_info" | jq -r '.[] | "  \(.name): \(.width)x\(.height)@\(.refreshRate)Hz (\(.make) \(.model))"'
-    echo
-    
-    echo "Available actions:"
-    echo "1) Auto-configure monitors"
-    echo "2) Configure specific monitor resolution"
-    echo "3) Setup lid behavior (laptop only)"
-    echo "4) Redistribute workspaces"
-    echo "5) Show current configuration"
-    echo "6) Exit"
-    echo
-    
-    read -p "Select an option (1-6): " choice
-    
-    case $choice in
-        1)
-            generate_monitor_config
-            hyprctl reload
-            ;;
-        2)
-            configure_specific_monitor
-            ;;
-        3)
-            configure_lid_behavior
-            ;;
-        4)
-            redistribute_workspaces
-            ;;
-        5)
-            show_current_config
-            ;;
-        6)
-            exit 0
-            ;;
-        *)
-            error "Invalid option"
-            ;;
-    esac
+    while true; do
+        local monitors_info=$(get_monitors_info)
+        local monitor_count=$(echo "$monitors_info" | jq length)
+        
+        echo -e "${BLUE}=== Multi-Monitor Configuration ===${NC}"
+        echo "Detected $monitor_count monitor(s):"
+        echo
+        
+        echo "$monitors_info" | jq -r '.[] | "  \(.name): \(.width)x\(.height)@\(.refreshRate)Hz (\(.make) \(.model))"'
+        echo
+        
+        echo "Available actions:"
+        echo "1) Auto-configure monitors"
+        echo "2) Configure specific monitor resolution"
+        echo "3) Setup lid behavior (laptop only)"
+        echo "4) Redistribute workspaces"
+        echo "5) Show current configuration"
+        echo "6) Exit"
+        echo
+        
+        read -p "Select an option (1-6): " choice
+        
+        case $choice in
+            1)
+                generate_monitor_config
+                hyprctl reload
+                echo
+                read -p "Press Enter to continue..."
+                clear
+                ;;
+            2)
+                configure_specific_monitor
+                echo
+                read -p "Press Enter to continue..."
+                clear
+                ;;
+            3)
+                configure_lid_behavior
+                echo
+                read -p "Press Enter to continue..."
+                clear
+                ;;
+            4)
+                redistribute_workspaces
+                echo
+                read -p "Press Enter to continue..."
+                clear
+                ;;
+            5)
+                show_current_config
+                echo
+                read -p "Press Enter to continue..."
+                clear
+                ;;
+            6)
+                exit 0
+                ;;
+            *)
+                error "Invalid option"
+                echo
+                read -p "Press Enter to continue..."
+                clear
+                ;;
+        esac
+    done
 }
 
 # Configure specific monitor resolution
