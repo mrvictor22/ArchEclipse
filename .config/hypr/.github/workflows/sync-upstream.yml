@@ -1,0 +1,37 @@
+name: Sync Upstream
+
+on:
+  schedule:
+    # Ejecutar cada día a las 2:00 AM UTC
+    - cron: '0 2 * * *'
+  workflow_dispatch: # Permite ejecutar manualmente
+
+jobs:
+  sync:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          fetch-depth: 0
+
+      - name: Sync upstream changes
+        run: |
+          git config --local user.email "action@github.com"
+          git config --local user.name "GitHub Action"
+          
+          # Agregar upstream si no existe
+          git remote add upstream https://github.com/AymanLyesri/ArchEclipse.git || true
+          
+          # Fetch upstream
+          git fetch upstream
+          
+          # Checkout master branch
+          git checkout master
+          
+          # Merge upstream changes
+          git merge upstream/master --no-edit
+          
+          # Push changes
+          git push origin master
