@@ -10,7 +10,8 @@
   - GitHub Action for daily automatic upstream sync
   - Conflict resolution and stash management
   - Support for handling non-fast-forward pushes automatically
-  - Complete documentation in `FORK-SYNC-GUIDE.md` and `README-SYNC.md`
+  - Complete documentation in `FORK-SYNC-GUIDE.md`, `README-SYNC.md`, and `COMANDOS-UPDATE.md` (848fa5d)
+  - Integration with existing `UPDATE.sh --dev --fork` workflow (848fa5d)
 - Comprehensive multi-monitor support with automatic device detection
 - `multi-monitor-manager.sh` script for intelligent monitor management
 - `refresh-rate-manager.sh` script for dynamic refresh rate management (f4a6e40)
