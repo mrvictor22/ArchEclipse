@@ -41,6 +41,7 @@
 - Fixed multi-monitor keybinds by adding missing variable definitions (f4a6e40)
 - Removed duplicate configuration includes in hyprland.conf (f4a6e40)
 - Improved monitor mode selection with numerical interface (f4a6e40)
+- Fixed interactive menu terminal exit when showing current configuration (f7db23c)
 
 ### Features
 
@@ -65,6 +66,10 @@
   - Position preservation during rate changes
   - Interactive terminal-based selection menu
   - Notification support for configuration changes (f4a6e40)
+- **Enhanced User Experience**: Improved interactive menus with:
+  - Persistent menu loops that don't exit unexpectedly
+  - Clear screen transitions between operations
+  - "Press Enter to continue" prompts for better flow (f7db23c)
 
 ## [2025-09-06]
 
