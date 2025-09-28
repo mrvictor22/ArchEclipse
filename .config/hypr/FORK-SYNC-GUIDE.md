@@ -222,14 +222,52 @@ git rev-list --count upstream/master..HEAD  # Adelante
 
 ---
 
+## ⚠️ **IMPORTANTE: Diferencia entre Update Normal vs Fork Update**
+
+### ❌ **Update "Normal" (PELIGROSO para forks)**
+```bash
+# ESTOS COMANDOS TE LLEVAN SOLO AL UPSTREAM SIN TUS CAMBIOS
+git checkout upstream/master     # ❌ Pierdes tus mejoras
+git reset --hard upstream/master # ❌ Pierdes tus mejoras  
+git pull upstream master         # ❌ Sin merge apropiado
+```
+**⚠️ Estos comandos ELIMINARÍAN todas tus mejoras, scripts y configuraciones personalizadas!**
+
+### ✅ **Fork Update Correcto (Mantiene tus cambios)**
+```bash
+# ESTOS SON LOS COMANDOS CORRECTOS PARA TU FORK
+./sync-upstream-auto.sh          # ✅ Automático, mantiene tus cambios
+./sync-upstream.sh               # ✅ Interactivo, mantiene tus cambios
+```
+
+### 🔍 **¿Por qué la diferencia?**
+
+- **Tu fork** tiene mejoras adicionales (scripts de sync, documentación, configuraciones)
+- **Upstream** solo tiene los cambios base de Ayman
+- **Los scripts de sync** combinan ambos: upstream + tus mejoras
+- **Update normal** te llevaría solo al estado base, perdiendo tu trabajo
+
+### 📊 **Estado Actual de tu Fork:**
+```bash
+# Tu fork incluye:
+- Cambios base de Ayman (upstream)
+- Scripts de sincronización automática
+- Documentación completa
+- Configuraciones personalizadas
+- Mejoras en multi-monitor
+- Y mucho más...
+```
+
 ## 🎯 Mejores Prácticas
 
-1. **Ejecuta sincronización regularmente** (diario o semanal)
-2. **Usa el script automático** para uso rutinario
-3. **Usa el script interactivo** cuando quieras más control
-4. **Verifica cambios** antes de sincronizar si tienes trabajo importante
-5. **Mantén commits locales organizados** para evitar conflictos
-6. **Usa branches** para desarrollo experimental
+1. **SIEMPRE usa los scripts de sync** para actualizar
+2. **NUNCA uses git reset --hard upstream/master**
+3. **Ejecuta sincronización regularmente** (diario o semanal)
+4. **Usa el script automático** para uso rutinario
+5. **Usa el script interactivo** cuando quieras más control
+6. **Verifica cambios** antes de sincronizar si tienes trabajo importante
+7. **Mantén commits locales organizados** para evitar conflictos
+8. **Usa branches** para desarrollo experimental
 
 ---
 

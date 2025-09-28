@@ -4,6 +4,8 @@ Herramientas para mantener tu fork sincronizado con el repositorio upstream de A
 
 ## 🚀 Comandos Principales
 
+### ✅ **Para Actualizar Manteniendo TUS Cambios (RECOMENDADO)**
+
 ```bash
 # Sincronización automática (recomendado para uso diario)
 ./sync-upstream-auto.sh
@@ -13,6 +15,15 @@ Herramientas para mantener tu fork sincronizado con el repositorio upstream de A
 
 # Verificar actualizaciones disponibles
 git fetch upstream && git log --oneline HEAD..upstream/master
+```
+
+### ❌ **NUNCA Uses Estos Comandos (Perderías tus cambios)**
+
+```bash
+# ❌ PELIGROSO - Te lleva solo al upstream SIN tus mejoras
+git checkout upstream/master
+git reset --hard upstream/master
+git pull upstream master  # Sin merge apropiado
 ```
 
 ## 📋 Opciones del Script Interactivo
