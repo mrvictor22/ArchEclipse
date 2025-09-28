@@ -101,6 +101,7 @@ git fetch upstream && git log --oneline HEAD..upstream/master
 ### **"Algo salió mal, necesito ayuda"**
 ```bash
 git status                    # Ver estado actual
+./scripts/cleanup-pacman.sh   # Limpiar procesos colgados
 ./UPDATE.sh --dev --fork      # Intentar con script existente
 # o
 ./sync-upstream-auto.sh       # Intentar con nuestro script
@@ -145,8 +146,9 @@ git rebase upstream/master    # Sin el script
 
 1. **¿Qué script usar?** → `./UPDATE.sh --dev --fork` o `./sync-upstream-auto.sh`
 2. **¿Quiero más control?** → `./sync-upstream.sh` (interactivo)  
-3. **¿Algo salió mal?** → Consulta `FORK-SYNC-GUIDE.md`
-4. **¿Perdí mis cambios?** → Revisa `git stash list` y `git reflog`
+3. **¿Script se colgó?** → `./scripts/cleanup-pacman.sh` (limpia procesos colgados)
+4. **¿Algo salió mal?** → Consulta `FORK-SYNC-GUIDE.md`
+5. **¿Perdí mis cambios?** → Revisa `git stash list` y `git reflog`
 
 ---
 
