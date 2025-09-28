@@ -356,17 +356,46 @@ configure_specific_monitor() {
     fi
     
     local selected_monitor="${monitors[$((monitor_num-1))]}"
-    local available_modes=$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$selected_monitor\") | .availableModes[]")
+    local available_modes=($(hyprctl monitors -j | jq -r ".[] | select(.name == \"$selected_monitor\") | .availableModes[]"))
     
     echo "Available modes for $selected_monitor:"
-    echo "$available_modes" | nl
+    for i in "${!available_modes[@]}"; do
+        echo "$((i+1))) ${available_modes[$i]}"
+    done
+    echo "$((${#available_modes[@]}+1))) Enter custom resolution"
     echo
     
-    read -p "Enter desired resolution (e.g., 1920x1080@60): " resolution
+    read -p "Select mode number (1-$((${#available_modes[@]}+1))): " mode_choice
+    
+    local resolution=""
+    if [ "$mode_choice" -ge 1 ] && [ "$mode_choice" -le "${#available_modes[@]}" ]; then
+        resolution="${available_modes[$((mode_choice-1))]}"
+    elif [ "$mode_choice" -eq "$((${#available_modes[@]}+1))" ]; then
+        read -p "Enter custom resolution (e.g., 1920x1080@60): " resolution
+    else
+        error "Invalid mode selection"
+        return 1
+    fi
     
     if [ -n "$resolution" ]; then
-        hyprctl keyword monitor "$selected_monitor,$resolution,auto,1"
-        log "Resolution updated for $selected_monitor to $resolution"
+        # Get current monitor position to maintain it
+        local current_x=$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$selected_monitor\") | .x")
+        local current_y=$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$selected_monitor\") | .y")
+        local position="${current_x}x${current_y}"
+        
+        log "Setting $selected_monitor to $resolution at position $position"
+        hyprctl keyword monitor "$selected_monitor,$resolution,$position,1"
+        
+        if [ $? -eq 0 ]; then
+            log "Resolution updated for $selected_monitor to $resolution"
+            
+            # Send notification if available
+            if command -v notify-send >/dev/null 2>&1; then
+                notify-send "Monitor Configuration" "$selected_monitor set to $resolution" -t 3000
+            fi
+        else
+            error "Failed to update monitor resolution"
+        fi
     fi
 }
 
