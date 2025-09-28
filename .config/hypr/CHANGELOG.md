@@ -4,6 +4,12 @@
 
 ### Added
 
+- **Automated Upstream Synchronization Tools** (6d9a16d)
+  - `sync-upstream.sh` script with interactive options (merge/rebase/auto)
+  - `sync-upstream-auto.sh` for fully automated synchronization
+  - GitHub Action for daily automatic upstream sync
+  - Conflict resolution and stash management
+  - Support for handling non-fast-forward pushes automatically
 - Comprehensive multi-monitor support with automatic device detection
 - `multi-monitor-manager.sh` script for intelligent monitor management
 - `refresh-rate-manager.sh` script for dynamic refresh rate management (f4a6e40)
