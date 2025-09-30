@@ -39,6 +39,12 @@
 
 ### Fixed
 
+- **Triple Notification Bug on Single Monitor**
+  - Fixed clipboard monitor spawning 3 duplicate instances causing triple notifications
+  - Added singleton protection with lock file mechanism in exec.conf
+  - Implemented global flag in AGS app.ts to prevent multiple display initializations
+  - Added singleton pattern in NotificationPopups.tsx to prevent duplicate notification listeners
+  - Resolved issue where hyprctl reload was re-executing exec-once commands
 - **Package Manager Process Cleanup** (6b2a781)
   - Fixed hanging pkill processes that could freeze UPDATE.sh script
   - Replaced problematic `pkill -f` commands with targeted PID-based cleanup

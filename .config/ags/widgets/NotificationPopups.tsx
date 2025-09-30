@@ -104,9 +104,21 @@ class NotificationMap implements Subscribable {
   }
 }
 
+// Global singleton instance to prevent multiple notification listeners
+let globalNotifications: NotificationMap | null = null;
+
 export default (monitor: Gdk.Monitor) => {
   const { TOP, RIGHT } = Astal.WindowAnchor;
-  const notifications = new NotificationMap();
+  
+  // Use global singleton instance to prevent duplicate notifications
+  if (!globalNotifications) {
+    print("\t\t Creating NEW NotificationMap instance");
+    globalNotifications = new NotificationMap();
+  } else {
+    print("\t\t Reusing EXISTING NotificationMap instance");
+  }
+  
+  const notifications = globalNotifications;
 
   return (
     <window

@@ -20,9 +20,25 @@ import { compileBinaries } from "./utils/gcc";
 import "./services/autoSwitchWorkspace";
 import ScreenShot from "./widgets/ScreenShot";
 
-const perMonitorDisplay = () =>
-  App.get_monitors().map((monitor) => {
-    print("\t MONITOR: " + getMonitorName(monitor.get_display(), monitor));
+// Global flag to prevent multiple initializations
+let displayInitialized = false;
+
+const perMonitorDisplay = () => {
+  if (displayInitialized) {
+    print("\t WARNING: perMonitorDisplay already initialized, skipping...");
+    return;
+  }
+  displayInitialized = true;
+  
+  const monitors = App.get_monitors();
+  print(`\t TOTAL MONITORS DETECTED: ${monitors.length}`);
+  
+  monitors.map((monitor, index) => {
+    const monitorName = getMonitorName(monitor.get_display(), monitor);
+    print(`\t MONITOR ${index}: ${monitorName}`);
+
+    // Only create NotificationPopups for the primary monitor (eDP-1) to avoid duplicates
+    const isMainMonitor = monitorName === "eDP-1" || index === 0;
 
     // List of widget initializers
     const widgetInitializers = [
@@ -33,7 +49,8 @@ const perMonitorDisplay = () =>
       { name: "RightPanelHover", fn: () => RightPanelHover(monitor) },
       { name: "LeftPanel", fn: () => LeftPanel(monitor) },
       { name: "LeftPanelHover", fn: () => LeftPanelHover(monitor) },
-      { name: "NotificationPopups", fn: () => NotificationPopups(monitor) },
+      // Only create NotificationPopups on main monitor to prevent duplicates
+      ...(isMainMonitor ? [{ name: "NotificationPopups", fn: () => NotificationPopups(monitor) }] : []),
       { name: "AppLauncher", fn: () => AppLauncher(monitor) },
       { name: "UserPanel", fn: () => UserPanel(monitor) },
       { name: "WallpaperSwitcher", fn: () => WallpaperSwitcher(monitor) },
@@ -48,6 +65,7 @@ const perMonitorDisplay = () =>
       logTime(`\t\t ${name}`, fn);
     });
   });
+};
 
 App.start({
   css: getCssPath(),
