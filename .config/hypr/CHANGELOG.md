@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- **Clipboard Monitor Integer Comparison Error**
+- **Clipboard Monitor Integer Comparison Error** (5f7ab1b)
   - Fixed bash integer comparison error in `start-clipboard-monitor.sh` and `check-clipboard-monitor.sh`
   - **Root Cause:** `pgrep -fc` was returning multi-line output ("0\n0") instead of single integer
   - **Solution:** Refactored process counting logic to use robust pattern:
