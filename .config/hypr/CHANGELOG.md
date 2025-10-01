@@ -22,10 +22,10 @@
 
 ### Added
 
-- **Complete English Translation**
-  - Translated all Spanish documentation to English (RESUMEN-IMPLEMENTACION.md, COMANDOS-UPDATE.md, FORK-SYNC-GUIDE.md, README-SYNC.md)
+- **Complete English Translation** (07073f9)
+  - Translated all Spanish documentation to English (COMANDOS-UPDATE.md, FORK-SYNC-GUIDE.md, README-SYNC.md)
   - Translated all script comments and messages to English (sync-upstream.sh, sync-upstream-auto.sh)
-  - Enhanced .gitignore with backup file exclusion patterns
+  - Enhanced .gitignore with backup file exclusion patterns (*.backup.*, *.bak, *~)
 
 - **Clipboard Monitor Diagnostics**
   - New `check-clipboard-monitor.sh` script for system health verification
