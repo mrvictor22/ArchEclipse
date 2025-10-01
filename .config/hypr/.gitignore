@@ -1,6 +1,15 @@
+# Custom configuration overrides
 configs/custom/*
 !configs/custom/.gitkeep
 
+# Theme configuration
 theme/theme.conf
+
+# Hyprpaper configuration
 hyprpaper/config/*
 !hyprpaper/config/defaults.conf
+
+# Backup files
+*.backup.*
+*.bak
+*~

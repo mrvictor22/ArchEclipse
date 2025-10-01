@@ -1,155 +1,155 @@
-# 🔄 Comandos de Update - Guía Definitiva
+# 🔄 Update Commands - Definitive Guide
 
-## ❓ **¿Qué comando debo usar para actualizar?**
+## ❓ **Which command should I use to update?**
 
-### 🎯 **RESPUESTA SIMPLE:**
+### 🎯 **SIMPLE ANSWER:**
 
 ```bash
-# OPCIÓN 1: Usar el script UPDATE.sh existente (RECOMENDADO)
+# OPTION 1: Use the existing UPDATE.sh script (RECOMMENDED)
 ./UPDATE.sh --dev --fork
 
-# OPCIÓN 2: Usar nuestros scripts de sync personalizados
+# OPTION 2: Use our custom sync scripts
 ./sync-upstream-auto.sh
 ```
 
-**Ambos comandos mantienen tus cambios y traen actualizaciones de Ayman.**
+**Both commands keep your changes and bring updates from Ayman.**
 
 ---
 
-## 📊 **Comparación de Comandos**
+## 📊 **Command Comparison**
 
-| Comando | ¿Mantiene tus cambios? | ¿Trae cambios de Ayman? | ¿Recomendado? |
-|---------|------------------------|--------------------------|---------------|
-| `./UPDATE.sh --dev --fork` | ✅ SÍ | ✅ SÍ | ✅ **RECOMENDADO** |
-| `./sync-upstream-auto.sh` | ✅ SÍ | ✅ SÍ | ✅ **RECOMENDADO** |
-| `./sync-upstream.sh` | ✅ SÍ | ✅ SÍ | ✅ **RECOMENDADO** |
-| `./UPDATE.sh` (sin flags) | ❌ NO | ✅ SÍ | ❌ **PELIGROSO** |
-| `git pull upstream master` | ❌ NO | ✅ SÍ | ❌ **PELIGROSO** |
-| `git reset --hard upstream/master` | ❌ NO | ✅ SÍ | ❌ **PELIGROSO** |
-| `git checkout upstream/master` | ❌ NO | ✅ SÍ | ❌ **PELIGROSO** |
+| Command | Keeps your changes? | Brings Ayman's changes? | Recommended? |
+|---------|---------------------|-------------------------|--------------|
+| `./UPDATE.sh --dev --fork` | ✅ YES | ✅ YES | ✅ **RECOMMENDED** |
+| `./sync-upstream-auto.sh` | ✅ YES | ✅ YES | ✅ **RECOMMENDED** |
+| `./sync-upstream.sh` | ✅ YES | ✅ YES | ✅ **RECOMMENDED** |
+| `./UPDATE.sh` (without flags) | ❌ NO | ✅ YES | ❌ **DANGEROUS** |
+| `git pull upstream master` | ❌ NO | ✅ YES | ❌ **DANGEROUS** |
+| `git reset --hard upstream/master` | ❌ NO | ✅ YES | ❌ **DANGEROUS** |
+| `git checkout upstream/master` | ❌ NO | ✅ YES | ❌ **DANGEROUS** |
 
 ---
 
-## 🔍 **¿Por qué NO usar comandos "normales" de Git?**
+## 🔍 **Why NOT use "normal" Git commands?**
 
-### **Tu fork NO es un repositorio normal, es especial porque tiene:**
+### **Your fork is NOT a normal repository, it's special because it has:**
 
-1. **Scripts de sincronización automática** (`sync-upstream.sh`, `sync-upstream-auto.sh`)
-2. **Documentación completa** (`FORK-SYNC-GUIDE.md`, `README-SYNC.md`)
-3. **GitHub Action** para sync automático
-4. **Configuraciones personalizadas** mejoradas
-5. **Scripts de multi-monitor** avanzados
-6. **Changelog detallado** de todos los cambios
+1. **Automatic synchronization scripts** (`sync-upstream.sh`, `sync-upstream-auto.sh`)
+2. **Complete documentation** (`FORK-SYNC-GUIDE.md`, `README-SYNC.md`)
+3. **GitHub Action** for automatic sync
+4. **Improved custom configurations**
+5. **Advanced multi-monitor scripts**
+6. **Detailed changelog** of all changes
 
-### **Si usas comandos "normales":**
+### **If you use "normal" commands:**
 ```bash
-git reset --hard upstream/master  # ❌ PIERDES TODO LO ANTERIOR
+git reset --hard upstream/master  # ❌ YOU LOSE ALL OF THE ABOVE
 ```
 
 ---
 
-## 🚀 **Flujo de Trabajo Correcto**
+## 🚀 **Correct Workflow**
 
-### **Uso Diario (Recomendado):**
+### **Daily Use (Recommended):**
 ```bash
-# OPCIÓN A: Usar el script UPDATE.sh existente
+# OPTION A: Use the existing UPDATE.sh script
 ./UPDATE.sh --dev --fork
 
-# OPCIÓN B: Usar nuestros scripts personalizados
+# OPTION B: Use our custom scripts
 ./sync-upstream-auto.sh
 
-# Ambos te dan: lo último de Ayman + tus mejoras
+# Both give you: Ayman's latest + your improvements
 ```
 
-### **Uso con Más Control:**
+### **Use with More Control:**
 ```bash
-# 1. Verificar cambios disponibles
+# 1. Check available changes
 git fetch upstream && git log --oneline HEAD..upstream/master
 
-# 2. Usar script interactivo
+# 2. Use interactive script
 ./sync-upstream.sh
 
-# 3. Elegir estrategia:
-#    - Merge (preserva historial)
-#    - Rebase (historial limpio)
-#    - Automático (deja que decida)
+# 3. Choose strategy:
+#    - Merge (preserves history)
+#    - Rebase (clean history)
+#    - Automatic (let it decide)
 ```
 
 ---
 
-## 📋 **Casos de Uso Específicos**
+## 📋 **Specific Use Cases**
 
-### **"Quiero lo último de Ayman"**
+### **"I want Ayman's latest"**
 ```bash
-# Opción A (script existente):
+# Option A (existing script):
 ./UPDATE.sh --dev --fork
 
-# Opción B (nuestro script):
+# Option B (our script):
 ./sync-upstream-auto.sh
 ```
 
-### **"Quiero control sobre cómo se aplican los cambios"**
+### **"I want control over how changes are applied"**
 ```bash
 ./sync-upstream.sh
 ```
 
-### **"Solo quiero ver qué hay nuevo"**
+### **"I just want to see what's new"**
 ```bash
 git fetch upstream && git log --oneline HEAD..upstream/master
 ```
 
-### **"Algo salió mal, necesito ayuda"**
+### **"Something went wrong, I need help"**
 ```bash
-git status                    # Ver estado actual
-./scripts/cleanup-pacman.sh   # Limpiar procesos colgados
-./UPDATE.sh --dev --fork      # Intentar con script existente
-# o
-./sync-upstream-auto.sh       # Intentar con nuestro script
-# Si falla, consultar FORK-SYNC-GUIDE.md
+git status                    # View current status
+./scripts/cleanup-pacman.sh   # Clean hanging processes
+./UPDATE.sh --dev --fork      # Try with existing script
+# or
+./sync-upstream-auto.sh       # Try with our script
+# If it fails, check FORK-SYNC-GUIDE.md
 ```
 
 ---
 
-## ⚠️ **Comandos PROHIBIDOS para tu Fork**
+## ⚠️ **FORBIDDEN Commands for Your Fork**
 
 ```bash
-# ❌ NUNCA USES ESTOS:
-./UPDATE.sh                   # Sin flags - PELIGROSO
+# ❌ NEVER USE THESE:
+./UPDATE.sh                   # Without flags - DANGEROUS
 git reset --hard upstream/master
 git checkout upstream/master  
 git pull upstream master
-git rebase upstream/master    # Sin el script
+git rebase upstream/master    # Without the script
 
-# ✅ EN SU LUGAR USA:
-./UPDATE.sh --dev --fork      # Script existente con flags seguros
-./sync-upstream-auto.sh       # Nuestro script automático
-./sync-upstream.sh            # Nuestro script interactivo
+# ✅ USE THESE INSTEAD:
+./UPDATE.sh --dev --fork      # Existing script with safe flags
+./sync-upstream-auto.sh       # Our automatic script
+./sync-upstream.sh            # Our interactive script
 ```
 
 ---
 
-## 🎯 **Regla de Oro**
+## 🎯 **Golden Rule**
 
-> **"Si quieres actualizar tu fork, SIEMPRE usa los scripts de sync"**
+> **"If you want to update your fork, ALWAYS use the sync scripts"**
 
-### **¿Por qué?**
-- Manejan conflictos automáticamente
-- Preservan tus cambios personalizados
-- Aplican las mejores prácticas de Git
-- Tienen manejo de errores integrado
-- Guardan/restauran cambios no commiteados
-- Te dan control sobre la estrategia de merge
-
----
-
-## 📞 **¿Dudas?**
-
-1. **¿Qué script usar?** → `./UPDATE.sh --dev --fork` o `./sync-upstream-auto.sh`
-2. **¿Quiero más control?** → `./sync-upstream.sh` (interactivo)  
-3. **¿Script se colgó?** → `./scripts/cleanup-pacman.sh` (limpia procesos colgados)
-4. **¿Algo salió mal?** → Consulta `FORK-SYNC-GUIDE.md`
-5. **¿Perdí mis cambios?** → Revisa `git stash list` y `git reflog`
+### **Why?**
+- They handle conflicts automatically
+- They preserve your custom changes
+- They apply Git best practices
+- They have integrated error handling
+- They save/restore uncommitted changes
+- They give you control over the merge strategy
 
 ---
 
-**Recuerda: Tu fork es valioso, protégelo usando las herramientas correctas** 🛡️
+## 📞 **Questions?**
+
+1. **Which script to use?** → `./UPDATE.sh --dev --fork` or `./sync-upstream-auto.sh`
+2. **Want more control?** → `./sync-upstream.sh` (interactive)  
+3. **Script hung?** → `./scripts/cleanup-pacman.sh` (cleans hanging processes)
+4. **Something went wrong?** → Check `FORK-SYNC-GUIDE.md`
+5. **Lost my changes?** → Check `git stash list` and `git reflog`
+
+---
+
+**Remember: Your fork is valuable, protect it using the right tools** 🛡️

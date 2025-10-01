@@ -1,57 +1,57 @@
-# 🔄 Fork Sync Tools - Referencia Rápida
+# 🔄 Fork Sync Tools - Quick Reference
 
-Herramientas para mantener tu fork sincronizado con el repositorio upstream de Ayman.
+Tools to keep your fork synchronized with Ayman's upstream repository.
 
-## 🚀 Comandos Principales
+## 🚀 Main Commands
 
-### ✅ **Para Actualizar Manteniendo TUS Cambios (RECOMENDADO)**
+### ✅ **To Update While Keeping YOUR Changes (RECOMMENDED)**
 
 ```bash
-# Sincronización automática (recomendado para uso diario)
+# Automatic synchronization (recommended for daily use)
 ./sync-upstream-auto.sh
 
-# Sincronización interactiva (más control)
+# Interactive synchronization (more control)
 ./sync-upstream.sh
 
-# Verificar actualizaciones disponibles
+# Check available updates
 git fetch upstream && git log --oneline HEAD..upstream/master
 ```
 
-### ❌ **NUNCA Uses Estos Comandos (Perderías tus cambios)**
+### ❌ **NEVER Use These Commands (You would lose your changes)**
 
 ```bash
-# ❌ PELIGROSO - Te lleva solo al upstream SIN tus mejoras
+# ❌ DANGEROUS - Takes you to upstream only WITHOUT your improvements
 git checkout upstream/master
 git reset --hard upstream/master
-git pull upstream master  # Sin merge apropiado
+git pull upstream master  # Without proper merge
 ```
 
-## 📋 Opciones del Script Interactivo
+## 📋 Interactive Script Options
 
-1. **Merge** - Preserva historial completo
-2. **Rebase** - Historial más limpio  
-3. **Automático** - Detecta la mejor estrategia
+1. **Merge** - Preserves complete history
+2. **Rebase** - Cleaner history  
+3. **Automatic** - Detects the best strategy
 
-## 🤖 Automatización
+## 🤖 Automation
 
-- **GitHub Action**: Se ejecuta diariamente a las 2:00 AM UTC
-- **Ejecución manual**: Desde GitHub Actions tab
-- **Script automático**: `./sync-upstream-auto.sh`
+- **GitHub Action**: Runs daily at 2:00 AM UTC
+- **Manual execution**: From GitHub Actions tab
+- **Automatic script**: `./sync-upstream-auto.sh`
 
-## ⚡ Comandos de Emergencia
+## ⚡ Emergency Commands
 
 ```bash
-git merge --abort              # Abortar merge problemático
-git stash pop                  # Restaurar cambios guardados
-git status                     # Ver estado actual
-git remote -v                  # Verificar remotos configurados
+git merge --abort              # Abort problematic merge
+git stash pop                  # Restore saved changes
+git status                     # View current status
+git remote -v                  # Verify configured remotes
 ```
 
-## 📖 Documentación Completa
+## 📖 Complete Documentation
 
-Ver `FORK-SYNC-GUIDE.md` para documentación detallada con ejemplos y resolución de problemas.
+See `FORK-SYNC-GUIDE.md` for detailed documentation with examples and troubleshooting.
 
 ---
 
 **Upstream**: [AymanLyesri/ArchEclipse](https://github.com/AymanLyesri/ArchEclipse)  
-**Tu Fork**: [mrvictor22/ArchEclipse](https://github.com/mrvictor22/ArchEclipse)
+**Your Fork**: [mrvictor22/ArchEclipse](https://github.com/mrvictor22/ArchEclipse)

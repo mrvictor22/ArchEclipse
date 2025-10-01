@@ -1,21 +1,21 @@
 #!/bin/bash
 
-# Script para sincronización automática de fork con upstream
-# Uso: ./sync-upstream-auto.sh
-# Este script no requiere interacción del usuario
+# Script for automatic fork synchronization with upstream
+# Usage: ./sync-upstream-auto.sh
+# This script requires no user interaction
 
 set -e
 
-echo "🤖 Sincronización automática iniciada..."
+echo "🤖 Automatic synchronization started..."
 
-# Función para limpiar procesos colgados de package managers
+# Function to clean hanging package manager processes
 cleanup_hanging_processes() {
-    echo "🧹 Limpiando procesos colgados de package managers..."
+    echo "🧹 Cleaning hanging package manager processes..."
     
     local pacman_pids=$(ps aux | grep -E "(pacman|yay|paru)" | grep -v grep | awk '{print $2}' | tr '\n' ' ')
     
     if [ -n "$pacman_pids" ]; then
-        echo "📋 Procesos colgados encontrados: $pacman_pids"
+        echo "📋 Hanging processes found: $pacman_pids"
         for pid in $pacman_pids; do
             if kill -0 "$pid" 2>/dev/null; then
                 sudo kill -TERM "$pid" 2>/dev/null || true
@@ -26,7 +26,7 @@ cleanup_hanging_processes() {
             fi
         done
         
-        # Limpiar pkill colgados
+        # Clean hanging pkill
         local stuck_pkill=$(ps aux | grep "pkill.*pacman" | grep -v grep | awk '{print $2}' | tr '\n' ' ')
         if [ -n "$stuck_pkill" ]; then
             for pid in $stuck_pkill; do
@@ -35,181 +35,181 @@ cleanup_hanging_processes() {
         fi
     fi
     
-    # Remover lock file si existe
+    # Remove lock file if it exists
     if [ -f /var/lib/pacman/db.lck ]; then
         sudo rm -f /var/lib/pacman/db.lck
     fi
 }
 
-# Ejecutar limpieza preventiva
+# Run preventive cleanup
 cleanup_hanging_processes
 
-# Verificar que estamos en un repositorio git
+# Verify we are in a git repository
 if ! git rev-parse --git-dir > /dev/null 2>&1; then
-    echo "❌ Error: No estás en un repositorio Git"
+    echo "❌ Error: You are not in a Git repository"
     exit 1
 fi
 
-# Obtener la rama actual
+# Get current branch
 CURRENT_BRANCH=$(git branch --show-current)
-echo "📍 Rama actual: $CURRENT_BRANCH"
+echo "📍 Current branch: $CURRENT_BRANCH"
 
-# Verificar si hay cambios no commiteados
+# Check if there are uncommitted changes
 if ! git diff-index --quiet HEAD --; then
-    echo "⚠️  Hay cambios no commiteados detectados"
-    echo "🔄 Guardando cambios temporalmente con stash..."
+    echo "⚠️  Uncommitted changes detected"
+    echo "🔄 Saving changes temporarily with stash..."
     
-    # Crear stash con mensaje descriptivo
-    STASH_MESSAGE="Auto-stash antes de sync upstream $(date '+%Y-%m-%d %H:%M:%S')"
+    # Create stash with descriptive message
+    STASH_MESSAGE="Auto-stash before upstream sync $(date '+%Y-%m-%d %H:%M:%S')"
     git stash push -m "$STASH_MESSAGE"
     STASHED=true
-    echo "✅ Cambios guardados en stash"
+    echo "✅ Changes saved in stash"
 else
     STASHED=false
 fi
 
-# Cambiar a master si no estamos ahí
+# Switch to master if we're not there
 if [ "$CURRENT_BRANCH" != "master" ]; then
-    echo "🔄 Cambiando a rama master..."
+    echo "🔄 Switching to master branch..."
     git checkout master
 fi
 
-# Verificar que upstream existe
+# Verify upstream exists
 if ! git remote get-url upstream > /dev/null 2>&1; then
-    echo "❌ Error: Remote 'upstream' no configurado"
-    echo "💡 Configúralo con: git remote add upstream https://github.com/AymanLyesri/ArchEclipse.git"
+    echo "❌ Error: Remote 'upstream' not configured"
+    echo "💡 Configure it with: git remote add upstream https://github.com/AymanLyesri/ArchEclipse.git"
     exit 1
 fi
 
-# Fetch upstream y origin
-echo "📥 Obteniendo cambios del upstream y origin..."
+# Fetch upstream and origin
+echo "📥 Fetching changes from upstream and origin..."
 git fetch upstream
 git fetch origin
 
-# Verificar si hay cambios en upstream
+# Check if there are changes in upstream
 BEHIND_UPSTREAM=$(git rev-list --count HEAD..upstream/master)
 if [ "$BEHIND_UPSTREAM" -eq 0 ]; then
-    echo "✅ Tu fork ya está actualizado con upstream"
+    echo "✅ Your fork is already up to date with upstream"
     
-    # Verificar si origin está adelante
+    # Check if origin is ahead
     BEHIND_ORIGIN=$(git rev-list --count HEAD..origin/master)
     if [ "$BEHIND_ORIGIN" -gt 0 ]; then
-        echo "📥 Sincronizando con cambios de origin..."
+        echo "📥 Synchronizing with origin changes..."
         git merge origin/master --no-edit
-        echo "✅ Sincronizado con origin"
+        echo "✅ Synchronized with origin"
     fi
     
-    # Regresar a la rama original
+    # Return to original branch
     if [ "$CURRENT_BRANCH" != "master" ]; then
         git checkout "$CURRENT_BRANCH"
     fi
     exit 0
 fi
 
-echo "📊 Tu fork está $BEHIND_UPSTREAM commits atrás del upstream"
+echo "📊 Your fork is $BEHIND_UPSTREAM commits behind upstream"
 
-# Función para manejar conflictos de merge automáticamente
+# Function to handle merge conflicts automatically
 handle_merge_conflicts() {
     local source=$1
-    echo "🔧 Intentando resolver conflictos automáticamente..."
+    echo "🔧 Attempting to resolve conflicts automatically..."
     
-    # Obtener lista de archivos en conflicto
+    # Get list of conflicting files
     CONFLICT_FILES=$(git diff --name-only --diff-filter=U)
     
     if [ -z "$CONFLICT_FILES" ]; then
-        echo "✅ No hay conflictos que resolver"
+        echo "✅ No conflicts to resolve"
         return 0
     fi
     
-    echo "📋 Archivos en conflicto:"
+    echo "📋 Conflicting files:"
     echo "$CONFLICT_FILES" | sed 's/^/   - /'
     
-    # Estrategia automática: aceptar cambios del source (upstream/origin)
-    echo "🤖 Resolviendo automáticamente aceptando cambios de $source..."
+    # Automatic strategy: accept changes from source (upstream/origin)
+    echo "🤖 Resolving automatically by accepting changes from $source..."
     
     for file in $CONFLICT_FILES; do
         if [ "$source" = "upstream" ]; then
-            # Aceptar cambios de upstream
+            # Accept changes from upstream
             git checkout --theirs "$file"
         else
-            # Aceptar cambios de origin
+            # Accept changes from origin
             git checkout --theirs "$file"
         fi
         git add "$file"
-        echo "   ✅ Resuelto: $file"
+        echo "   ✅ Resolved: $file"
     done
     
-    # Completar el merge
+    # Complete the merge
     git commit --no-edit
-    echo "✅ Conflictos resueltos y merge completado"
+    echo "✅ Conflicts resolved and merge completed"
 }
 
-# Detectar automáticamente la mejor estrategia
+# Automatically detect the best strategy
 LOCAL_COMMITS=$(git rev-list --count origin/master..HEAD 2>/dev/null || echo "0")
 ORIGIN_COMMITS=$(git rev-list --count HEAD..origin/master 2>/dev/null || echo "0")
 
-echo "📋 Análisis:"
-echo "   - Commits locales no pusheados: $LOCAL_COMMITS"
-echo "   - Commits en origin no locales: $ORIGIN_COMMITS"
-echo "   - Commits nuevos en upstream: $BEHIND_UPSTREAM"
+echo "📋 Analysis:"
+echo "   - Local unpushed commits: $LOCAL_COMMITS"
+echo "   - Commits in origin not local: $ORIGIN_COMMITS"
+echo "   - New commits in upstream: $BEHIND_UPSTREAM"
 
-# Estrategia automática
+# Automatic strategy
 if [ "$LOCAL_COMMITS" -eq 0 ] && [ "$ORIGIN_COMMITS" -eq 0 ]; then
-    echo "🚀 Estrategia: Fast-forward merge (sin commits locales)"
+    echo "🚀 Strategy: Fast-forward merge (no local commits)"
     STRATEGY="merge"
     git merge upstream/master --ff-only
 elif [ "$LOCAL_COMMITS" -gt 0 ] && [ "$ORIGIN_COMMITS" -eq 0 ]; then
-    echo "🔄 Estrategia: Rebase (commits locales presentes)"
+    echo "🔄 Strategy: Rebase (local commits present)"
     STRATEGY="rebase"
     git rebase upstream/master
 else
-    echo "🔀 Estrategia: Merge (situación compleja)"
+    echo "🔀 Strategy: Merge (complex situation)"
     STRATEGY="merge"
-    # Primero sincronizar con origin si es necesario
+    # First synchronize with origin if necessary
     if [ "$ORIGIN_COMMITS" -gt 0 ]; then
-        echo "📥 Sincronizando primero con origin..."
+        echo "📥 Synchronizing first with origin..."
         if ! git merge origin/master --no-edit; then
-            echo "⚠️  Conflictos detectados al mergear con origin"
+            echo "⚠️  Conflicts detected when merging with origin"
             handle_merge_conflicts "origin"
         fi
     fi
     
     if ! git merge upstream/master --no-edit; then
-        echo "⚠️  Conflictos detectados al mergear con upstream"
+        echo "⚠️  Conflicts detected when merging with upstream"
         handle_merge_conflicts "upstream"
     fi
 fi
 
-# Función mejorada para push automático
+# Improved function for automatic push
 auto_push() {
     local max_retries=3
     local retry=0
     
-    echo "📤 Subiendo cambios automáticamente..."
+    echo "📤 Pushing changes automatically..."
     
     while [ $retry -lt $max_retries ]; do
-        # Intentar push normal primero
+        # Try normal push first
         if git push origin master; then
-            echo "✅ Push exitoso"
+            echo "✅ Push successful"
             return 0
         fi
         
-        echo "⚠️  Push falló (intento $((retry + 1))/$max_retries)"
+        echo "⚠️  Push failed (attempt $((retry + 1))/$max_retries)"
         
-        # Fetch origin para ver qué pasó
+        # Fetch origin to see what happened
         git fetch origin master
         
-        # Verificar la situación
+        # Check the situation
         if git merge-base --is-ancestor HEAD origin/master; then
-            # Estamos adelante, algo raro pasó, usar force-with-lease
-            echo "🔄 Usando force-with-lease..."
+            # We're ahead, something weird happened, use force-with-lease
+            echo "🔄 Using force-with-lease..."
             if git push origin master --force-with-lease; then
-                echo "✅ Push con force-with-lease exitoso"
+                echo "✅ Push with force-with-lease successful"
                 return 0
             fi
         else
-            # Origin tiene cambios que no tenemos
-            echo "🔄 Origin tiene cambios nuevos, integrando..."
+            # Origin has changes we don't have
+            echo "🔄 Origin has new changes, integrating..."
             
             if [ "$STRATEGY" = "rebase" ]; then
                 git rebase origin/master
@@ -221,37 +221,37 @@ auto_push() {
         retry=$((retry + 1))
     done
     
-    echo "❌ Error: No se pudo hacer push después de $max_retries intentos"
-    echo "💡 Revisa manualmente: git log --oneline --graph --all"
+    echo "❌ Error: Could not push after $max_retries attempts"
+    echo "💡 Review manually: git log --oneline --graph --all"
     return 1
 }
 
-# Ejecutar push automático
+# Execute automatic push
 if ! auto_push; then
     exit 1
 fi
 
-# Regresar a la rama original si era diferente
+# Return to original branch if it was different
 if [ "$CURRENT_BRANCH" != "master" ]; then
-    echo "🔄 Regresando a rama $CURRENT_BRANCH..."
+    echo "🔄 Returning to branch $CURRENT_BRANCH..."
     git checkout "$CURRENT_BRANCH"
 fi
 
-# Restaurar cambios del stash si los había
+# Restore changes from stash if there were any
 if [ "$STASHED" = true ]; then
-    echo "🔄 Restaurando cambios desde stash..."
+    echo "🔄 Restoring changes from stash..."
     if git stash pop; then
-        echo "✅ Cambios restaurados exitosamente"
+        echo "✅ Changes restored successfully"
     else
-        echo "⚠️  Hay conflictos al restaurar el stash"
-        echo "💡 Resuelve los conflictos manualmente y luego ejecuta: git stash drop"
+        echo "⚠️  There are conflicts when restoring the stash"
+        echo "💡 Resolve conflicts manually and then run: git stash drop"
     fi
 fi
 
-echo "✅ ¡Sincronización automática completada!"
+echo "✅ Automatic synchronization completed!"
 if [ "$BEHIND_UPSTREAM" -gt 0 ]; then
-    echo "📊 Cambios aplicados: $BEHIND_UPSTREAM commits de upstream"
-    echo "🎯 Estrategia utilizada: $STRATEGY"
+    echo "📊 Changes applied: $BEHIND_UPSTREAM commits from upstream"
+    echo "🎯 Strategy used: $STRATEGY"
 else
-    echo "📊 No había cambios nuevos en upstream"
+    echo "📊 There were no new changes in upstream"
 fi

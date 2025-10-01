@@ -1,286 +1,286 @@
-# 🔄 Guía de Sincronización de Fork
+# 🔄 Fork Synchronization Guide
 
-Esta guía explica cómo usar las herramientas de sincronización automática para mantener tu fork actualizado con el repositorio upstream de Ayman.
+This guide explains how to use the automatic synchronization tools to keep your fork updated with Ayman's upstream repository.
 
-## 📋 Herramientas Disponibles
+## 📋 Available Tools
 
-### 1. `sync-upstream.sh` - Script Interactivo
-Script con opciones interactivas para diferentes estrategias de sincronización.
+### 1. `sync-upstream.sh` - Interactive Script
+Script with interactive options for different synchronization strategies.
 
-### 2. `sync-upstream-auto.sh` - Script Automático
-Script completamente automático que no requiere interacción del usuario.
+### 2. `sync-upstream-auto.sh` - Automatic Script
+Fully automatic script that requires no user interaction.
 
-### 3. GitHub Action - Sincronización Diaria
-Acción automática que se ejecuta diariamente para mantener el fork actualizado.
+### 3. GitHub Action - Daily Synchronization
+Automatic action that runs daily to keep the fork updated.
 
 ---
 
-## 🚀 Comandos de Uso
+## 🚀 Usage Commands
 
-### Sincronización Interactiva
+### Interactive Synchronization
 
 ```bash
-# Ejecutar script interactivo
+# Run interactive script
 ./sync-upstream.sh
 
-# Opciones disponibles:
-# 1) Merge (preserva historial completo)
-# 2) Rebase (historial más limpio)  
-# 3) Automático (detecta la mejor opción)
+# Available options:
+# 1) Merge (preserves complete history)
+# 2) Rebase (cleaner history)  
+# 3) Automatic (detects the best option)
 ```
 
-### Sincronización Automática
+### Automatic Synchronization
 
 ```bash
-# Ejecutar sincronización completamente automática
+# Run fully automatic synchronization
 ./sync-upstream-auto.sh
 
-# Este script:
-# - Guarda cambios locales en stash automáticamente
-# - Detecta la mejor estrategia (merge/rebase)
-# - Resuelve conflictos automáticamente
-# - Maneja errores de push
-# - Restaura cambios locales al final
+# This script:
+# - Automatically saves local changes to stash
+# - Detects the best strategy (merge/rebase)
+# - Automatically resolves conflicts
+# - Handles push errors
+# - Restores local changes at the end
 ```
 
-### Verificación Manual
+### Manual Verification
 
 ```bash
-# Verificar si hay actualizaciones disponibles (sin aplicar)
+# Check if updates are available (without applying)
 git fetch upstream && git log --oneline HEAD..upstream/master
 
-# Ver diferencias antes de sincronizar
+# View differences before synchronizing
 git fetch upstream && git diff HEAD upstream/master
 
-# Verificar estado actual del repositorio
+# Check current repository status
 git status
 
-# Ver historial de commits
+# View commit history
 git log --oneline --graph --all -10
 ```
 
-### Comandos de Emergencia
+### Emergency Commands
 
 ```bash
-# Si algo sale mal, abortar merge en progreso
+# If something goes wrong, abort merge in progress
 git merge --abort
 
-# Si hay conflictos, ver archivos afectados
+# If there are conflicts, view affected files
 git diff --name-only --diff-filter=U
 
-# Restaurar desde stash si es necesario
+# Restore from stash if necessary
 git stash list
 git stash pop
 
-# Forzar push si es necesario (usar con cuidado)
+# Force push if necessary (use with caution)
 git push origin master --force-with-lease
 ```
 
 ---
 
-## 🔧 Configuración Inicial
+## 🔧 Initial Configuration
 
-### Verificar Configuración de Remotos
+### Verify Remote Configuration
 
 ```bash
-# Ver remotos configurados
+# View configured remotes
 git remote -v
 
-# Debería mostrar:
+# Should show:
 # origin    https://github.com/mrvictor22/ArchEclipse.git (fetch)
 # origin    https://github.com/mrvictor22/ArchEclipse.git (push)
 # upstream  https://github.com/AymanLyesri/ArchEclipse.git (fetch)
 # upstream  https://github.com/AymanLyesri/ArchEclipse.git (push)
 ```
 
-### Si Upstream No Está Configurado
+### If Upstream Is Not Configured
 
 ```bash
-# Agregar upstream remoto
+# Add upstream remote
 git remote add upstream https://github.com/AymanLyesri/ArchEclipse.git
 
-# Verificar que se agregó correctamente
+# Verify it was added correctly
 git remote -v
 ```
 
 ---
 
-## 📊 Flujo de Trabajo Recomendado
+## 📊 Recommended Workflow
 
-### Uso Diario
+### Daily Use
 
-1. **Verificación rápida** (opcional):
+1. **Quick verification** (optional):
    ```bash
    git fetch upstream && git log --oneline HEAD..upstream/master
    ```
 
-2. **Sincronización automática**:
+2. **Automatic synchronization**:
    ```bash
    ./sync-upstream-auto.sh
    ```
 
-### Uso Semanal
+### Weekly Use
 
-1. **Sincronización interactiva** para mayor control:
+1. **Interactive synchronization** for more control:
    ```bash
    ./sync-upstream.sh
    ```
 
-2. **Seleccionar estrategia** según tus necesidades:
-   - **Merge**: Si quieres preservar todo el historial
-   - **Rebase**: Si prefieres un historial más limpio
-   - **Automático**: Deja que el script decida
+2. **Select strategy** according to your needs:
+   - **Merge**: If you want to preserve full history
+   - **Rebase**: If you prefer cleaner history
+   - **Automatic**: Let the script decide
 
 ---
 
-## 🤖 GitHub Action - Sincronización Automática
+## 🤖 GitHub Action - Automatic Synchronization
 
-### Configuración
+### Configuration
 
-La GitHub Action está configurada en `.github/workflows/sync-upstream.yml` y:
+The GitHub Action is configured in `.github/workflows/sync-upstream.yml` and:
 
-- **Se ejecuta automáticamente** todos los días a las 2:00 AM UTC
-- **Se puede ejecutar manualmente** desde la pestaña "Actions" en GitHub
-- **Usa estrategia de merge** para preservar historial
-- **Hace push automático** de los cambios
+- **Runs automatically** every day at 2:00 AM UTC
+- **Can be run manually** from the "Actions" tab on GitHub
+- **Uses merge strategy** to preserve history
+- **Automatically pushes** changes
 
-### Ejecutar Manualmente desde GitHub
+### Run Manually from GitHub
 
-1. Ve a tu repositorio en GitHub
-2. Haz clic en la pestaña "Actions"
-3. Selecciona "Sync Upstream"
-4. Haz clic en "Run workflow"
-5. Confirma con "Run workflow"
+1. Go to your repository on GitHub
+2. Click on the "Actions" tab
+3. Select "Sync Upstream"
+4. Click on "Run workflow"
+5. Confirm with "Run workflow"
 
 ---
 
-## ⚠️ Resolución de Problemas
+## ⚠️ Troubleshooting
 
 ### Error: "non-fast-forward"
 
 ```bash
-# El script automático maneja esto, pero si ocurre manualmente:
+# The automatic script handles this, but if it occurs manually:
 git fetch origin
 git merge origin/master --no-edit
 git push origin master
 ```
 
-### Conflictos de Merge
+### Merge Conflicts
 
 ```bash
-# Ver archivos en conflicto
+# View conflicting files
 git status
 
-# Para cada archivo en conflicto, elegir una estrategia:
-git checkout --ours archivo.conf    # Mantener tu versión
-git checkout --theirs archivo.conf  # Aceptar versión upstream
+# For each conflicting file, choose a strategy:
+git checkout --ours archivo.conf    # Keep your version
+git checkout --theirs archivo.conf  # Accept upstream version
 
-# Marcar como resuelto y completar merge
+# Mark as resolved and complete merge
 git add archivo.conf
 git commit --no-edit
 ```
 
-### Stash con Conflictos
+### Stash with Conflicts
 
 ```bash
-# Si hay conflictos al restaurar stash
+# If there are conflicts when restoring stash
 git stash list
 git stash show stash@{0}
 
-# Resolver conflictos manualmente y luego:
+# Resolve conflicts manually and then:
 git stash drop stash@{0}
 ```
 
 ---
 
-## 📈 Monitoreo y Logs
+## 📈 Monitoring and Logs
 
-### Ver Últimos Cambios Sincronizados
+### View Latest Synchronized Changes
 
 ```bash
-# Ver commits recientes
+# View recent commits
 git log --oneline -10
 
-# Ver cambios específicos de upstream
+# View upstream specific changes
 git log --oneline upstream/master -5
 
-# Ver diferencias entre tu fork y upstream
+# View differences between your fork and upstream
 git log --oneline --left-right HEAD...upstream/master
 ```
 
-### Verificar Estado de Sincronización
+### Verify Synchronization Status
 
 ```bash
-# Verificar si estás actualizado
+# Check if you're up to date
 git fetch upstream
 git status
 
-# Ver cuántos commits estás adelante/atrás
-git rev-list --count HEAD..upstream/master  # Atrás
-git rev-list --count upstream/master..HEAD  # Adelante
+# See how many commits you're ahead/behind
+git rev-list --count HEAD..upstream/master  # Behind
+git rev-list --count upstream/master..HEAD  # Ahead
 ```
 
 ---
 
-## ⚠️ **IMPORTANTE: Diferencia entre Update Normal vs Fork Update**
+## ⚠️ **IMPORTANT: Difference between Normal Update vs Fork Update**
 
-### ❌ **Update "Normal" (PELIGROSO para forks)**
+### ❌ **"Normal" Update (DANGEROUS for forks)**
 ```bash
-# ESTOS COMANDOS TE LLEVAN SOLO AL UPSTREAM SIN TUS CAMBIOS
-git checkout upstream/master     # ❌ Pierdes tus mejoras
-git reset --hard upstream/master # ❌ Pierdes tus mejoras  
-git pull upstream master         # ❌ Sin merge apropiado
+# THESE COMMANDS TAKE YOU TO UPSTREAM ONLY WITHOUT YOUR CHANGES
+git checkout upstream/master     # ❌ You lose your improvements
+git reset --hard upstream/master # ❌ You lose your improvements  
+git pull upstream master         # ❌ Without proper merge
 ```
-**⚠️ Estos comandos ELIMINARÍAN todas tus mejoras, scripts y configuraciones personalizadas!**
+**⚠️ These commands would DELETE all your improvements, scripts, and custom configurations!**
 
-### ✅ **Fork Update Correcto (Mantiene tus cambios)**
+### ✅ **Correct Fork Update (Keeps your changes)**
 ```bash
-# ESTOS SON LOS COMANDOS CORRECTOS PARA TU FORK
-./sync-upstream-auto.sh          # ✅ Automático, mantiene tus cambios
-./sync-upstream.sh               # ✅ Interactivo, mantiene tus cambios
-```
-
-### 🔍 **¿Por qué la diferencia?**
-
-- **Tu fork** tiene mejoras adicionales (scripts de sync, documentación, configuraciones)
-- **Upstream** solo tiene los cambios base de Ayman
-- **Los scripts de sync** combinan ambos: upstream + tus mejoras
-- **Update normal** te llevaría solo al estado base, perdiendo tu trabajo
-
-### 📊 **Estado Actual de tu Fork:**
-```bash
-# Tu fork incluye:
-- Cambios base de Ayman (upstream)
-- Scripts de sincronización automática
-- Documentación completa
-- Configuraciones personalizadas
-- Mejoras en multi-monitor
-- Y mucho más...
+# THESE ARE THE CORRECT COMMANDS FOR YOUR FORK
+./sync-upstream-auto.sh          # ✅ Automatic, keeps your changes
+./sync-upstream.sh               # ✅ Interactive, keeps your changes
 ```
 
-## 🎯 Mejores Prácticas
+### 🔍 **Why the difference?**
 
-1. **SIEMPRE usa los scripts de sync** para actualizar
-2. **NUNCA uses git reset --hard upstream/master**
-3. **Ejecuta sincronización regularmente** (diario o semanal)
-4. **Usa el script automático** para uso rutinario
-5. **Usa el script interactivo** cuando quieras más control
-6. **Verifica cambios** antes de sincronizar si tienes trabajo importante
-7. **Mantén commits locales organizados** para evitar conflictos
-8. **Usa branches** para desarrollo experimental
+- **Your fork** has additional improvements (sync scripts, documentation, configurations)
+- **Upstream** only has Ayman's base changes
+- **The sync scripts** combine both: upstream + your improvements
+- **Normal update** would take you only to the base state, losing your work
+
+### 📊 **Current Status of Your Fork:**
+```bash
+# Your fork includes:
+- Ayman's base changes (upstream)
+- Automatic synchronization scripts
+- Complete documentation
+- Custom configurations
+- Multi-monitor improvements
+- And much more...
+```
+
+## 🎯 Best Practices
+
+1. **ALWAYS use sync scripts** to update
+2. **NEVER use git reset --hard upstream/master**
+3. **Run synchronization regularly** (daily or weekly)
+4. **Use the automatic script** for routine use
+5. **Use the interactive script** when you want more control
+6. **Verify changes** before synchronizing if you have important work
+7. **Keep local commits organized** to avoid conflicts
+8. **Use branches** for experimental development
 
 ---
 
-## 📞 Soporte
+## 📞 Support
 
-Si encuentras problemas:
+If you encounter problems:
 
-1. **Revisa los logs** del script para entender qué pasó
-2. **Usa comandos de verificación** para diagnosticar el estado
-3. **Consulta esta guía** para comandos de emergencia
-4. **En caso extremo**, haz backup de tus cambios y clona fresh
+1. **Review the logs** from the script to understand what happened
+2. **Use verification commands** to diagnose the state
+3. **Consult this guide** for emergency commands
+4. **As a last resort**, backup your changes and clone fresh
 
 ---
 
-*Última actualización: 2025-09-28*
-*Versión de herramientas: 6d9a16d*
+*Last updated: 2025-09-28*
+*Tool version: 6d9a16d*
