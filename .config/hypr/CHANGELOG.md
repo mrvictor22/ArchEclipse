@@ -4,6 +4,17 @@
 
 ### Fixed
 
+- **Clipboard Monitor Integer Comparison Error**
+  - Fixed bash integer comparison error in `start-clipboard-monitor.sh` and `check-clipboard-monitor.sh`
+  - **Root Cause:** `pgrep -fc` was returning multi-line output ("0\n0") instead of single integer
+  - **Solution:** Refactored process counting logic to use robust pattern:
+    - Get PIDs first with `pgrep -f`
+    - Check if output is empty, set count to 0
+    - Otherwise use `wc -l | xargs` to get clean integer count
+  - Fixed trap cleanup issue where EXIT trap was triggering prematurely during `exec`
+  - Added proper trap removal before `exec wl-paste` to prevent spurious cleanup
+  - All integer comparisons now work correctly without "[: X\nY: integer expected" errors
+
 - **COMPLETE REFACTOR: Clipboard Monitor Duplicate Notifications** (1330482)
   - **Root Cause:** Multiple wl-paste processes (3+) were being launched at startup, causing triple notifications
   - **Solution:** Completely refactored clipboard monitoring system with unified architecture

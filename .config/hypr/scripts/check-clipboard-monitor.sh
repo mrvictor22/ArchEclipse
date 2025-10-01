@@ -6,7 +6,12 @@ echo "🔍 Checking Clipboard Monitor Status..."
 echo ""
 
 # Count running wl-paste clipboard processes
-WL_COUNT=$(pgrep -fc "wl-paste.*clipboard" 2>/dev/null || echo "0")
+WL_PIDS=$(pgrep -f "wl-paste.*clipboard" 2>/dev/null || true)
+if [ -z "$WL_PIDS" ]; then
+    WL_COUNT=0
+else
+    WL_COUNT=$(echo "$WL_PIDS" | wc -l | xargs)
+fi
 echo "📊 wl-paste processes found: $WL_COUNT"
 
 # List the processes

@@ -78,8 +78,15 @@ echo $$ > "$PIDFILE"
 log "Step 4: Written PID $$ to $PIDFILE"
 
 # Step 5: Verify no other wl-paste processes started in the meantime
+log "Step 5: Checking for concurrent wl-paste processes"
 sleep 0.2
-WL_COUNT=$(pgrep -fc "wl-paste.*clipboard" 2>/dev/null || echo "0")
+WL_PIDS=$(pgrep -f "wl-paste.*clipboard" 2>/dev/null || true)
+if [ -z "$WL_PIDS" ]; then
+    WL_COUNT=0
+else
+    WL_COUNT=$(echo "$WL_PIDS" | wc -l | xargs)
+fi
+log "Found $WL_COUNT wl-paste processes"
 if [ "$WL_COUNT" -gt 0 ]; then
     log "WARNING: Found $WL_COUNT wl-paste processes. Killing them."
     pkill -9 -f "wl-paste.*clipboard" 2>/dev/null || true
@@ -92,6 +99,9 @@ log "Command: wl-paste --watch bash $SCRIPT_DIR/clipboard-monitor.sh"
 
 # Clear the clipboard log
 > /tmp/clip-count.log
+
+# Remove trap before exec (exec will replace this process)
+trap - EXIT INT TERM
 
 # Start the monitor (exec replaces this process)
 exec wl-paste --watch bash "$SCRIPT_DIR/clipboard-monitor.sh"
