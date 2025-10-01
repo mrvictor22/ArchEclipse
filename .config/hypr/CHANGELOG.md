@@ -2,7 +2,37 @@
 
 ## [Unreleased]
 
+### Fixed
+
+- **COMPLETE REFACTOR: Clipboard Monitor Duplicate Notifications**
+  - **Root Cause:** Multiple wl-paste processes (3+) were being launched at startup, causing triple notifications
+  - **Solution:** Completely refactored clipboard monitoring system with unified architecture
+  - **Changes:**
+    - Rewrote `start-clipboard-monitor.sh` with multi-layer singleton protection:
+      - Atomic lock acquisition using `mkdir` 
+      - Aggressive cleanup of ALL existing wl-paste processes on startup
+      - PID file validation with stale process detection
+      - Race condition prevention with verification delays
+      - Comprehensive startup logging to `/tmp/clipboard-monitor-startup.log`
+    - Simplified `exec.conf` to use ONLY the launcher script (removed all inline implementations)
+    - Created `check-clipboard-monitor.sh` health check script for diagnostics
+    - Cleared all previous partial fixes from older commits
+  - **Multimonitor Compatibility:** Works across all monitor configurations (clipboard is compositor-level, not per-monitor)
+  - **Guaranteed:** System now prevents multiple instances at boot/login and during hotplug events
+
 ### Added
+
+- **Complete English Translation**
+  - Translated all Spanish documentation to English (RESUMEN-IMPLEMENTACION.md, COMANDOS-UPDATE.md, FORK-SYNC-GUIDE.md, README-SYNC.md)
+  - Translated all script comments and messages to English (sync-upstream.sh, sync-upstream-auto.sh)
+  - Enhanced .gitignore with backup file exclusion patterns
+
+- **Clipboard Monitor Diagnostics**
+  - New `check-clipboard-monitor.sh` script for system health verification
+  - Shows process count, PID status, lock status, and recent activity logs
+  - Provides clear status verdict (HEALTHY/UNHEALTHY/NOT RUNNING)
+
+### Added (Previous)
 
 - **Automated Upstream Synchronization Tools** (6d9a16d)
   - `sync-upstream.sh` script with interactive options (merge/rebase/auto)
