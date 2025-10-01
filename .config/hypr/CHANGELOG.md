@@ -4,7 +4,7 @@
 
 ### Fixed
 
-- **COMPLETE REFACTOR: Clipboard Monitor Duplicate Notifications**
+- **COMPLETE REFACTOR: Clipboard Monitor Duplicate Notifications** (1330482)
   - **Root Cause:** Multiple wl-paste processes (3+) were being launched at startup, causing triple notifications
   - **Solution:** Completely refactored clipboard monitoring system with unified architecture
   - **Changes:**
