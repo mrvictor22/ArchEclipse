@@ -14,14 +14,21 @@ const Hyprland = hyprland.get_default();
 
 const pfpPath = exec(`bash -c "echo $HOME/.face.icon"`);
 const username = exec(`whoami`);
-const uptime = Variable("-").poll(600000, "uptime -p");
+const desktopEnv = exec(`bash -c "echo $XDG_CURRENT_DESKTOP"`);
+const uptime = Variable("-").poll(600000, "uptime -p"); // every 10 minutes
 
 const UserPanel = (monitorName: string) => {
   const Profile = () => {
     const UserName = (
       <box halign={Gtk.Align.CENTER} className="user-name">
         <label label="I'm " />
-        <label className="name" label={username} />
+        <label className="secondary" label={username} />
+      </box>
+    );
+    const DesktopEnv = (
+      <box className="desktop-env" halign={Gtk.Align.CENTER}>
+        <label label="On " />
+        <label className="secondary" label={desktopEnv} />
       </box>
     );
 
@@ -29,7 +36,8 @@ const UserPanel = (monitorName: string) => {
       <box
         halign={Gtk.Align.CENTER}
         className="up-time"
-        child={<label className="uptime" label={bind(uptime)} />}></box>
+        child={<label className="uptime" label={bind(uptime)} />}
+      ></box>
     );
 
     const ProfilePicture = (
@@ -60,13 +68,15 @@ const UserPanel = (monitorName: string) => {
                 .catch((err) => notify(err));
             }}
           />
-        }></box>
+        }
+      ></box>
     );
 
     return (
-      <box className="profile" vertical={true}>
+      <box className="profile" vertical={true} spacing={5}>
         {ProfilePicture}
         {UserName}
+        {DesktopEnv}
         {Uptime}
       </box>
     );
@@ -137,7 +147,8 @@ const UserPanel = (monitorName: string) => {
       halign={Gtk.Align.CENTER}
       className="bottom"
       vertical={true}
-      spacing={10}>
+      spacing={10}
+    >
       {Profile()}
       {Actions()}
     </box>
@@ -152,7 +163,8 @@ const UserPanel = (monitorName: string) => {
           hexpand={true}
           label={bind(date_less)}
         />
-      }></box>
+      }
+    ></box>
   );
 
   const middle = (
@@ -161,7 +173,8 @@ const UserPanel = (monitorName: string) => {
       vertical={true}
       hexpand={true}
       vexpand={true}
-      spacing={10}>
+      spacing={10}
+    >
       {/* {Resources()} */}
       {NotificationHistory()}
       {Date}
@@ -169,7 +182,7 @@ const UserPanel = (monitorName: string) => {
   );
 
   return (
-    <box className="user-panel" spacing={10}>
+    <box className="main" spacing={10}>
       {MediaWidget()}
       {middle}
       {right}
@@ -191,7 +204,8 @@ const WindowActions = (monitorName: string) => {
             hideWindow(`user-panel-${monitorName}`);
           }}
         />
-      }></box>
+      }
+    ></box>
   );
 };
 
@@ -206,6 +220,13 @@ export default (monitor: Gdk.Monitor) => {
       className="user-panel"
       layer={Astal.Layer.OVERLAY}
       visible={false}
+      keymode={Astal.Keymode.ON_DEMAND}
+      onKeyPressEvent={(self, event) => {
+        if (event.get_keyval()[1] === Gdk.KEY_Escape) {
+          hideWindow(`user-panel-${monitorName}`);
+          return true;
+        }
+      }}
       child={
         <box className="display" vertical={true} spacing={10}>
           {WindowActions(monitorName)}
