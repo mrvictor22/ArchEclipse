@@ -2,6 +2,14 @@
 
 ## [Unreleased]
 
+### Changed
+
+- **Default browser switched from zen-browser to Firefox**
+  - Updated `configs/defaults/browser.conf` to launch Firefox on startup
+  - Modified browser autostart to use workspace 2 with silent mode
+  - Changed window rule to match Firefox class instead of Zen Browser title
+  - Updated AGS quick launcher to execute Firefox directly instead of xdg-open
+
 ### Fixed
 
 - **Clipboard Monitor Integer Comparison Error** (5f7ab1b)
