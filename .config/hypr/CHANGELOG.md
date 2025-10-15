@@ -39,6 +39,20 @@
   - **Multimonitor Compatibility:** Works across all monitor configurations (clipboard is compositor-level, not per-monitor)
   - **Guaranteed:** System now prevents multiple instances at boot/login and during hotplug events
 
+- **AGS Crashes After Update Fork - libcava Incompatibility**
+  - **Root Cause:** System update upgraded `libcava` from 0.10.4-1 to 0.10.6-2, breaking API compatibility
+  - **Issue:** AGS suffered segmentation faults in `libastal-cava-git` and `libfftw3` libraries
+  - **Diagnosis:** Analyzed coredump logs revealing `astal_cava_cava_get_default` crashes
+  - **Solutions Applied:**
+    - **Patched libastal-cava-git:** Fixed API incompatibility in `/home/alphonse/.cache/yay/libastal-cava-git/src/astal/lib/cava/cava.c`
+      - Changed `audio_raw_init` parameter from `struct cava_plan *` to `struct cava_plan **`
+      - Recompiled package to `r840.71b008e-1`
+    - **Fixed AGS Monitor Detection:** Updated `app.ts` to use `Gdk.Display.get_default()` instead of deprecated `App.get_monitors()`
+    - **Added Null Safety:** Fixed `focusedWorkspace` null checks in `autoSwitchWorkspace.ts`, `Workspaces.tsx`, and `WallpaperSwitcher.tsx`
+    - **Temporary Workaround:** Disabled CAVA visualization in `Information.tsx` due to persistent `libfftw3` segfaults
+  - **Status:** AGS fully operational without CAVA audio visualization (pending upstream fix)
+  - **Related Commits:** a04e334
+
 ### Added
 
 - **Complete English Translation** (07073f9)

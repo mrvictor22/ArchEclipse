@@ -1,4 +1,4 @@
-import { App } from "astal/gtk3";
+import { App, Gdk } from "astal/gtk3";
 import Bar from "./widgets/bar/Bar";
 import { getCssPath } from "./utils/scss";
 import RightPanel from "./widgets/rightPanel/RightPanel";
@@ -30,11 +30,20 @@ const perMonitorDisplay = () => {
   }
   displayInitialized = true;
   
-  const monitors = App.get_monitors();
-  print(`\t TOTAL MONITORS DETECTED: ${monitors.length}`);
+  const display = Gdk.Display.get_default();
+  if (!display) {
+    print("\t ERROR: Could not get default display");
+    return;
+  }
   
-  monitors.map((monitor, index) => {
-    const monitorName = getMonitorName(monitor.get_display(), monitor);
+  const numMonitors = display.get_n_monitors();
+  print(`\t TOTAL MONITORS DETECTED: ${numMonitors}`);
+  
+  for (let index = 0; index < numMonitors; index++) {
+    const monitor = display.get_monitor(index);
+    if (!monitor) continue;
+    
+    const monitorName = getMonitorName(display, monitor);
     print(`\t MONITOR ${index}: ${monitorName}`);
 
     // Only create NotificationPopups for the primary monitor (eDP-1) to avoid duplicates
@@ -64,13 +73,13 @@ const perMonitorDisplay = () => {
     widgetInitializers.forEach(({ name, fn }) => {
       logTime(`\t\t ${name}`, fn);
     });
-  });
+  }
 };
 
 App.start({
   css: getCssPath(),
   main: () => {
-    logTime("\t Compiling Binaries", () => compileBinaries());
+    // logTime("\t Compiling Binaries", () => compileBinaries());
     perMonitorDisplay();
   },
 });

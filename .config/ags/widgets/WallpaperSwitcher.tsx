@@ -179,7 +179,7 @@ function Wallpapers(monitor: string) {
   );
 
   const getCurrentWorkspaces = () => {
-    const activeId = focusedWorkspace.as((workspace) => workspace.id || 1);
+    const activeId = focusedWorkspace.as((workspace) => workspace?.id || 1);
     const wallpapers: string[] = JSON.parse(
       exec(`bash ./scripts/get-wallpapers.sh --current ${monitor}`) || "[]"
     );

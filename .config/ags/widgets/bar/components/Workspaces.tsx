@@ -56,7 +56,7 @@ function Workspaces() {
   const workspaces = Variable.derive(
     [
       bind(Hyprland, "workspaces"), // Bind to Hyprland workspace list
-      focusedWorkspace.as((w) => w.id), // Bind to currently focused workspace ID
+      focusedWorkspace.as((w) => w?.id || 1), // Bind to currently focused workspace ID
     ],
     (workspaces, currentWorkspace) => {
       // Get array of active workspace IDs

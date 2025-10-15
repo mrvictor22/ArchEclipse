@@ -2,8 +2,9 @@ import Hyprland from "gi://AstalHyprland";
 const hyprland = Hyprland.get_default();
 import Mpris from "gi://AstalMpris";
 const mpris = Mpris.get_default();
-import Cava from "gi://AstalCava";
-const cava = Cava.get_default()!;
+// DISABLED: CAVA causing segfaults in libfftw3
+// import Cava from "gi://AstalCava";
+// const cava = Cava.get_default()!;
 
 import { playerToColor } from "../../../utils/color";
 import { lookupIcon, playerToIcon } from "../../../utils/icon";
@@ -31,7 +32,7 @@ const CAVA_UPDATE_MS = 60; // coalesced update interval for audio visualizer (la
 const BANDWIDTH_POLL_MS = 2000; // bandwidth poll period (increase to reduce CPU)
 // -----------------------------------------------------
 
-cava?.set_bars(12);
+// cava?.set_bars(12);
 const bars = Variable("");
 
 const BLOCKS = [
@@ -199,11 +200,12 @@ function AudioVisualizer() {
   let lastValuesCache: number[] | null = null;
   const schedule = scheduleCoalesced(doUpdate, CAVA_UPDATE_MS);
 
-  cava?.connect("notify::values", () => {
-    // store latest values, schedule an update if not already scheduled
-    lastValuesCache = cava.get_values() || null;
-    schedule();
-  });
+  // DISABLED: CAVA causing segfaults in libfftw3
+  // cava?.connect("notify::values", () => {
+  //   // store latest values, schedule an update if not already scheduled
+  //   lastValuesCache = cava.get_values() || null;
+  //   schedule();
+  // });
 
   return revealer;
 }
