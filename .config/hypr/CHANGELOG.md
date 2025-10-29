@@ -2,6 +2,52 @@
 
 ## [Unreleased]
 
+### Added
+
+- **Per-Monitor App Launcher Search Field**
+  - Refactored AGS AppLauncher to create independent state for each monitor
+  - **Problem Solved:** Search input field now appears on both laptop and external monitor
+  - **Previous Behavior:** Entry widget was shared between monitors, only showing on one at a time
+  - **Implementation:**
+    - Created `monitorStates` Map to store per-monitor state (Results, debounceTimer, args)
+    - Entry widget now instantiated inline in export default for each monitor
+    - QuickApps, organizeResults, and launchApp functions scoped per monitor
+    - Eliminated GTK warnings about widgets being added to multiple containers
+  - Each monitor now has fully functional search with:
+    - App search with fuzzy matching
+    - Emoji search (`emoji ...`)
+    - Translation (`translate ... > lang`)
+    - URL opening
+    - Arithmetic calculations
+  - **Related Files:** `ags/widgets/AppLauncher.tsx`
+
+- **Automatic Hyperpaper Reload on Monitor Hotplug** (monitor-hotplug.sh enhancement)
+  - Extended `monitor-hotplug.sh` to automatically reload hyperpaper when monitors are connected/disconnected
+  - Added `reload_hyperpaper()` function to safely restart wallpaper daemon
+  - New script commands: `reload-hyperpaper`, `reload-all` for manual control
+  - **Keybind Added:** `Super + Shift + B` to reload both AGS and hyperpaper together
+  - **Problem Solved:** 
+    - AGS bars no longer require manual reload on monitor changes
+    - Wallpapers automatically reload when external monitor is connected/disconnected
+    - Eliminated high resource consumption from stale AGS processes
+  - **Sequence:** Monitor detection → Multi-monitor config → AGS restart → Hyperpaper reload
+  - Complete documentation in `MONITOR-HOTPLUG-README.md`
+  - **Related Files:** `scripts/monitor-hotplug.sh`, `hyprpaper/reload.sh`, `configs/keybinds.conf`
+
+### Fixed
+
+- **Monitor Hotplug Detection jq Parse Errors and AGS Restart Failures**
+  - **Root Cause:** `jq` was failing to parse `hyprctl monitors -j` output intermittently, causing detection to fail
+  - **AGS Issue:** Stale `astal` and `gjs` processes were preventing AGS from restarting properly
+  - **Solutions Applied:**
+    - Enhanced `get_monitor_state()` with error handling and fallback to `awk` parsing
+    - Improved `restart_ags()` to aggressively kill all related processes (`ags`, `astal`, `gjs`)
+    - Added process verification before and after AGS restart
+    - Increased cleanup wait times for proper process termination
+    - Added detailed logging for troubleshooting
+  - **Result:** Monitor detection now works reliably, AGS restarts successfully on monitor changes
+  - **Related Files:** `scripts/monitor-hotplug.sh`
+
 ### Changed
 
 - **Default browser switched from zen-browser to Firefox**
@@ -9,8 +55,6 @@
   - Modified browser autostart to use workspace 2 with silent mode
   - Changed window rule to match Firefox class instead of Zen Browser title
   - Updated AGS quick launcher to execute Firefox directly instead of xdg-open
-
-### Fixed
 
 - **Clipboard Monitor Integer Comparison Error** (5f7ab1b)
   - Fixed bash integer comparison error in `start-clipboard-monitor.sh` and `check-clipboard-monitor.sh`
