@@ -36,7 +36,7 @@
 
 ### Fixed
 
-- **AGS Bars Not Showing After Update to v3.0.0**
+- **AGS Bars Not Showing After Update to v3.0.0** (265ab55, bffec05)
   - **Root Cause:** AGS 3.0.0 now requires explicit GTK version specification and removed `App.reset_css()` from API
   - **Issue:** After running `update --fork`, AGS failed to start with "Failed to infer Gtk version" error
   - **Solutions Applied:**
@@ -45,8 +45,13 @@
       - Added CSS file initialization to prevent "invalid selector" error on startup
       - Replaced deprecated `App.reset_css()` with `App.apply_css(tmpCss, true)`
       - Added required imports (GLib, readFile, writeFile from astal/file)
-  - **Result:** AGS bars now display correctly on all monitors after system updates
-  - **Related Files:** `configs/exec.conf`, `ags/utils/scss.ts`
+    - Applied `--gtk 3` flag to all AGS restart mechanisms:
+      - Super+Shift+B keybind in `multi-monitor-keybinds.conf`
+      - `scripts/monitor-hotplug.sh` (automatic restart on monitor changes)
+      - `scripts/multi-monitor-manager.sh` (manual AGS restart)
+      - `scripts/bar.sh` (bar restart script)
+  - **Result:** AGS bars now display correctly on all monitors after system updates, and restart properly from any method
+  - **Related Files:** `configs/exec.conf`, `ags/utils/scss.ts`, `configs/multi-monitor-keybinds.conf`, `scripts/bar.sh`, `scripts/monitor-hotplug.sh`, `scripts/multi-monitor-manager.sh`
 
 - **Monitor Hotplug Detection jq Parse Errors and AGS Restart Failures**
   - **Root Cause:** `jq` was failing to parse `hyprctl monitors -j` output intermittently, causing detection to fail
