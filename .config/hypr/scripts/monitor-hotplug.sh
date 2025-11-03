@@ -7,6 +7,7 @@ SCRIPT_DIR="$(dirname "$0")"
 HYPR_DIR="$HOME/.config/hypr"
 MULTI_MONITOR_SCRIPT="$SCRIPT_DIR/multi-monitor-manager.sh"
 HYPERPAPER_RELOAD="$HYPR_DIR/hyprpaper/reload.sh"
+WORKSPACE_STATE_MANAGER="$SCRIPT_DIR/workspace-state-manager.sh"
 LOG_FILE="/tmp/hyprland-monitor-hotplug.log"
 STATE_FILE="/tmp/hyprland-monitor-state"
 
@@ -77,6 +78,31 @@ reload_hyperpaper() {
     fi
 }
 
+# Save workspace state before monitor changes
+save_workspace_state() {
+    log "Saving workspace state before monitor change"
+    
+    if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
+        "$WORKSPACE_STATE_MANAGER" save >> "$LOG_FILE" 2>&1
+        log "Workspace state saved"
+    else
+        log "Warning: Workspace state manager not found or not executable: $WORKSPACE_STATE_MANAGER"
+    fi
+}
+
+# Restore workspace state after monitor changes
+restore_workspace_state() {
+    log "Restoring workspace state after monitor change"
+    
+    if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
+        # Use auto-restore which only restores if state is recent
+        "$WORKSPACE_STATE_MANAGER" auto-restore >> "$LOG_FILE" 2>&1
+        log "Workspace state restoration attempted"
+    else
+        log "Warning: Workspace state manager not found or not executable: $WORKSPACE_STATE_MANAGER"
+    fi
+}
+
 # Initialize state file if it doesn't exist
 if [ ! -f "$STATE_FILE" ]; then
     get_monitor_state > "$STATE_FILE"
@@ -95,6 +121,9 @@ monitor_changes() {
             log "Monitor configuration changed:"
             log "  Previous: $previous_state"
             log "  Current:  $current_state"
+            
+            # Save workspace state BEFORE making changes
+            save_workspace_state
             
             # Update state file
             echo "$current_state" > "$STATE_FILE"
@@ -116,6 +145,10 @@ monitor_changes() {
             
             # Reload hyperpaper
             reload_hyperpaper
+            
+            # Wait for everything to settle, then restore workspace state
+            sleep 2
+            restore_workspace_state
         fi
         
         # Check every 2 seconds
@@ -143,13 +176,21 @@ case "${1:-}" in
         current_state=$(get_monitor_state)
         echo "Current monitor state: $current_state"
         ;;
+    "save-workspace")
+        save_workspace_state
+        ;;
+    "restore-workspace")
+        restore_workspace_state
+        ;;
     *)
         echo "Monitor Hotplug Detection Script"
-        echo "Usage: $0 [monitor|restart-ags|reload-hyperpaper|reload-all|check]"
+        echo "Usage: $0 [monitor|restart-ags|reload-hyperpaper|reload-all|check|save-workspace|restore-workspace]"
         echo "  monitor           - Start monitoring for hotplug events"
         echo "  restart-ags       - Restart AGS immediately"
         echo "  reload-hyperpaper - Reload hyperpaper immediately"
         echo "  reload-all        - Restart AGS and reload hyperpaper"
         echo "  check             - Check current monitor state"
+        echo "  save-workspace    - Save current workspace layout manually"
+        echo "  restore-workspace - Restore workspace layout manually"
         ;;
 esac
