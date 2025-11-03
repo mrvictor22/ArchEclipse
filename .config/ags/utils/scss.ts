@@ -1,9 +1,10 @@
 
 import { execAsync } from "astal"
-import { monitorFile } from "astal/file"
+import { monitorFile, readFile, writeFile } from "astal/file"
 import { App } from "astal/gtk3"
 import { globalFontSize, globalIconSize, globalOpacity, globalScale } from "../variables"
 import { notify } from "./notification"
+import GLib from "gi://GLib"
 
 // target css file
 const tmpCss = `/tmp/tmp-style.css`
@@ -15,6 +16,12 @@ const defaultColors = `./scss/defaultColors.scss`
 
 export const getCssPath = () =>
 {
+    // Initialize CSS file if it doesn't exist
+    if (!GLib.file_test(tmpCss, GLib.FileTest.EXISTS)) {
+        // Create empty CSS file to prevent startup error
+        writeFile(tmpCss, '* { }')
+    }
+    // Refresh CSS asynchronously (will apply when ready)
     refreshCss()
     return tmpCss
 }
@@ -32,8 +39,7 @@ export async function refreshCss()
         $SCALE: ${globalScale.get().value}px;
         ' | cat - ${defaultColors} ${walColors} ${scss} > ${tmpScss} && sassc ${tmpScss} ${tmpCss} -I ${scss_dir}"`)
 
-        App.reset_css()
-        App.apply_css(tmpCss)
+        App.apply_css(tmpCss, true)
 
     } catch (e) {
         notify({ summary: `Error while generating css`, body: String(e) })
