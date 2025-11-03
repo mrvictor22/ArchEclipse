@@ -4,6 +4,31 @@
 
 ### Added
 
+- **Workspace State Preservation for KVM Switch** (50ceb88)
+  - Sistema automático que guarda y restaura la posición de ventanas en workspaces al cambiar entre laptops usando KVM
+  - **Problem Solved:** Las aplicaciones se desorganizaban al usar el switch KVM, moviendo ventanas entre workspaces no deseados
+  - **Implementation:**
+    - Creado `workspace-state-manager.sh`: script principal de guardado/restauración de estado
+    - Detecta automáticamente cambios de monitor (conexión/desconexión)
+    - Guarda el estado completo antes de cambios de monitor (address, class, title, workspace, monitor, pid)
+    - Restaura automáticamente las ventanas a sus workspaces originales al reconectar
+    - Sistema de auto-restore inteligente: solo restaura estados recientes (< 10 minutos)
+    - Mantiene backups automáticos de los últimos 5 estados guardados
+    - Integración transparente con `monitor-hotplug.sh`
+  - **Features:**
+    - Comandos manuales disponibles: save, restore, show, current, clear, auto-restore
+    - Identificación robusta de ventanas por class, initialClass y title
+    - Logging detallado en `/tmp/hyprland-workspace-state.log`
+    - Estados guardados en `~/.cache/hypr/workspace-states/`
+    - Keybinds opcionales disponibles en `KEYBINDS-workspace-state.conf`
+  - **Flow Automático:**
+    1. Detecta desconexión de monitor → Guarda estado de workspace
+    2. Reconfigura monitores → Espera estabilización
+    3. Reinicia AGS y hyperpaper
+    4. Detecta reconexión de monitor → Restaura ventanas automáticamente
+  - **Result:** Las ventanas permanecen en los workspaces donde las dejaste, independientemente de cambios de KVM
+  - **Related Files:** `scripts/workspace-state-manager.sh`, `scripts/monitor-hotplug.sh`, `WORKSPACE-STATE-SUMMARY.md`, `scripts/README-workspace-state.md`, `scripts/KEYBINDS-workspace-state.conf`
+
 - **Per-Monitor App Launcher Search Field**
   - Refactored AGS AppLauncher to create independent state for each monitor
   - **Problem Solved:** Search input field now appears on both laptop and external monitor
