@@ -129,7 +129,7 @@ restart_ags() {
     sleep 1
     
     # Restart AGS
-    ags run --log-file /tmp/ags.log &
+    ags run --gtk 3 --log-file /tmp/ags.log &
     
     log "AGS restarted successfully"
 }

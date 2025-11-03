@@ -51,7 +51,7 @@ restart_ags() {
     
     # Restart AGS
     log "Starting AGS"
-    ags run --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
+    ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
     
     # Give it a moment to start
     sleep 1

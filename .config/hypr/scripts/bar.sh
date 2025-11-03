@@ -2,4 +2,4 @@
 
 ags quit
 
-ags run &
+ags run --gtk 3 &
