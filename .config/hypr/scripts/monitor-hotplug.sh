@@ -18,12 +18,15 @@ log() {
 # Get current monitor configuration
 get_monitor_state() {
     local state
+    local exit_code
+    
     # Try to get monitor state, handle jq parse errors gracefully
-    state=$(hyprctl monitors -j 2>/dev/null | jq -r 'sort_by(.name) | map(.name) | join(",")' 2>/dev/null)
+    state=$(hyprctl monitors -j 2>&1 | jq -r 'sort_by(.name) | map(.name) | join(",")' 2>&1)
+    exit_code=$?
     
     # If jq fails or returns empty, try a simpler approach
-    if [ -z "$state" ] || [ $? -ne 0 ]; then
-        state=$(hyprctl monitors | awk '/Monitor/ {print $2}' | sort | tr '\n' ',' | sed 's/,$//')
+    if [ -z "$state" ] || [ $exit_code -ne 0 ]; then
+        state=$(hyprctl monitors 2>&1 | awk '/Monitor/ {print $2}' | sort | tr '\n' ',' | sed 's/,$//')
     fi
     
     echo "$state"
@@ -103,10 +106,35 @@ restore_workspace_state() {
     fi
 }
 
-# Initialize state file if it doesn't exist
-if [ ! -f "$STATE_FILE" ]; then
-    get_monitor_state > "$STATE_FILE"
-    log "Initialized monitor state: $(cat "$STATE_FILE")"
+# Initialize state file with retry logic
+initialize_state() {
+    log "Initializing monitor state..."
+    local retry_count=0
+    local max_retries=10
+    local state=""
+    
+    while [ $retry_count -lt $max_retries ]; do
+        state=$(get_monitor_state)
+        
+        # Check if we got a valid state (not empty)
+        if [ -n "$state" ]; then
+            echo "$state" > "$STATE_FILE"
+            log "Initialized monitor state: $state"
+            return 0
+        fi
+        
+        retry_count=$((retry_count + 1))
+        log "Failed to get monitor state (attempt $retry_count/$max_retries), retrying in 2 seconds..."
+        sleep 2
+    done
+    
+    log "ERROR: Failed to initialize monitor state after $max_retries attempts"
+    return 1
+}
+
+# Initialize state file if it doesn't exist or is empty
+if [ ! -f "$STATE_FILE" ] || [ ! -s "$STATE_FILE" ]; then
+    initialize_state || exit 1
 fi
 
 # Monitor for changes
@@ -117,7 +145,17 @@ monitor_changes() {
         current_state=$(get_monitor_state)
         previous_state=$(cat "$STATE_FILE" 2>/dev/null || echo "")
         
-        if [ "$current_state" != "$previous_state" ]; then
+        # Skip if current state is empty (hyprctl might have failed)
+        if [ -z "$current_state" ]; then
+            log "Warning: Could not get current monitor state (output was empty), skipping this check"
+            log "Debug: Trying manual hyprctl call..."
+            hyprctl monitors 2>&1 | head -5 >> "$LOG_FILE"
+            sleep 2
+            continue
+        fi
+        
+        # Only process if there's an actual change AND both states are non-empty
+        if [ "$current_state" != "$previous_state" ] && [ -n "$previous_state" ]; then
             log "Monitor configuration changed:"
             log "  Previous: $previous_state"
             log "  Current:  $current_state"
