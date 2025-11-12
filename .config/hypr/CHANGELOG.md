@@ -61,6 +61,22 @@
 
 ### Fixed
 
+- **Monitor Hotplug Daemon Not Running Automatically** (5118758)
+  - **Root Cause:** Systemd service started before Hyprland was ready, causing empty monitor state initialization
+  - **Symptoms:** 
+    - Script failed to detect monitor connections/disconnections automatically
+    - Generated 1GB log file from infinite detection loops
+    - Empty state file triggered constant "monitor changed" detection
+  - **Solutions Applied:**
+    - Added 5-second startup delay in systemd service (`ExecStartPre=/bin/sleep 5`)
+    - Implemented `initialize_state()` with retry logic (10 attempts, 2s intervals)
+    - Fixed exit code capture bug in `get_monitor_state()` function
+    - Added validation to skip processing when monitor state is empty
+    - Enhanced error handling with debug logging for failed hyprctl calls
+    - Only process changes when both previous and current states are non-empty
+  - **Result:** Daemon now initializes correctly on boot and detects monitor hotplug events reliably
+  - **Related Files:** `scripts/monitor-hotplug.sh`, `~/.config/systemd/user/hyprland-monitor-hotplug.service`
+
 - **AGS Bars Not Showing After Update to v3.0.0** (265ab55, bffec05)
   - **Root Cause:** AGS 3.0.0 now requires explicit GTK version specification and removed `App.reset_css()` from API
   - **Issue:** After running `update --fork`, AGS failed to start with "Failed to infer Gtk version" error
@@ -91,6 +107,11 @@
   - **Related Files:** `scripts/monitor-hotplug.sh`
 
 ### Changed
+
+- **Monitor Hotplug Manual Reload Keybind** (5118758)
+  - Changed keybind from `Super + Shift + B` to `Super + Alt + B`
+  - Executes `monitor-hotplug.sh reload-all` to manually restart AGS and reload hyperpaper
+  - **Related Files:** `configs/keybinds.conf`
 
 - **Default browser switched from zen-browser to Firefox**
   - Updated `configs/defaults/browser.conf` to launch Firefox on startup
