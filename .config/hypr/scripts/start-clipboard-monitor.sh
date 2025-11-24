@@ -103,5 +103,10 @@ log "Command: wl-paste --watch bash $SCRIPT_DIR/clipboard-monitor.sh"
 # Remove trap before exec (exec will replace this process)
 trap - EXIT INT TERM
 
-# Start the monitor (exec replaces this process)
-exec wl-paste --watch bash "$SCRIPT_DIR/clipboard-monitor.sh"
+# Start the enhanced monitor (exec replaces this process)
+# Use enhanced version if it exists, otherwise fall back to original
+if [ -f "$SCRIPT_DIR/clipboard-monitor-enhanced.sh" ]; then
+    exec wl-paste --watch bash "$SCRIPT_DIR/clipboard-monitor-enhanced.sh"
+else
+    exec wl-paste --watch bash "$SCRIPT_DIR/clipboard-monitor.sh"
+fi

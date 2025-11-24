@@ -1,6 +1,7 @@
 # Custom configuration overrides
 configs/custom/*
 !configs/custom/.gitkeep
+!configs/custom/claude-keybinds.conf
 
 # Theme configuration
 theme/theme.conf
