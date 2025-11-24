@@ -13,3 +13,9 @@ hyprpaper/config/*
 *.backup.*
 *.bak
 *~
+
+# Claude Code local configuration
+.claude/settings.local.json
+
+# Temporary clipboard files
+/tmp/claude-clipboard/

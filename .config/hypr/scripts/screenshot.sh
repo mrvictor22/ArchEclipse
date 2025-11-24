@@ -1,6 +1,6 @@
 #!/bin/bash
 
-file="$(date +'%s_hyprshot.jpg')"
+file="$(date +'%s_hyprshot.png')"
 screenshot_dir="$HOME/Pictures/Screenshots"
 
 # check if file argument is passed as second argument
@@ -31,7 +31,7 @@ screenshotAll() {
     for id in "${workspace_ids[@]}"; do
         hyprctl dispatch workspace "$id"
         sleep 2
-        file="$ScreenshotsDir/$(date +'%s_hyprshot.jpg')"
+        file="$ScreenshotsDir/$(date +'%s_hyprshot.png')"
         $HOME/.config/hypr/scripts/screenshot.sh --now "$file" && screenshots+=("$file")
     done
 
@@ -39,10 +39,10 @@ screenshotAll() {
     screenshots=("${screenshots[@]:1}" "${screenshots[0]}")
 
     # merge screenshots
-    convert -append ${screenshots[@]} "$ScreenshotsDir/$(date +'%s_hyprshot_result.jpg')"
+    convert -append ${screenshots[@]} "$ScreenshotsDir/$(date +'%s_hyprshot_result.png')"
 
     # copy to clipboard
-    wl-copy -t image/jpg <"$ScreenshotsDir/$(date +'%s_hyprshot_result.jpg')"
+    wl-copy -t image/png <"$ScreenshotsDir/$(date +'%s_hyprshot_result.png')"
 }
 
 # notify and view screenshot
@@ -51,9 +51,15 @@ if [[ "$1" == "--now" ]]; then
 
     hyprshot -s -z -m output -o $screenshot_dir -f $file
 
+    # Create latest.png symlink
+    ln -sf "$screenshot_dir/$file" "$screenshot_dir/latest.png"
+
 elif [[ "$1" == "--area" ]]; then
 
     hyprshot -s -z -m region -o $screenshot_dir -f $file
+
+    # Create latest.png symlink
+    ln -sf "$screenshot_dir/$file" "$screenshot_dir/latest.png"
 
 elif [[ "$1" == "--all" ]]; then
 
