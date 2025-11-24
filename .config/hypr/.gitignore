@@ -22,6 +22,7 @@ hyprpaper/config/*
 # Experimental/development scripts
 scripts/*-fixed.sh
 scripts/*-bridge.sh
+scripts/*-handler.sh
 scripts/claude-code-*.sh
 scripts/claude-direct-*.sh
 scripts/claude-smart-*.sh
