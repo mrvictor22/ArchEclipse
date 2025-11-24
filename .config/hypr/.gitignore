@@ -17,6 +17,14 @@ hyprpaper/config/*
 *.backup.*
 *.bak
 *~
+*.backup
+
+# Experimental/development scripts
+scripts/*-fixed.sh
+scripts/*-bridge.sh
+scripts/claude-code-*.sh
+scripts/claude-direct-*.sh
+scripts/claude-smart-*.sh
 
 # Claude Code local configuration
 .claude/settings.local.json
