@@ -3,6 +3,9 @@ configs/custom/*
 !configs/custom/.gitkeep
 !configs/custom/claude-keybinds.conf
 
+# Auto-generated monitor configuration (hardware-specific)
+configs/monitors.conf
+
 # Theme configuration
 theme/theme.conf
 
