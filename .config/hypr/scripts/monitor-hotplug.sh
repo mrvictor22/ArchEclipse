@@ -81,26 +81,43 @@ reload_hyperpaper() {
     fi
 }
 
-# Save workspace state before monitor changes
-save_workspace_state() {
-    log "Saving workspace state before monitor change"
-    
+# Convert monitor state string to profile name (e.g., "eDP-1,DP-4" -> "eDP-1_DP-4")
+state_to_profile() {
+    echo "$1" | tr ',' '_'
+}
+
+# Save workspace state for the OLD profile before monitor changes
+save_workspace_state_for_profile() {
+    local old_profile="$1"
+    local new_profile="$2"
+
+    log "Saving workspace state for outgoing profile '$old_profile'"
+
     if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
-        "$WORKSPACE_STATE_MANAGER" save >> "$LOG_FILE" 2>&1
-        log "Workspace state saved"
+        # Use handle-change which saves state for the old profile
+        local result=$("$WORKSPACE_STATE_MANAGER" handle-change "$old_profile" "$new_profile" 2>&1)
+        log "Workspace state: $result"
     else
         log "Warning: Workspace state manager not found or not executable: $WORKSPACE_STATE_MANAGER"
     fi
 }
 
-# Restore workspace state after monitor changes
+# Restore workspace state for the NEW profile after monitor changes
 restore_workspace_state() {
-    log "Restoring workspace state after monitor change"
-    
+    log "Checking for workspace state to restore"
+
     if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
-        # Use auto-restore which only restores if state is recent
-        "$WORKSPACE_STATE_MANAGER" auto-restore >> "$LOG_FILE" 2>&1
-        log "Workspace state restoration attempted"
+        local current_profile=$("$WORKSPACE_STATE_MANAGER" profile 2>/dev/null)
+        log "Current profile: $current_profile"
+
+        # Check if restore is pending for current profile
+        if [ "$("$WORKSPACE_STATE_MANAGER" pending 2>/dev/null)" = "true" ]; then
+            log "Pending restore flag detected for '$current_profile', restoring..."
+            local result=$("$WORKSPACE_STATE_MANAGER" auto-restore 2>&1)
+            log "Workspace restore: $result"
+        else
+            log "No pending restore for profile '$current_profile'"
+        fi
     else
         log "Warning: Workspace state manager not found or not executable: $WORKSPACE_STATE_MANAGER"
     fi
@@ -159,10 +176,15 @@ monitor_changes() {
             log "Monitor configuration changed:"
             log "  Previous: $previous_state"
             log "  Current:  $current_state"
-            
-            # Save workspace state BEFORE making changes
-            save_workspace_state
-            
+
+            # Convert states to profile names
+            local old_profile=$(state_to_profile "$previous_state")
+            local new_profile=$(state_to_profile "$current_state")
+            log "  Profile change: '$old_profile' -> '$new_profile'"
+
+            # Save workspace state for the OLD profile BEFORE making changes
+            save_workspace_state_for_profile "$old_profile" "$new_profile"
+
             # Update state file
             echo "$current_state" > "$STATE_FILE"
             
@@ -215,20 +237,38 @@ case "${1:-}" in
         echo "Current monitor state: $current_state"
         ;;
     "save-workspace")
-        save_workspace_state
+        if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
+            "$WORKSPACE_STATE_MANAGER" save
+        fi
         ;;
     "restore-workspace")
         restore_workspace_state
         ;;
+    "workspace-status")
+        if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
+            "$WORKSPACE_STATE_MANAGER" status
+        fi
+        ;;
+    "workspace-profiles")
+        if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
+            "$WORKSPACE_STATE_MANAGER" profiles
+        fi
+        ;;
     *)
         echo "Monitor Hotplug Detection Script"
-        echo "Usage: $0 [monitor|restart-ags|reload-hyperpaper|reload-all|check|save-workspace|restore-workspace]"
-        echo "  monitor           - Start monitoring for hotplug events"
-        echo "  restart-ags       - Restart AGS immediately"
-        echo "  reload-hyperpaper - Reload hyperpaper immediately"
-        echo "  reload-all        - Restart AGS and reload hyperpaper"
-        echo "  check             - Check current monitor state"
-        echo "  save-workspace    - Save current workspace layout manually"
-        echo "  restore-workspace - Restore workspace layout manually"
+        echo "Usage: $0 <command>"
+        echo ""
+        echo "Commands:"
+        echo "  monitor             - Start monitoring for hotplug events"
+        echo "  restart-ags         - Restart AGS immediately"
+        echo "  reload-hyperpaper   - Reload hyperpaper immediately"
+        echo "  reload-all          - Restart AGS and reload hyperpaper"
+        echo "  check               - Check current monitor state"
+        echo ""
+        echo "Workspace commands:"
+        echo "  save-workspace      - Save current workspace layout"
+        echo "  restore-workspace   - Restore workspace layout for current profile"
+        echo "  workspace-status    - Show workspace state manager status"
+        echo "  workspace-profiles  - List all saved workspace profiles"
         ;;
 esac
