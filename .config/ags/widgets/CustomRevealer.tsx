@@ -1,6 +1,6 @@
-import { Gtk } from "astal/gtk3";
+import Gtk from "gi://Gtk?version=4.0";
 import { globalTransition } from "../variables";
-import { Binding } from "astal";
+import { Eventbox } from "./Custom/Eventbox";
 
 export default ({
   trigger,
@@ -10,41 +10,40 @@ export default ({
   custom_class = "",
   on_primary_click = () => {},
 }: {
-  trigger: Gtk.Widget;
-  child: Gtk.Widget;
+  trigger: any;
+  child: any;
   visible?: boolean;
-  revealChild?: boolean | Binding<boolean>;
+  revealChild?: boolean | (() => boolean);
   custom_class?: string;
   on_primary_click?: () => void;
 }) => {
-  const revealer = (
+  const revealer: Gtk.Revealer = (
     <revealer
       revealChild={revealChild}
       transitionDuration={globalTransition}
-      transitionType={Gtk.RevealerTransitionType.SLIDE_RIGHT}
+      transitionType={Gtk.RevealerTransitionType.SWING_LEFT}
       child={child}
     />
   );
 
-  const eventBox = (
-    <eventbox
+  const _Eventbox = (
+    <Eventbox
       visible={visible}
-      className={"custom-revealer " + custom_class}
-      on_hover={(self) => {
+      class={"custom-revealer " + custom_class}
+      onHover={(self) => {
         revealer.reveal_child = true;
       }}
-      on_hover_lost={() => {
+      onHoverLost={() => {
         revealer.reveal_child = false;
       }}
-      onClick={on_primary_click}
-      child={
-        <box className={"content"}>
-          {trigger}
-          {revealer}
-        </box>
-      }
-    />
+      onClick={() => on_primary_click()}
+    >
+      <box class={"content"}>
+        {trigger}
+        {revealer}
+      </box>
+    </Eventbox>
   );
 
-  return eventBox;
+  return _Eventbox;
 };

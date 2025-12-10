@@ -1,4 +1,4 @@
-import { App, Gdk } from "astal/gtk3";
+import app from "ags/gtk4/app";
 import Bar from "./widgets/bar/Bar";
 import { getCssPath } from "./utils/scss";
 import RightPanel from "./widgets/rightPanel/RightPanel";
@@ -17,7 +17,7 @@ import { logTime } from "./utils/time";
 import LeftPanel from "./widgets/leftPanel/LeftPanel";
 import LeftPanelHover from "./widgets/leftPanel/LeftPanelHover";
 import { compileBinaries } from "./utils/gcc";
-import "./services/autoSwitchWorkspace";
+// import "./services/autoSwitchWorkspace";
 import ScreenShot from "./widgets/ScreenShot";
 
 // Global flag to prevent multiple initializations
@@ -29,21 +29,12 @@ const perMonitorDisplay = () => {
     return;
   }
   displayInitialized = true;
-  
-  const display = Gdk.Display.get_default();
-  if (!display) {
-    print("\t ERROR: Could not get default display");
-    return;
-  }
-  
-  const numMonitors = display.get_n_monitors();
-  print(`\t TOTAL MONITORS DETECTED: ${numMonitors}`);
-  
-  for (let index = 0; index < numMonitors; index++) {
-    const monitor = display.get_monitor(index);
-    if (!monitor) continue;
-    
-    const monitorName = getMonitorName(display, monitor);
+
+  const monitors = app.get_monitors();
+  print(`\t TOTAL MONITORS DETECTED: ${monitors.length}`);
+
+  monitors.forEach((monitor, index) => {
+    const monitorName = getMonitorName(monitor.get_display(), monitor);
     print(`\t MONITOR ${index}: ${monitorName}`);
 
     // Only create NotificationPopups for the primary monitor (eDP-1) to avoid duplicates
@@ -52,8 +43,8 @@ const perMonitorDisplay = () => {
     // List of widget initializers
     const widgetInitializers = [
       { name: "Bar", fn: () => Bar(monitor) },
-      { name: "BarHover", fn: () => BarHover(monitor) },
-      { name: "Progress", fn: () => Progress(monitor) },
+      // { name: "BarHover", fn: () => BarHover(monitor) },
+      // { name: "Progress", fn: () => Progress(monitor) },
       { name: "RightPanel", fn: () => RightPanel(monitor) },
       { name: "RightPanelHover", fn: () => RightPanelHover(monitor) },
       { name: "LeftPanel", fn: () => LeftPanel(monitor) },
@@ -61,22 +52,22 @@ const perMonitorDisplay = () => {
       // Only create NotificationPopups on main monitor to prevent duplicates
       ...(isMainMonitor ? [{ name: "NotificationPopups", fn: () => NotificationPopups(monitor) }] : []),
       { name: "AppLauncher", fn: () => AppLauncher(monitor) },
-      { name: "UserPanel", fn: () => UserPanel(monitor) },
+      // { name: "UserPanel", fn: () => UserPanel(monitor) },
       { name: "WallpaperSwitcher", fn: () => WallpaperSwitcher(monitor) },
-      { name: "MediaPopups", fn: () => MediaPopups(monitor) },
-      { name: "SettingsWidget", fn: () => SettingsWidget(monitor) },
-      { name: "OSD", fn: () => OSD(monitor) },
-      { name: "ScreenShot", fn: () => ScreenShot(monitor) },
+      // { name: "MediaPopups", fn: () => MediaPopups(monitor) },
+      // { name: "SettingsWidget", fn: () => SettingsWidget(monitor) },
+      // { name: "OSD", fn: () => OSD(monitor) },
+      // { name: "ScreenShot", fn: () => ScreenShot(monitor) },
     ];
 
     // Launch each widget independently without waiting
     widgetInitializers.forEach(({ name, fn }) => {
       logTime(`\t\t ${name}`, fn);
     });
-  }
+  });
 };
 
-App.start({
+app.start({
   css: getCssPath(),
   main: () => {
     // logTime("\t Compiling Binaries", () => compileBinaries());

@@ -1,27 +1,29 @@
-import { Gtk } from "astal/gtk3";
+import Gtk from "gi://Gtk?version=4.0";
 import { Message } from "../../../interfaces/chatbot.interface";
-import { bind, execAsync, timeout, Variable } from "astal";
+import { createState, createComputed } from "ags";
+import { execAsync } from "ags/process";
 import { notify } from "../../../utils/notification";
 import { readJSONFile, writeJSONFile } from "../../../utils/json";
 import {
   chatBotApi,
+  setChatBotApi,
   chatBotImageGeneration,
+  setChatBotImageGeneration,
   globalTransition,
   leftPanelWidth,
 } from "../../../variables";
-import ToggleButton from "../../toggleButton";
 import { chatBotApis } from "../../../constants/api.constants";
-import { Api } from "../../../interfaces/api.interface";
+
 // Constants
 const MESSAGE_FILE_PATH = "./assets/chatbot";
 
 // State
-const messages = Variable<Message[]>([]);
-const chatHistory = Variable<Message[]>([]);
+const [messages, setMessages] = createState<Message[]>([]);
+const [chatHistory, setChatHistory] = createState<Message[]>([]);
 
 // Utils
 const getMessageFilePath = () =>
-  `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/history.json`;
+  `${MESSAGE_FILE_PATH}/${chatBotApi().value}/history.json`;
 
 const formatTextWithCodeBlocks = (text: string) => {
   const parts = text.split(/```(\w*)?\n?([\s\S]*?)```/gs);
@@ -34,9 +36,9 @@ const formatTextWithCodeBlocks = (text: string) => {
     if (i % 3 === 2) {
       // Code content
       elements.push(
-        <box className="code-block" spacing={5}>
+        <box class="code-block" spacing={5}>
           <label
-            className="text"
+            class="text"
             hexpand
             wrap
             halign={Gtk.Align.START}
@@ -45,8 +47,8 @@ const formatTextWithCodeBlocks = (text: string) => {
           <button
             halign={Gtk.Align.END}
             valign={Gtk.Align.START}
-            className="copy"
-            label=""
+            class="copy"
+            label=""
             onClick={() => execAsync(`wl-copy "${part}"`).catch(print)}
           />
         </box>
@@ -58,7 +60,12 @@ const formatTextWithCodeBlocks = (text: string) => {
   }
 
   return (
-    <box visible={text !== ""} className="body" vertical spacing={10}>
+    <box
+      visible={text !== ""}
+      class="body"
+      orientation={Gtk.Orientation.VERTICAL}
+      spacing={10}
+    >
       {elements}
     </box>
   );
@@ -67,21 +74,21 @@ const formatTextWithCodeBlocks = (text: string) => {
 const fetchMessages = () => {
   try {
     const fetchedMessages = readJSONFile(getMessageFilePath());
-    messages.set(Array.isArray(fetchedMessages) ? fetchedMessages : []);
+    setMessages(Array.isArray(fetchedMessages) ? fetchedMessages : []);
   } catch {
     return [];
   }
 };
 
 const saveMessages = () => {
-  writeJSONFile(getMessageFilePath(), messages.get());
+  writeJSONFile(getMessageFilePath(), messages());
 };
 
 const sendMessage = async (message: Message) => {
   try {
     const beginTime = Date.now();
 
-    const imagePath = `./assets/chatbot/${chatBotApi.get().value}/images/${
+    const imagePath = `./assets/chatbot/${chatBotApi().value}/images/${
       message.id
     }.jpg`;
 
@@ -90,11 +97,11 @@ const sendMessage = async (message: Message) => {
 
     const prompt =
       `tgpt --quiet ` +
-      `${chatBotImageGeneration.get() ? "--img" : ""} ` +
-      `${chatBotImageGeneration.get() ? `--out ${imagePath}` : ""} ` +
-      `--provider ${chatBotApi.get().value} ` +
+      `${chatBotImageGeneration() ? "--img" : ""} ` +
+      `${chatBotImageGeneration() ? `--out ${imagePath}` : ""} ` +
+      `--provider ${chatBotApi().value} ` +
       `--preprompt 'short and straight forward response, 
-        ${JSON.stringify(chatHistory.get())
+        ${JSON.stringify(chatHistory())
           .replace(/'/g, `'"'"'`)
           .replace(/`/g, "\\`")}'` +
       ` '${escapedContent}'`;
@@ -102,19 +109,19 @@ const sendMessage = async (message: Message) => {
     const response = await execAsync(prompt);
     const endTime = Date.now();
 
-    notify({ summary: chatBotApi.get().name, body: response });
+    notify({ summary: chatBotApi().name, body: response });
 
     const newMessage: Message = {
-      id: (messages.get().length + 1).toString(),
-      sender: chatBotApi.get().value,
+      id: (messages().length + 1).toString(),
+      sender: chatBotApi().value,
       receiver: "user",
       content: response,
       timestamp: Date.now(),
       responseTime: endTime - beginTime,
-      image: chatBotImageGeneration.get() ? imagePath : undefined,
+      image: chatBotImageGeneration() ? imagePath : undefined,
     };
 
-    messages.set([...messages.get(), newMessage]);
+    setMessages([...messages(), newMessage]);
   } catch (error) {
     notify({
       summary: "Error",
@@ -124,14 +131,14 @@ const sendMessage = async (message: Message) => {
 };
 
 const ApiList = () => (
-  <box className="api-list" spacing={5}>
+  <box class="api-list" spacing={5}>
     {chatBotApis.map((provider) => (
-      <ToggleButton
+      <togglebutton
         hexpand
-        state={bind(chatBotApi).as((p) => p.name === provider.name)}
-        className="provider"
+        active={createComputed(() => chatBotApi().name === provider.name)}
+        class="provider"
         label={provider.name}
-        onToggled={() => chatBotApi.set(provider)}
+        onToggled={() => setChatBotApi(provider)}
       />
     ))}
   </box>
@@ -139,11 +146,14 @@ const ApiList = () => (
 
 // Components
 const Info = () => (
-  <box className="info" vertical spacing={5}>
-    {bind(chatBotApi).as(({ name, description }) => [
-      <label className="name" hexpand wrap label={`[${name}]`} />,
-      <label className="description" hexpand wrap label={description} />,
-    ])}
+  <box class="info" orientation={Gtk.Orientation.VERTICAL} spacing={5}>
+    {createComputed(() => {
+      const { name, description } = chatBotApi();
+      return [
+        <label class="name" hexpand wrap label={`[${name}]`} />,
+        <label class="description" hexpand wrap label={description} />,
+      ];
+    })}
   </box>
 );
 
@@ -152,12 +162,12 @@ const MessageItem = ({ message }: { message: Message }) => {
     <revealer
       revealChild={false}
       transitionDuration={globalTransition}
-      transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}
+      transitionType={Gtk.RevealerTransitionType.SWING_DOWN}
       child={
-        <box className={"info"} spacing={10}>
+        <box class={"info"} spacing={10}>
           <label
             wrap
-            className="time"
+            class="time"
             label={new Date(message.timestamp).toLocaleString(undefined, {
               hour: "2-digit",
               minute: "2-digit",
@@ -166,7 +176,7 @@ const MessageItem = ({ message }: { message: Message }) => {
           />
           <label
             wrap
-            className="response-time"
+            class="response-time"
             label={
               message.responseTime
                 ? `Response Time: ${message.responseTime} ms`
@@ -180,15 +190,15 @@ const MessageItem = ({ message }: { message: Message }) => {
 
   const Actions = () => (
     <box
-      className="actions"
+      class="actions"
       spacing={5}
       valign={message.sender === "user" ? Gtk.Align.START : Gtk.Align.END}
-      vertical
+      orientation={Gtk.Orientation.VERTICAL}
     >
       {[
         <button
-          className="copy"
-          label=""
+          class="copy"
+          label=""
           onClicked={() =>
             execAsync(`wl-copy "${message.content}"`).catch(print)
           }
@@ -198,15 +208,15 @@ const MessageItem = ({ message }: { message: Message }) => {
   );
 
   const messageContent = (
-    <box vertical hexpand>
+    <box orientation={Gtk.Orientation.VERTICAL} hexpand>
       {formatTextWithCodeBlocks(message.content)}
       <box
         visible={message.image !== undefined}
-        className={"image"}
+        class={"image"}
         css={`
           background-image: url("${message.image}");
         `}
-        heightRequest={bind(leftPanelWidth)}
+        heightRequest={leftPanelWidth()}
         hexpand
       ></box>
     </box>
@@ -214,8 +224,8 @@ const MessageItem = ({ message }: { message: Message }) => {
 
   const revealerInstance = Revealer();
   return (
-    <eventbox
-      className={"message-eventbox"}
+    <Eventbox
+      class={"message-Eventbox"}
       onHover={() => (revealerInstance.reveal_child = true)}
       onHoverLost={() => (revealerInstance.reveal_child = false)}
       halign={
@@ -226,8 +236,11 @@ const MessageItem = ({ message }: { message: Message }) => {
           : undefined
       }
       child={
-        <box className={`message ${message.sender}`} vertical>
-          <box className={"main"}>
+        <box
+          class={`message ${message.sender}`}
+          orientation={Gtk.Orientation.VERTICAL}
+        >
+          <box class={"main"}>
             {message.sender !== "user"
               ? [<Actions />, messageContent]
               : [messageContent, <Actions />]}
@@ -239,48 +252,64 @@ const MessageItem = ({ message }: { message: Message }) => {
   );
 };
 
-const Messages = () => (
-  <scrollable
-    vexpand
-    setup={(self) => {
-      self.hook(messages, () => {
-        timeout(100, () => {
-          self.get_vadjustment().set_value(self.get_vadjustment().get_upper());
-        });
-      });
-    }}
-    child={
-      <box className="messages" vertical spacing={10}>
-        {bind(messages).as((msgs) =>
-          msgs.map((msg) => <MessageItem message={msg} />)
-        )}
-      </box>
+const Messages = () => {
+  let scrolledwindow: any;
+
+  createComputed(() => {
+    // Trigger on messages change
+    const msgs = messages();
+    if (scrolledwindow) {
+      setTimeout(() => {
+        scrolledwindow
+          .get_vadjustment()
+          .set_value(scrolledwindow.get_vadjustment().get_upper());
+      }, 100);
     }
-  />
-);
+  });
+
+  return (
+    <scrolledwindow
+      vexpand
+      $={(self) => {
+        scrolledwindow = self;
+      }}
+      child={
+        <box
+          class="messages"
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={10}
+        >
+          {createComputed(() =>
+            messages().map((msg) => <MessageItem message={msg} />)
+          )}
+        </box>
+      }
+    />
+  );
+};
 
 const ClearButton = () => (
   <button
     halign={Gtk.Align.CENTER}
     valign={Gtk.Align.CENTER}
-    label=""
-    className="clear"
+    label=""
+    class="clear"
     onClicked={() => {
-      messages.set([]);
-      execAsync(
-        `rm ${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/images/*`
-      ).catch((err) => notify({ summary: "err", body: err }));
+      setMessages([]);
+      execAsync(`rm ${MESSAGE_FILE_PATH}/${chatBotApi().value}/images/*`).catch(
+        (err) => notify({ summary: "err", body: err })
+      );
     }}
   />
 );
 
 const ImageGenerationSwitch = () => (
-  <ToggleButton
-    visible={bind(chatBotApi).as((api) => api.imageGenerationSupport)}
-    state={chatBotImageGeneration.get()}
-    className="image-generation"
-    label={" Image Generation"}
-    onToggled={(self, on) => chatBotImageGeneration.set(on)}
+  <togglebutton
+    visible={createComputed(() => chatBotApi().imageGenerationSupport)}
+    active={chatBotImageGeneration()}
+    class="image-generation"
+    label={" Image Generation"}
+    onToggled={(self, on) => setChatBotImageGeneration(on)}
   />
 );
 
@@ -290,14 +319,14 @@ const MessageEntry = () => {
     if (!text) return;
 
     const newMessage: Message = {
-      id: (messages.get().length + 1).toString(),
+      id: (messages().length + 1).toString(),
       sender: "user",
-      receiver: chatBotApi.get().value,
+      receiver: chatBotApi().value,
       content: text,
       timestamp: Date.now(),
     };
 
-    messages.set([...messages.get(), newMessage]);
+    setMessages([...messages(), newMessage]);
     sendMessage(newMessage);
     self.set_text("");
   };
@@ -308,10 +337,14 @@ const MessageEntry = () => {
 };
 
 const BottomBar = () => (
-  <eventbox
-    className={"bottom-eventbox"}
+  <Eventbox
+    class={"bottom-Eventbox"}
     child={
-      <box className={"bottom-bar"} spacing={10} vertical>
+      <box
+        class={"bottom-bar"}
+        spacing={10}
+        orientation={Gtk.Orientation.VERTICAL}
+      >
         <box spacing={5}>
           <MessageEntry />
           <ClearButton />
@@ -325,8 +358,8 @@ const BottomBar = () => (
 const EnsurePaths = async () => {
   const paths = [
     `${MESSAGE_FILE_PATH}`,
-    `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}`,
-    `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/images`,
+    `${MESSAGE_FILE_PATH}/${chatBotApi().value}`,
+    `${MESSAGE_FILE_PATH}/${chatBotApi().value}/images`,
   ];
 
   paths.forEach((path) => {
@@ -335,21 +368,31 @@ const EnsurePaths = async () => {
 };
 
 export default () => {
-  chatBotApi.subscribe(() => {
+  // Subscribe to chatBotApi changes
+  createComputed(() => {
+    chatBotApi();
     EnsurePaths();
     fetchMessages();
   });
-  messages.subscribe(() => {
+
+  // Subscribe to messages changes
+  createComputed(() => {
+    const msgs = messages();
     saveMessages();
     // set the last 50 messages to chat history
-    chatHistory.set(messages.get().slice(-50));
+    setChatHistory(msgs.slice(-50));
   });
 
   EnsurePaths();
   fetchMessages();
 
   return (
-    <box className="chat-bot" vertical hexpand spacing={5}>
+    <box
+      class="chat-bot"
+      orientation={Gtk.Orientation.VERTICAL}
+      hexpand
+      spacing={5}
+    >
       <ApiList />
       <Info />
       <Messages />

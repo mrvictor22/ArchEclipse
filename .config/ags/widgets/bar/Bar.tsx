@@ -1,5 +1,5 @@
-import { App, Astal, Gdk, Gtk } from "astal/gtk3";
-import { bind, Variable } from "astal";
+import App from "ags/gtk4/app";
+import { createBinding, createComputed, For } from "ags";
 import Workspaces from "./components/Workspaces";
 import Information from "./components/Information";
 import Utilities from "./components/Utilities";
@@ -8,6 +8,7 @@ import {
   barLock,
   barOrientation,
   barVisibility,
+  setBarVisibility,
   emptyWorkspace,
   focusedClient,
   globalMargin,
@@ -15,20 +16,43 @@ import {
 import { getMonitorName } from "../../utils/monitor";
 import { LeftPanelVisibility } from "../leftPanel/LeftPanel";
 import { RightPanelVisibility } from "../rightPanel/RightPanel";
+import { WidgetSelector } from "../../interfaces/widgetSelector.interface";
+import Astal from "gi://Astal?version=4.0";
+import Gdk from "gi://Gdk?version=4.0";
+import Gtk from "gi://Gtk?version=4.0";
+import { Eventbox } from "../Custom/Eventbox";
 
 export default (monitor: Gdk.Monitor) => {
   const monitorName = getMonitorName(monitor.get_display(), monitor)!;
+  function widget_halign(widgetName: string) {
+    return barLayout((layout) => {
+      const index = layout.findIndex((w) => w.name === widgetName);
+
+      if (index === -1) return Gtk.Align.CENTER; // fallback if not found
+
+      switch (layout[index].name) {
+        case "workspaces":
+          return Gtk.Align.START;
+        case "information":
+          return Gtk.Align.CENTER;
+        case "utilities":
+          return Gtk.Align.END;
+        default:
+          return Gtk.Align.CENTER;
+      }
+    });
+  }
 
   return (
     <window
       gdkmonitor={monitor}
       name={`bar-${monitorName}`}
       namespace="bar"
-      className="Bar"
+      class="Bar"
       application={App}
       exclusivity={Astal.Exclusivity.EXCLUSIVE}
       layer={Astal.Layer.TOP}
-      anchor={bind(barOrientation).as((orientation) =>
+      anchor={barOrientation((orientation: boolean) =>
         orientation
           ? Astal.WindowAnchor.TOP |
             Astal.WindowAnchor.LEFT |
@@ -37,70 +61,46 @@ export default (monitor: Gdk.Monitor) => {
             Astal.WindowAnchor.LEFT |
             Astal.WindowAnchor.RIGHT
       )}
-      margin={emptyWorkspace.as((empty) => (empty ? globalMargin : 5))}
-      visible={bind(
-        Variable.derive(
-          [bind(barVisibility), bind(focusedClient)],
-          (barVisibility, focusedClient) => {
-            if (focusedClient) {
-              const isFullscreen: boolean = focusedClient.get_fullscreen() == 2;
-              const visibility: boolean = !isFullscreen && barVisibility;
-              return visibility;
-            } else {
-              return barVisibility;
-            }
+      margin={emptyWorkspace((empty) => (empty ? globalMargin : 5))}
+      visible={createComputed(
+        [barVisibility, focusedClient],
+        (barVisibility, focusedClient) => {
+          if (focusedClient) {
+            const isFullscreen: boolean =
+              focusedClient.fullscreen === 2 ||
+              focusedClient.get_fullscreen?.() === 2;
+            const visibility: boolean = !isFullscreen && barVisibility;
+            return visibility;
+          } else {
+            return barVisibility;
           }
-        )
+        }
       )}
-      child={
-        <eventbox
-          onHoverLost={() => {
-            if (!barLock.get()) barVisibility.set(false);
-          }}
-          child={
-            <box
-              spacing={5}
-              className={emptyWorkspace.as((empty) =>
-                empty ? "bar empty" : "bar full"
-              )}
-            >
-              <LeftPanelVisibility />
-              <centerbox hexpand>
-                {bind(barLayout).as((layout) =>
-                  layout.map((widgetSelector, key) => {
-                    // set halign based on the key
-                    const halign = key === 0 ? Gtk.Align.START : Gtk.Align.END;
-                    switch (widgetSelector.name) {
-                      case "workspaces":
-                        return (
-                          <Workspaces
-                            halign={halign}
-                            monitorName={monitorName}
-                          />
-                        );
-                      case "information":
-                        return (
-                          <Information
-                            halign={halign}
-                            monitorName={monitorName}
-                          />
-                        );
-                      case "utilities":
-                        return (
-                          <Utilities
-                            halign={halign}
-                            monitorName={monitorName}
-                          />
-                        );
-                    }
-                  })
-                )}
-              </centerbox>
-              <RightPanelVisibility />
-            </box>
-          }
-        ></eventbox>
-      }
-    ></window>
+    >
+      <box
+        spacing={5}
+        class={emptyWorkspace((empty) => (empty ? "bar empty" : "bar full"))}
+      >
+        <LeftPanelVisibility />
+        <centerbox hexpand>
+          <Workspaces
+            halign={widget_halign("workspaces")}
+            $type="start"
+            monitorName={monitorName}
+          />
+          <Information
+            halign={widget_halign("information")}
+            $type="center"
+            monitorName={monitorName}
+          />
+          <Utilities
+            halign={widget_halign("utilities")}
+            $type="end"
+            monitorName={monitorName}
+          />
+        </centerbox>
+        <RightPanelVisibility />
+      </box>
+    </window>
   );
 };

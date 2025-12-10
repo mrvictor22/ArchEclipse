@@ -11,7 +11,7 @@ import Workspaces from "../widgets/bar/components/Workspaces";
 import Information from "../widgets/bar/components/Information";
 import Utilities from "../widgets/bar/components/Utilities";
 import ScriptTimer from "../widgets/rightPanel/components/ScriptTimer";
-import { Gtk } from "astal/gtk3";
+import Gtk from "gi://Gtk?version=4.0";
 
 export const barWidgetSelectors: WidgetSelector[] = [
   {
@@ -50,11 +50,11 @@ export const rightPanelWidgetSelectors: WidgetSelector[] = [
     icon: "",
     widget: () => NotificationHistory(),
   },
-  {
-    name: "Calendar",
-    icon: "",
-    widget: () => Calendar(),
-  },
+  // {
+  //   name: "Calendar",
+  //   icon: "",
+  //   widget: () => Calendar(),
+  // },
   {
     name: "ScriptTimer",
     icon: "󰀠",
