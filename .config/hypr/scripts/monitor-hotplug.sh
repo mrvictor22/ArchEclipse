@@ -154,14 +154,18 @@ if [ ! -f "$STATE_FILE" ] || [ ! -s "$STATE_FILE" ]; then
     initialize_state || exit 1
 fi
 
+# Periodic state save counter (save every N iterations when stable)
+PERIODIC_SAVE_INTERVAL=30  # Save every 60 seconds (30 iterations * 2 seconds)
+periodic_counter=0
+
 # Monitor for changes
 monitor_changes() {
     log "Starting monitor hotplug detection"
-    
+
     while true; do
         current_state=$(get_monitor_state)
         previous_state=$(cat "$STATE_FILE" 2>/dev/null || echo "")
-        
+
         # Skip if current state is empty (hyprctl might have failed)
         if [ -z "$current_state" ]; then
             log "Warning: Could not get current monitor state (output was empty), skipping this check"
@@ -170,7 +174,7 @@ monitor_changes() {
             sleep 2
             continue
         fi
-        
+
         # Only process if there's an actual change AND both states are non-empty
         if [ "$current_state" != "$previous_state" ] && [ -n "$previous_state" ]; then
             log "Monitor configuration changed:"
@@ -182,35 +186,62 @@ monitor_changes() {
             local new_profile=$(state_to_profile "$current_state")
             log "  Profile change: '$old_profile' -> '$new_profile'"
 
-            # Save workspace state for the OLD profile BEFORE making changes
-            save_workspace_state_for_profile "$old_profile" "$new_profile"
+            # NOTE: We don't save here anymore because Hyprland has already
+            # moved windows when we detect the change. Instead, we rely on
+            # periodic saves that happen while the configuration is stable.
+            log "Using last periodic save for profile '$old_profile'"
+
+            # Create pending restore flag for the NEW profile
+            # (so it will restore when we check after reconfiguration)
+            local pending_flag="$HOME/.cache/hypr/workspace-states/pending-${new_profile}"
+            if [ -f "$HOME/.cache/hypr/workspace-states/state-${new_profile}.json" ]; then
+                touch "$pending_flag"
+                log "Created pending restore flag for '$new_profile'"
+            fi
 
             # Update state file
             echo "$current_state" > "$STATE_FILE"
-            
+
+            # Reset periodic counter after a change
+            periodic_counter=0
+
             # Wait a moment for monitor setup to stabilize
             sleep 2
-            
+
             # Run multi-monitor auto-configuration first
             if [ -x "$MULTI_MONITOR_SCRIPT" ]; then
                 log "Running multi-monitor auto-configuration"
                 "$MULTI_MONITOR_SCRIPT" auto >> "$LOG_FILE" 2>&1
             fi
-            
+
             # Wait for monitor configuration to apply
             sleep 1
-            
+
             # Restart AGS
             restart_ags
-            
+
             # Reload hyperpaper
             reload_hyperpaper
-            
+
             # Wait for everything to settle, then restore workspace state
             sleep 2
             restore_workspace_state
+        else
+            # No change - increment periodic save counter
+            periodic_counter=$((periodic_counter + 1))
+
+            # Periodic save when stable (silent, no notifications)
+            if [ $periodic_counter -ge $PERIODIC_SAVE_INTERVAL ]; then
+                periodic_counter=0
+                if [ -x "$WORKSPACE_STATE_MANAGER" ]; then
+                    # Silent save - uses "silent" argument to suppress notifications
+                    local current_profile=$(state_to_profile "$current_state")
+                    "$WORKSPACE_STATE_MANAGER" save silent >/dev/null 2>&1
+                    log "Periodic workspace state save for profile '$current_profile'"
+                fi
+            fi
         fi
-        
+
         # Check every 2 seconds
         sleep 2
     done

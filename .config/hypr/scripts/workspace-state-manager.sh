@@ -1,7 +1,12 @@
 #!/bin/bash
 
-# Workspace State Manager for Hyprland (v3.0)
+# Workspace State Manager for Hyprland (v4.0)
 # Saves and restores window positions across monitor changes (KVM switch support)
+#
+# v4.0 Features:
+# - Workspace-to-monitor NAME mapping (not just ID)
+# - Restores workspaces to correct monitors after reconnection
+# - Stores monitor names (eDP-1, DP-3) instead of volatile IDs
 #
 # v3.0 Features:
 # - Multiple profiles based on monitor configuration
@@ -90,13 +95,30 @@ get_pending_flag() {
 }
 
 # Get current workspace state with enhanced window information
+# Optional: pass a profile name to override auto-detection
 get_workspace_state() {
+    local override_profile="$1"
     log "Capturing current workspace state..."
 
-    local profile=$(get_monitor_profile)
+    local profile
+    if [ -n "$override_profile" ]; then
+        profile="$override_profile"
+        log "Using override profile: $profile"
+    else
+        profile=$(get_monitor_profile)
+    fi
 
-    # Get all clients with extended info for better matching
-    local windows=$(hyprctl clients -j 2>/dev/null | jq -c '[.[] | {
+    # Get monitor info with name mapping (id -> name)
+    local monitor_info=$(hyprctl monitors -j 2>/dev/null | jq -c '[.[] | {name: .name, id: .id, width: .width, height: .height}]')
+
+    # Create monitor ID to name lookup
+    local monitor_id_to_name=$(hyprctl monitors -j 2>/dev/null | jq -c '[.[] | {key: (.id | tostring), value: .name}] | from_entries')
+
+    # Get workspace to monitor mapping (workspace id -> monitor name)
+    local workspace_monitor_map=$(hyprctl workspaces -j 2>/dev/null | jq -c '[.[] | select(.id > 0) | {key: (.id | tostring), value: .monitor}] | from_entries')
+
+    # Get all clients with extended info, including MONITOR NAME instead of just ID
+    local windows=$(hyprctl clients -j 2>/dev/null | jq -c --argjson mon_map "$monitor_id_to_name" '[.[] | {
         address: .address,
         class: .class,
         initialClass: .initialClass,
@@ -104,6 +126,7 @@ get_workspace_state() {
         initialTitle: .initialTitle,
         workspace: .workspace.id,
         monitor: .monitor,
+        monitorName: ($mon_map[.monitor | tostring] // "unknown"),
         pid: .pid,
         floating: .floating,
         at: .at,
@@ -116,18 +139,18 @@ get_workspace_state() {
     }]')
 
     if [ $? -eq 0 ] && [ -n "$windows" ] && [ "$windows" != "null" ] && [ "$windows" != "[]" ]; then
-        # Add metadata
-        local monitor_info=$(hyprctl monitors -j 2>/dev/null | jq -c '[.[] | {name: .name, id: .id, width: .width, height: .height}]')
         local final_state=$(jq -n \
             --argjson windows "$windows" \
             --argjson monitors "$monitor_info" \
+            --argjson workspaceMonitorMap "$workspace_monitor_map" \
             --arg timestamp "$(date -Iseconds)" \
             --arg profile "$profile" \
             '{
-                version: 3,
+                version: 4,
                 profile: $profile,
                 timestamp: $timestamp,
                 monitors: $monitors,
+                workspaceMonitorMap: $workspaceMonitorMap,
                 windows: $windows
             }')
 
@@ -141,7 +164,9 @@ get_workspace_state() {
 }
 
 # Save current workspace state to the appropriate profile
+# Optional: pass "silent" as first argument to suppress notifications
 save_state() {
+    local silent="${1:-}"
     local profile=$(get_monitor_profile)
     local state_file=$(get_state_file "$profile")
     local pending_flag=$(get_pending_flag "$profile")
@@ -170,23 +195,28 @@ save_state() {
         local window_count=$(echo "$state" | jq '.windows | length')
         local friendly_name=$(get_friendly_profile_name "$profile")
 
-        # Send notification
-        notify "💾 Workspace Saved" \
-            "$friendly_name\n$window_count windows preserved" \
-            "document-save"
+        # Send notification (unless silent mode)
+        if [ "$silent" != "silent" ]; then
+            notify "💾 Workspace Saved" \
+                "$friendly_name\n$window_count windows preserved" \
+                "document-save"
+        fi
 
         echo "State saved for profile '$profile' ($window_count windows)"
         return 0
     else
         error "Failed to save workspace state"
-        notify "❌ Workspace Save Failed" \
-            "Could not save workspace state" \
-            "dialog-error" "critical"
+        if [ "$silent" != "silent" ]; then
+            notify "❌ Workspace Save Failed" \
+                "Could not save workspace state" \
+                "dialog-error" "critical"
+        fi
         return 1
     fi
 }
 
 # Save state for a specific profile (used during monitor change)
+# This captures the CURRENT window positions and saves them under the specified profile
 save_state_for_profile() {
     local target_profile="$1"
     local state_file=$(get_state_file "$target_profile")
@@ -194,11 +224,10 @@ save_state_for_profile() {
 
     log "=== Saving state for profile '$target_profile' (pre-change) ==="
 
-    local state=$(get_workspace_state)
+    # Pass the target profile to get_workspace_state so it gets recorded correctly
+    local state=$(get_workspace_state "$target_profile")
 
     if [ $? -eq 0 ] && [ -n "$state" ]; then
-        # Update profile in state to match target
-        state=$(echo "$state" | jq --arg profile "$target_profile" '.profile = $profile')
         echo "$state" > "$state_file"
         touch "$pending_flag"
 
@@ -293,6 +322,29 @@ ensure_workspace() {
     fi
 }
 
+# Get current monitor name to ID mapping
+get_current_monitor_map() {
+    hyprctl monitors -j 2>/dev/null | jq -c '[.[] | {key: .name, value: .id}] | from_entries'
+}
+
+# Move a workspace to a specific monitor by name
+move_workspace_to_monitor() {
+    local workspace_id="$1"
+    local target_monitor="$2"
+
+    # Check if monitor exists
+    local monitor_exists=$(hyprctl monitors -j 2>/dev/null | jq -r --arg mon "$target_monitor" '.[] | select(.name == $mon) | .name')
+
+    if [ -n "$monitor_exists" ]; then
+        log "Moving workspace $workspace_id to monitor $target_monitor"
+        hyprctl dispatch moveworkspacetomonitor "$workspace_id,$target_monitor" > /dev/null 2>&1
+        return 0
+    else
+        log "Monitor $target_monitor not available, skipping workspace $workspace_id move"
+        return 1
+    fi
+}
+
 # Restore windows from a specific profile's state
 restore_state() {
     local profile="${1:-$(get_monitor_profile)}"
@@ -328,6 +380,31 @@ restore_state() {
         saved_windows="$saved_state"
     fi
 
+    # For v4+, first restore workspace-to-monitor assignments
+    if [ "$version" -ge 4 ] 2>/dev/null; then
+        log "Restoring workspace-to-monitor mappings (v4 state)..."
+        local workspace_monitor_map=$(echo "$saved_state" | jq -r '.workspaceMonitorMap // {}')
+
+        if [ "$workspace_monitor_map" != "{}" ] && [ "$workspace_monitor_map" != "null" ]; then
+            # Get current available monitors
+            local current_monitors=$(hyprctl monitors -j 2>/dev/null | jq -r '.[].name' | tr '\n' ' ')
+            log "Current monitors: $current_monitors"
+
+            # Move workspaces to their saved monitors
+            echo "$workspace_monitor_map" | jq -r 'to_entries[] | "\(.key) \(.value)"' | while read ws_id mon_name; do
+                if [ -n "$ws_id" ] && [ -n "$mon_name" ]; then
+                    # Check if the target monitor is currently connected
+                    if echo "$current_monitors" | grep -q "$mon_name"; then
+                        move_workspace_to_monitor "$ws_id" "$mon_name"
+                        sleep 0.1
+                    else
+                        log "Target monitor '$mon_name' not connected for workspace $ws_id"
+                    fi
+                fi
+            done
+        fi
+    fi
+
     local total=$(echo "$saved_windows" | jq length)
     log "Attempting to restore $total windows for profile '$profile'..."
 
@@ -335,6 +412,7 @@ restore_state() {
     local restored=0
     local skipped=0
     local not_found=0
+    local ws_moved=0
 
     while IFS= read -r saved_window; do
         [ -z "$saved_window" ] && continue
@@ -344,6 +422,7 @@ restore_state() {
         local saved_floating=$(echo "$saved_window" | jq -r '.floating // false')
         local saved_at=$(echo "$saved_window" | jq -c '.at // [0,0]')
         local saved_size=$(echo "$saved_window" | jq -c '.size // [0,0]')
+        local saved_monitor_name=$(echo "$saved_window" | jq -r '.monitorName // "unknown"')
 
         # Skip special workspaces (negative numbers)
         if [ "$saved_workspace" = "null" ] || [ "$saved_workspace" -lt 1 ] 2>/dev/null; then
@@ -364,7 +443,7 @@ restore_state() {
             ensure_workspace "$saved_workspace"
 
             if [ "$current_workspace" != "$saved_workspace" ]; then
-                log "Moving: $saved_class (ws $current_workspace -> $saved_workspace)"
+                log "Moving: $saved_class (ws $current_workspace -> $saved_workspace, target monitor: $saved_monitor_name)"
                 hyprctl dispatch movetoworkspacesilent "$saved_workspace,address:$current_address" > /dev/null 2>&1
                 ((restored++))
                 sleep 0.05
@@ -464,9 +543,21 @@ show_state() {
         echo "Version: $version"
         echo "Saved at: $(echo "$state" | jq -r '.timestamp')"
         echo "Monitors: $(echo "$state" | jq -r '.monitors | map(.name) | join(", ")')"
+
+        # Show workspace-to-monitor mapping for v4+
+        if [ "$version" -ge 4 ] 2>/dev/null; then
+            echo ""
+            echo "Workspace -> Monitor Mapping:"
+            echo "$state" | jq -r '.workspaceMonitorMap | to_entries | sort_by(.key | tonumber) | .[] | "  WS \(.key) -> \(.value)"'
+        fi
+
         echo ""
         echo "Windows:"
-        echo "$state" | jq -r '.windows[] | "  WS \(.workspace): \(.class) - \(.title | .[0:50]) [floating=\(.floating)]"' | sort -t':' -k1 -V
+        if [ "$version" -ge 4 ] 2>/dev/null; then
+            echo "$state" | jq -r '.windows[] | "  WS \(.workspace) [\(.monitorName)]: \(.class) - \(.title | .[0:40])"' | sort -t':' -k1 -V
+        else
+            echo "$state" | jq -r '.windows[] | "  WS \(.workspace): \(.class) - \(.title | .[0:50]) [floating=\(.floating)]"' | sort -t':' -k1 -V
+        fi
     else
         echo "Version: 1 (legacy)"
         echo "$state" | jq -r '.[] | "  WS \(.workspace): \(.class) - \(.title | .[0:50])"' | sort -t':' -k1 -V
@@ -643,7 +734,7 @@ handle_monitor_change() {
 # Main command handler
 case "${1:-}" in
     "save")
-        save_state
+        save_state "${2:-}"
         ;;
     "restore")
         restore_state "${2:-}"
