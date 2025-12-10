@@ -3,7 +3,7 @@ import Gtk from "gi://Gtk?version=4.0";
 import Gdk from "gi://Gdk?version=4.0";
 import Astal from "gi://Astal?version=4.0";
 import { getMonitorName } from "../../utils/monitor";
-import { createBinding, createComputed } from "ags";
+import { createBinding, createComputed, With } from "ags";
 import {
   globalMargin,
   globalTransition,
@@ -21,6 +21,7 @@ import {
 
 import { hideWindow, WindowActions } from "../../utils/window";
 import { leftPanelWidgetSelectors } from "../../constants/widget.constants";
+import { Eventbox } from "../Custom/Eventbox";
 
 const WidgetActions = () => (
   <box
@@ -60,22 +61,22 @@ function Panel() {
   return (
     <box>
       <Actions />
-      <box
-        class={"main-content"}
-        widthRequest={leftPanelWidth}
-        child={createComputed(
-          () =>
+      <box class={"main-content"} widthRequest={leftPanelWidth}>
+        <With value={createComputed(() => leftPanelWidget.name)}>
+          {() =>
             leftPanelWidgetSelectors
               .find((ws) => ws.name === leftPanelWidget.name)
               ?.widget() || <box />
-        )}
-      ></box>
+          }
+        </With>
+      </box>
       <Eventbox
         onHoverLost={() => {
           if (!leftPanelLock) setLeftPanelVisibility(false);
         }}
-        child={<box css={"min-width:5px"} />}
-      ></Eventbox>
+      >
+        <box css={"min-width:5px"} />
+      </Eventbox>
     </box>
   );
 }
@@ -106,17 +107,23 @@ export default (monitor: Gdk.Monitor) => {
       margin={createComputed(() => (leftPanelExclusivity ? 0 : globalMargin))}
       keymode={Astal.Keymode.ON_DEMAND}
       visible={leftPanelVisibility}
-      onKeyPressEvent={(self, event) => {
-        if (event.get_keyval()[1] === Gdk.KEY_Escape) {
-          setLeftPanelVisibility(false);
-          hideWindow(
-            `left-panel-${getMonitorName(monitor.get_display(), monitor)}`
-          );
-          return true;
-        }
+      $={(self) => {
+        const keyController = new Gtk.EventControllerKey();
+        keyController.connect("key-pressed", (_controller, keyval) => {
+          if (keyval === Gdk.KEY_Escape) {
+            setLeftPanelVisibility(false);
+            hideWindow(
+              `left-panel-${getMonitorName(monitor.get_display(), monitor)}`
+            );
+            return true;
+          }
+          return false;
+        });
+        self.add_controller(keyController);
       }}
-      child={<Panel />}
-    />
+    >
+      <Panel />
+    </window>
   );
 };
 
@@ -126,14 +133,13 @@ export function LeftPanelVisibility() {
       revealChild={leftPanelLock}
       transitionType={Gtk.RevealerTransitionType.SLIDE_LEFT}
       transitionDuration={globalTransition}
-      child={
-        <togglebutton
-          active={leftPanelVisibility}
-          label={createComputed(() => (leftPanelVisibility ? "" : ""))}
-          onToggled={({ active }) => setLeftPanelVisibility(on)}
-          class="panel-trigger icon"
-        />
-      }
-    />
+    >
+      <togglebutton
+        active={leftPanelVisibility}
+        label={createComputed(() => (leftPanelVisibility ? "" : ""))}
+        onToggled={({ active }) => setLeftPanelVisibility(active)}
+        class="panel-trigger icon"
+      />
+    </revealer>
   );
 }

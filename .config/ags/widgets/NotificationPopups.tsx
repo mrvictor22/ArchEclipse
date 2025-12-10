@@ -4,7 +4,7 @@ import Gdk from "gi://Gdk?version=4.0";
 import Astal from "gi://Astal?version=4.0";
 import Notifd from "gi://AstalNotifd";
 import Notification from "./rightPanel/components/Notification";
-import { createState, createComputed } from "ags";
+import { createState, createComputed, With, For } from "ags";
 import { DND, globalMargin } from "../variables";
 
 // see comment below in constructor
@@ -144,18 +144,20 @@ export default (monitor: Gdk.Monitor) => {
       anchor={TOP | RIGHT}
       margin={globalMargin}
       widthRequest={400}
-      child={
-        <box
-          class={"notification-popups"}
-          orientation={Gtk.Orientation.VERTICAL}
-          vexpand={true}
-          child={createComputed(() => (
+    >
+      <box
+        class={"notification-popups"}
+        orientation={Gtk.Orientation.VERTICAL}
+        vexpand={true}
+      >
+        <With value={createComputed(() => notifications.get())}>
+          {(items) => (
             <box orientation={Gtk.Orientation.VERTICAL}>
-              {notifications.get().map((n: any) => n)}
+              {items.map((n: any) => n)}
             </box>
-          ))}
-        />
-      }
-    />
+          )}
+        </With>
+      </box>
+    </window>
   );
 };
