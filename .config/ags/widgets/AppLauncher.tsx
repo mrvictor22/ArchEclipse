@@ -335,7 +335,7 @@ export default (monitor: any) => (
     namespace="app-launcher"
     application={app}
     anchor={emptyWorkspace((empty) =>
-      empty ? undefined : Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT
+      empty ? Astal.WindowAnchor.NONE : Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT
     )}
     exclusivity={Astal.Exclusivity.EXCLUSIVE}
     keymode={Astal.Keymode.EXCLUSIVE}
