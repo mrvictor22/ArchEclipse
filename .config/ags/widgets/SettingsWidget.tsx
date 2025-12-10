@@ -412,18 +412,22 @@ export default (monitor: Gdk.Monitor) => {
       visible={false}
       margin={globalMargin}
       keymode={Astal.Keymode.ON_DEMAND}
-      onKeyPressEvent={(self, event) => {
-        if (event.get_keyval()[1] === Gdk.KEY_Escape) {
-          hideWindow(`settings-${monitorName}`);
-          return true;
-        }
+      $={(self) => {
+        const keyController = new Gtk.EventControllerKey();
+        keyController.connect("key-pressed", (_controller, keyval) => {
+          if (keyval === Gdk.KEY_Escape) {
+            hideWindow(`settings-${monitorName}`);
+            return true;
+          }
+          return false;
+        });
+        self.add_controller(keyController);
       }}
-      child={
-        <box orientation={Gtk.Orientation.VERTICAL} class="settings-widget">
-          <WindowActions monitor={monitorName} />
-          <Settings />
-        </box>
-      }
-    ></window>
+    >
+      <box orientation={Gtk.Orientation.VERTICAL} class="settings-widget">
+        <WindowActions monitor={monitorName} />
+        <Settings />
+      </box>
+    </window>
   );
 };

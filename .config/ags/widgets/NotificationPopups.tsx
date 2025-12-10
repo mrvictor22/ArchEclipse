@@ -63,14 +63,21 @@ class NotificationMap {
   }
 
   private set(key: number, value: any) {
-    // in case of replacecment destroy previous widget
-    this.notificationMap.get(key)?.destroy();
+    // in case of replacement, unparent previous widget (GTK4 doesn't have destroy())
+    const oldWidget = this.notificationMap.get(key);
+    if (oldWidget?.parent) {
+      oldWidget.unparent();
+    }
     this.notificationMap.set(key, value);
     this.notify();
   }
 
   private delete(key: number) {
-    this.notificationMap.get(key)?.destroy();
+    // GTK4: use unparent() instead of destroy()
+    const widget = this.notificationMap.get(key);
+    if (widget?.parent) {
+      widget.unparent();
+    }
     this.notificationMap.delete(key);
     this.notify();
   }

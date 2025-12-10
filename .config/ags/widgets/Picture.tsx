@@ -43,8 +43,8 @@ export default function Picture({
         class={className}
         file={
           typeof file === "string"
-            ? Gio.File.new_for_path(file)
-            : file((f) => Gio.File.new_for_path(f))
+            ? (file ? Gio.File.new_for_path(file) : null)
+            : file((f) => f ? Gio.File.new_for_path(f) : null)
         }
         contentFit={contentFit}
         $={(self) => {

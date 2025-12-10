@@ -7,6 +7,7 @@ import {
   barVisibility,
   setBarVisibility,
 } from "../../variables";
+import { Eventbox } from "../Custom/Eventbox";
 
 export default (monitor: Gdk.Monitor) => {
   return (
@@ -25,15 +26,15 @@ export default (monitor: Gdk.Monitor) => {
       )}
       exclusivity={Astal.Exclusivity.IGNORE}
       layer={Astal.Layer.OVERLAY}
-      child={
-        <Eventbox
-          onHover={() => {
-            print("visible", barVisibility.get());
-            setBarVisibility(true);
-          }}
-          child={<box css="min-height: 5px;" />}
-        ></Eventbox>
-      }
-    ></window>
+    >
+      <Eventbox
+        onHover={() => {
+          print("visible", barVisibility.get());
+          setBarVisibility(true);
+        }}
+      >
+        <box css="min-height: 5px;" />
+      </Eventbox>
+    </window>
   );
 };

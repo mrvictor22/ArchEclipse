@@ -215,11 +215,16 @@ export default (monitor: Gdk.Monitor) => {
       layer={Astal.Layer.OVERLAY}
       visible={false}
       keymode={Astal.Keymode.ON_DEMAND}
-      onKeyPressEvent={(self, event) => {
-        if (event.get_keyval()[1] === Gdk.KEY_Escape) {
-          hideWindow(`user-panel-${monitorName}`);
-          return true;
-        }
+      $={(self) => {
+        const keyController = new Gtk.EventControllerKey();
+        keyController.connect("key-pressed", (_controller, keyval) => {
+          if (keyval === Gdk.KEY_Escape) {
+            hideWindow(`user-panel-${monitorName}`);
+            return true;
+          }
+          return false;
+        });
+        self.add_controller(keyController);
       }}
     >
       <box class="display" orientation={Gtk.Orientation.VERTICAL} spacing={10}>
