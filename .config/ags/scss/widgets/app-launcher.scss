@@ -4,6 +4,13 @@
   border-radius: 10px;
   min-width: 500px;
 
+  entry {
+    min-height: 36px;
+    padding: 8px 12px;
+    margin-bottom: 8px;
+    font-size: 14px;
+  }
+
   .help > * {
     @extend .button;
     font-size: $phi-min + em;

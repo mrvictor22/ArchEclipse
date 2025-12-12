@@ -86,7 +86,7 @@ const helpCommands = {
   "emoji ...": "search emojis",
 };
 
-const Help = (
+const Help = () => (
   <box class="help" spacing={5} orientation={Gtk.Orientation.VERTICAL}>
     {Object.entries(helpCommands).map(([command, explanation]) => (
       <box hexpand homogeneous>
@@ -105,13 +105,14 @@ const Help = (
 
 let debounceTimer: any;
 let args: string[];
-let entryWidget: any;
+// Map to track entry widgets per monitor
+const entryWidgets = new Map<string, any>();
 
-const Entry = (
+const Entry = () => (
   <Gtk.Entry
     hexpand={true}
     placeholderText="Search for an app, emoji, translate, url, or do some math..."
-    $={(self) => (entryWidget = self)}
+    $={(self) => entryWidgets.set(monitorName.get(), self)}
     onChanged={async (self: any) => {
       const text = self.get_text();
       if (debounceTimer) {
@@ -243,7 +244,10 @@ const Entry = (
 );
 
 const EmptyEntry = () => {
-  entryWidget.set_text("");
+  const currentEntry = entryWidgets.get(monitorName.get());
+  if (currentEntry) {
+    currentEntry.set_text("");
+  }
   setResults([]);
 };
 
@@ -360,10 +364,10 @@ export default (monitor: any) => (
       class="app-launcher"
       spacing={5}
     >
-      {Entry}
+      {Entry()}
       {ResultsDisplay()}
       {QuickApps()}
-      {Help}
+      {Help()}
     </box>
   </Astal.Window>
 );
