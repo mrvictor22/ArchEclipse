@@ -8,6 +8,7 @@ HYPR_DIR="$HOME/.config/hypr"
 MULTI_MONITOR_SCRIPT="$SCRIPT_DIR/multi-monitor-manager.sh"
 HYPERPAPER_RELOAD="$HYPR_DIR/hyprpaper/reload.sh"
 WORKSPACE_STATE_MANAGER="$SCRIPT_DIR/workspace-state-manager.sh"
+BAR_VALIDATOR="$SCRIPT_DIR/validate-bar.sh"
 LOG_FILE="/tmp/hyprland-monitor-hotplug.log"
 STATE_FILE="/tmp/hyprland-monitor-state"
 
@@ -66,6 +67,28 @@ restart_ags() {
         log "AGS restarted successfully (PID: $(pgrep -x ags))"
     else
         log "ERROR: AGS failed to start"
+    fi
+}
+
+# Validate bar after AGS restart
+validate_bar() {
+    log "Validating AGS bar configuration"
+
+    if [ -x "$BAR_VALIDATOR" ]; then
+        # Run validation with auto-retry (will restart AGS if needed)
+        local result=$("$BAR_VALIDATOR" validate-retry 2>&1)
+        local exit_code=$?
+
+        if [ $exit_code -eq 0 ]; then
+            log "Bar validation successful"
+        else
+            log "Bar validation failed: $result"
+        fi
+
+        return $exit_code
+    else
+        log "Warning: Bar validator not found or not executable: $BAR_VALIDATOR"
+        return 1
     fi
 }
 
@@ -218,15 +241,29 @@ monitor_changes() {
             # Wait for monitor configuration to apply
             sleep 1
 
+            # Determine if monitor was added or removed
+            local old_count=$(echo "$previous_state" | tr ',' '\n' | wc -l)
+            local new_count=$(echo "$current_state" | tr ',' '\n' | wc -l)
+
+            # Redistribute workspaces based on new monitor configuration
+            # This moves all workspaces to external monitor except btop's workspace
+            if [ -x "$MULTI_MONITOR_SCRIPT" ]; then
+                log "Redistributing workspaces (monitors: $old_count -> $new_count)"
+                "$MULTI_MONITOR_SCRIPT" redistribute >> "$LOG_FILE" 2>&1
+            fi
+
+            # Wait for workspace redistribution
+            sleep 1
+
             # Restart AGS
             restart_ags
 
+            # Validate bar is correctly displayed (with auto-retry)
+            sleep 1
+            validate_bar
+
             # Reload hyperpaper
             reload_hyperpaper
-
-            # Wait for everything to settle, then restore workspace state
-            sleep 2
-            restore_workspace_state
         else
             # No change - increment periodic save counter
             periodic_counter=$((periodic_counter + 1))
@@ -262,7 +299,11 @@ case "${1:-}" in
     "reload-all")
         restart_ags
         sleep 1
+        validate_bar
         reload_hyperpaper
+        ;;
+    "validate-bar")
+        validate_bar
         ;;
     "check")
         current_state=$(get_monitor_state)
@@ -294,7 +335,8 @@ case "${1:-}" in
         echo "  monitor             - Start monitoring for hotplug events"
         echo "  restart-ags         - Restart AGS immediately"
         echo "  reload-hyperpaper   - Reload hyperpaper immediately"
-        echo "  reload-all          - Restart AGS and reload hyperpaper"
+        echo "  reload-all          - Restart AGS, validate bar, and reload hyperpaper"
+        echo "  validate-bar        - Validate bar is correctly displayed (with auto-retry)"
         echo "  check               - Check current monitor state"
         echo ""
         echo "Workspace commands:"

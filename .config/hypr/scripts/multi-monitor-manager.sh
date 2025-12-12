@@ -259,33 +259,51 @@ handle_lid_event() {
     fi
 }
 
+# Get workspace ID where btop is running
+get_btop_workspace() {
+    # btop runs in kitty terminal, so we look for title containing "btop"
+    local btop_workspace=$(hyprctl clients -j | jq -r '.[] | select(.title | type == "string" and contains("btop")) | .workspace.id' | head -1)
+    echo "$btop_workspace"
+}
+
 # Redistribute workspaces across available monitors
+# When external monitor is connected:
+#   - All workspaces go to external monitor
+#   - EXCEPT the workspace containing btop, which stays on internal (eDP-1)
 redistribute_workspaces() {
-    local monitors=($(hyprctl monitors -j | jq -r '.[] | select(.disabled == false) | .name'))
-    local monitor_count=${#monitors[@]}
-    
-    if [ "$monitor_count" -le 1 ]; then
+    local internal_monitor=$(get_internal_monitor)
+    local external_monitors=($(get_external_monitors))
+    local monitor_count=$((1 + ${#external_monitors[@]}))
+
+    # If only one monitor, nothing to redistribute
+    if [ "$monitor_count" -le 1 ] || [ ${#external_monitors[@]} -eq 0 ]; then
+        log "Only one monitor detected, skipping redistribution"
         return 0
     fi
-    
-    log "Redistributing workspaces across $monitor_count monitors"
-    
+
+    local primary_external="${external_monitors[0]}"
+    local btop_workspace=$(get_btop_workspace)
+
+    log "Redistributing workspaces: external=$primary_external, internal=$internal_monitor, btop_workspace=$btop_workspace"
+
+    # Get all workspaces
     local workspaces=($(hyprctl workspaces -j | jq -r '.[].id' | sort -n))
-    local workspaces_per_monitor=$((10 / monitor_count))
-    
-    local monitor_index=0
-    local workspace_count=0
-    
+
     for workspace in "${workspaces[@]}"; do
-        if [ "$workspace_count" -ge "$workspaces_per_monitor" ] && [ "$monitor_index" -lt $((monitor_count - 1)) ]; then
-            monitor_index=$((monitor_index + 1))
-            workspace_count=0
+        if [ -n "$btop_workspace" ] && [ "$workspace" = "$btop_workspace" ]; then
+            # btop workspace stays on internal monitor
+            log "Keeping workspace $workspace (btop) on internal monitor $internal_monitor"
+            hyprctl dispatch moveworkspacetomonitor "$workspace" "$internal_monitor"
+        else
+            # All other workspaces go to external monitor
+            log "Moving workspace $workspace to external monitor $primary_external"
+            hyprctl dispatch moveworkspacetomonitor "$workspace" "$primary_external"
         fi
-        
-        hyprctl dispatch moveworkspacetomonitor "$workspace" "${monitors[$monitor_index]}"
-        workspace_count=$((workspace_count + 1))
     done
-    
+
+    # Focus the external monitor (where most work happens)
+    hyprctl dispatch focusmonitor "$primary_external"
+
     # Restart AGS after workspace redistribution
     restart_ags
 }
