@@ -1,6 +1,19 @@
-import { Accessor } from "ags";
+import { Accessor, createComputed } from "ags";
 import Gio from "gi://Gio?version=2.0";
 import Gtk from "gi://Gtk?version=4.0";
+
+// Helper to safely create Gio.File from path
+function safeGioFile(path: string | null | undefined): Gio.File | null {
+  if (!path || path.trim() === "") {
+    return null;
+  }
+  try {
+    return Gio.File.new_for_path(path);
+  } catch (e) {
+    console.error("Failed to create Gio.File for path:", path, e);
+    return null;
+  }
+}
 
 interface PictureProps {
   class?: Accessor<string> | string;
@@ -17,6 +30,14 @@ export default function Picture({
   contentFit = Gtk.ContentFit.COVER,
 }: PictureProps) {
   let pictureRef: Gtk.Picture | undefined;
+
+  // Create a computed binding that safely handles null/empty paths
+  const fileBinding = typeof file === "string"
+    ? safeGioFile(file)
+    : createComputed(() => {
+        const path = typeof file === "function" ? file() : null;
+        return safeGioFile(path);
+      });
 
   return (
     <overlay
@@ -41,11 +62,7 @@ export default function Picture({
       <Gtk.Picture
         $type="overlay"
         class={className}
-        file={
-          typeof file === "string"
-            ? (file ? Gio.File.new_for_path(file) : null)
-            : file((f) => f ? Gio.File.new_for_path(f) : null)
-        }
+        file={fileBinding}
         contentFit={contentFit}
         $={(self) => {
           // also capture directly (more reliable)

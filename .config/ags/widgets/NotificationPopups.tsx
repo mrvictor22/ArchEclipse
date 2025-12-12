@@ -43,16 +43,24 @@ class NotificationMap {
     // notifd.ignoreTimeout = true
 
     notifd.connect("notified", (_, id) => {
-      if (DND()) return;
-      // this.clearOldNotifications(); // Clear old notifications before adding new one
-      this.set(
-        id,
-        Notification({
-          n: notifd.get_notification(id)!,
-          newNotification: true,
-          popup: true,
-        })
-      );
+      print(`[NotificationPopups] Received notification id: ${id}, DND: ${DND()}`);
+      if (DND()) {
+        print(`[NotificationPopups] DND is enabled, ignoring notification`);
+        return;
+      }
+      const notification = notifd.get_notification(id);
+      if (!notification) {
+        print(`[NotificationPopups] Could not get notification for id: ${id}`);
+        return;
+      }
+      print(`[NotificationPopups] Creating notification widget for: ${notification.summary}`);
+      const widget = Notification({
+        n: notification,
+        newNotification: true,
+        popup: true,
+      });
+      print(`[NotificationPopups] Widget created, adding to map`);
+      this.set(id, widget);
     });
 
     // notifications can be closed by the outside before

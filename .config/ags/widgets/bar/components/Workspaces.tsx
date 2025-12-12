@@ -150,25 +150,30 @@ function Workspaces() {
     </box>
   );
 }
-const Special = (
-  <button
-    class="special"
-    label={workspaceToIcon[0]}
-    onClicked={() =>
-      hyprland.message_async(`dispatch togglespecialworkspace`, (res) => {})
-    }
-  />
-);
+// Converted to functions to create new widget instances per monitor (widgets can only have one parent)
+function Special() {
+  return (
+    <button
+      class="special"
+      label={workspaceToIcon[0]}
+      onClicked={() =>
+        hyprland.message_async(`dispatch togglespecialworkspace`, (res) => {})
+      }
+    />
+  );
+}
 
-const OverView = (
-  <button
-    class="overview"
-    label="󱗼"
-    onClicked={() =>
-      hyprland.message_async("dispatch hyprexpo:expo toggle", (res) => {})
-    }
-  />
-);
+function OverView() {
+  return (
+    <button
+      class="overview"
+      label="󱗼"
+      onClicked={() =>
+        hyprland.message_async("dispatch hyprexpo:expo toggle", (res) => {})
+      }
+    />
+  );
+}
 
 function AppLauncher({ monitorName }: { monitorName: string }) {
   return (
@@ -248,8 +253,8 @@ export default ({
   return (
     <box class="bar-left" spacing={5} halign={halign} hexpand>
       <Actions monitorName={monitorName} />
-      {OverView}
-      {Special}
+      <OverView />
+      <Special />
       <Workspaces />
     </box>
   );
