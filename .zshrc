@@ -4,7 +4,8 @@ eval "$(starship init zsh)"
 
 # fetch system information
 $HOME/.config/fastfetch/fastfetch.sh
-
+# User binaries
+export PATH="$HOME/.local/bin:$PATH"
 source /usr/share/zsh/plugins/zsh-autosuggestions/zsh-autosuggestions.zsh                   # Autosuggestions for commands
 source /usr/share/zsh/plugins/zsh-syntax-highlighting/zsh-syntax-highlighting.zsh           # Syntax Highlighting and colors
 source /usr/share/zsh/plugins/zsh-history-substring-search/zsh-history-substring-search.zsh # Substring history search using up and down arrow keys
