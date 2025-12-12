@@ -20,6 +20,7 @@ STATE_DIR="$HOME/.cache/hypr/workspace-states"
 LOG_FILE="/tmp/hyprland-workspace-state.log"
 MAX_BACKUPS=5
 NOTIFY_ENABLED=true
+WORKSPACE_PREFS_FILE="$STATE_DIR/workspace-monitor-prefs.json"
 
 # Create state directory if it doesn't exist
 mkdir -p "$STATE_DIR"
@@ -53,6 +54,130 @@ notify() {
         --icon="$icon" \
         --hint=string:x-canonical-private-synchronous:workspace-manager \
         "$title" "$body" 2>/dev/null &
+}
+
+# ============================================================================
+# WORKSPACE-MONITOR PREFERENCES (v5.0)
+# These preferences persist across sessions and aren't overwritten when
+# monitors disconnect. They remember which workspace SHOULD be on which monitor.
+# ============================================================================
+
+# Initialize workspace preferences file if it doesn't exist
+init_workspace_prefs() {
+    if [ ! -f "$WORKSPACE_PREFS_FILE" ]; then
+        echo '{}' > "$WORKSPACE_PREFS_FILE"
+        log "Initialized workspace preferences file"
+    fi
+}
+
+# Get current workspace preferences
+get_workspace_prefs() {
+    init_workspace_prefs
+    cat "$WORKSPACE_PREFS_FILE" 2>/dev/null || echo '{}'
+}
+
+# Save a workspace-monitor preference
+# Only called when user explicitly moves workspace OR when external monitor is connected
+# Args: profile, workspace_id, monitor_name
+save_workspace_pref() {
+    local profile="$1"
+    local ws_id="$2"
+    local mon_name="$3"
+
+    init_workspace_prefs
+
+    # Only save preference if this is a multi-monitor profile
+    local monitor_count=$(echo "$profile" | tr '_' '\n' | wc -l)
+    if [ "$monitor_count" -lt 2 ]; then
+        log "Skipping pref save for single-monitor profile '$profile'"
+        return 0
+    fi
+
+    local prefs=$(get_workspace_prefs)
+    local updated=$(echo "$prefs" | jq --arg profile "$profile" --arg ws "$ws_id" --arg mon "$mon_name" '
+        .[$profile] = ((.[$profile] // {}) | .[$ws] = $mon)
+    ')
+
+    echo "$updated" > "$WORKSPACE_PREFS_FILE"
+    log "Saved preference: WS $ws_id -> $mon_name (profile: $profile)"
+}
+
+# Get preferred monitor for a workspace in a profile
+# Returns empty string if no preference exists
+get_workspace_pref() {
+    local profile="$1"
+    local ws_id="$2"
+
+    local prefs=$(get_workspace_prefs)
+    echo "$prefs" | jq -r --arg profile "$profile" --arg ws "$ws_id" '.[$profile][$ws] // ""'
+}
+
+# Update preferences based on CURRENT workspace layout
+# Only call this when monitors are stable and user has arranged workspaces
+update_all_workspace_prefs() {
+    local profile=$(get_monitor_profile)
+
+    # Only update for multi-monitor profiles
+    local monitor_count=$(echo "$profile" | tr '_' '\n' | wc -l)
+    if [ "$monitor_count" -lt 2 ]; then
+        log "Skipping pref update for single-monitor profile"
+        return 0
+    fi
+
+    log "Updating workspace preferences for profile '$profile'"
+
+    # Get current workspace-to-monitor mapping
+    local ws_map=$(hyprctl workspaces -j 2>/dev/null | jq -c '[.[] | select(.id > 0) | {key: (.id | tostring), value: .monitor}] | from_entries')
+
+    # Update each workspace preference
+    echo "$ws_map" | jq -r 'to_entries[] | "\(.key) \(.value)"' | while read ws_id mon_name; do
+        if [ -n "$ws_id" ] && [ -n "$mon_name" ]; then
+            save_workspace_pref "$profile" "$ws_id" "$mon_name"
+        fi
+    done
+
+    log "Workspace preferences updated"
+}
+
+# Get the preferred workspace-monitor map for a profile
+# Falls back to saved state if no preferences exist
+get_preferred_workspace_map() {
+    local profile="$1"
+    local state_file=$(get_state_file "$profile")
+
+    local prefs=$(get_workspace_prefs)
+    local profile_prefs=$(echo "$prefs" | jq -c --arg profile "$profile" '.[$profile] // {}')
+
+    # If we have preferences for this profile, use them
+    if [ "$profile_prefs" != "{}" ] && [ "$profile_prefs" != "null" ]; then
+        log "Using saved workspace preferences for '$profile'"
+        echo "$profile_prefs"
+        return 0
+    fi
+
+    # Fall back to state file
+    if [ -f "$state_file" ]; then
+        local state_map=$(jq -c '.workspaceMonitorMap // {}' "$state_file" 2>/dev/null)
+        if [ "$state_map" != "{}" ] && [ "$state_map" != "null" ]; then
+            log "Using workspace map from state file for '$profile'"
+            echo "$state_map"
+            return 0
+        fi
+    fi
+
+    echo '{}'
+}
+
+# Get the default external monitor for a profile (first non-eDP monitor)
+get_default_external_monitor() {
+    local profile="$1"
+    # Extract monitor names from profile and find the external one
+    echo "$profile" | tr '_' '\n' | grep -v "^eDP" | head -1
+}
+
+# Get the internal monitor name
+get_internal_monitor() {
+    echo "eDP-1"
 }
 
 # Get a friendly profile name for notifications
@@ -191,6 +316,10 @@ save_state() {
 
         # Keep only last N backups per profile
         ls -t "$STATE_DIR"/backup-${profile}-*.json 2>/dev/null | tail -n +$((MAX_BACKUPS + 1)) | xargs -r rm
+
+        # NOTE: We do NOT update workspace preferences during regular saves
+        # because this could overwrite correct preferences right after a restore.
+        # Preferences should only be updated via explicit 'update-prefs' command.
 
         local window_count=$(echo "$state" | jq '.windows | length')
         local friendly_name=$(get_friendly_profile_name "$profile")
@@ -337,7 +466,7 @@ move_workspace_to_monitor() {
 
     if [ -n "$monitor_exists" ]; then
         log "Moving workspace $workspace_id to monitor $target_monitor"
-        hyprctl dispatch moveworkspacetomonitor "$workspace_id,$target_monitor" > /dev/null 2>&1
+        hyprctl dispatch moveworkspacetomonitor "$workspace_id" "$target_monitor" > /dev/null 2>&1
         return 0
     else
         log "Monitor $target_monitor not available, skipping workspace $workspace_id move"
@@ -381,29 +510,57 @@ restore_state() {
     fi
 
     # For v4+, first restore workspace-to-monitor assignments
-    if [ "$version" -ge 4 ] 2>/dev/null; then
-        log "Restoring workspace-to-monitor mappings (v4 state)..."
-        local workspace_monitor_map=$(echo "$saved_state" | jq -r '.workspaceMonitorMap // {}')
+    # Use PREFERENCES first (sticky), fall back to state file
+    log "Restoring workspace-to-monitor mappings..."
 
+    # Get preferred workspace map (uses preferences file first, then state)
+    local workspace_monitor_map=$(get_preferred_workspace_map "$profile")
+
+    # Get current available monitors
+    local current_monitors=$(hyprctl monitors -j 2>/dev/null | jq -r '.[].name' | tr '\n' ' ')
+    log "Current monitors: $current_monitors"
+
+    # Get default external monitor for workspaces without preferences
+    local default_external=$(get_default_external_monitor "$profile")
+    local internal_monitor=$(get_internal_monitor)
+    log "Default external monitor: $default_external, Internal: $internal_monitor"
+
+    # Get ALL current workspaces (not just those in preferences)
+    local all_workspaces=$(hyprctl workspaces -j 2>/dev/null | jq -r '.[] | select(.id > 0) | .id')
+
+    log "Workspace map from preferences: $workspace_monitor_map"
+
+    # Move ALL workspaces to their correct monitors
+    for ws_id in $all_workspaces; do
+        # Check if this workspace has a preference
+        local preferred_monitor=""
         if [ "$workspace_monitor_map" != "{}" ] && [ "$workspace_monitor_map" != "null" ]; then
-            # Get current available monitors
-            local current_monitors=$(hyprctl monitors -j 2>/dev/null | jq -r '.[].name' | tr '\n' ' ')
-            log "Current monitors: $current_monitors"
-
-            # Move workspaces to their saved monitors
-            echo "$workspace_monitor_map" | jq -r 'to_entries[] | "\(.key) \(.value)"' | while read ws_id mon_name; do
-                if [ -n "$ws_id" ] && [ -n "$mon_name" ]; then
-                    # Check if the target monitor is currently connected
-                    if echo "$current_monitors" | grep -q "$mon_name"; then
-                        move_workspace_to_monitor "$ws_id" "$mon_name"
-                        sleep 0.1
-                    else
-                        log "Target monitor '$mon_name' not connected for workspace $ws_id"
-                    fi
-                fi
-            done
+            preferred_monitor=$(echo "$workspace_monitor_map" | jq -r --arg ws "$ws_id" '.[$ws] // ""')
         fi
-    fi
+
+        local target_monitor=""
+        if [ -n "$preferred_monitor" ] && [ "$preferred_monitor" != "null" ]; then
+            target_monitor="$preferred_monitor"
+            log "WS $ws_id has preference: $target_monitor"
+        else
+            # No preference - use default (external for all except internal-only workspaces)
+            # By default, send to external monitor
+            if [ -n "$default_external" ]; then
+                target_monitor="$default_external"
+                log "WS $ws_id has NO preference, defaulting to external: $target_monitor"
+            fi
+        fi
+
+        # Move workspace if we have a target and it's available
+        if [ -n "$target_monitor" ]; then
+            if echo "$current_monitors" | grep -q "$target_monitor"; then
+                move_workspace_to_monitor "$ws_id" "$target_monitor"
+                sleep 0.1
+            else
+                log "Target monitor '$target_monitor' not connected for workspace $ws_id"
+            fi
+        fi
+    done
 
     local total=$(echo "$saved_windows" | jq length)
     log "Attempting to restore $total windows for profile '$profile'..."
@@ -731,6 +888,54 @@ handle_monitor_change() {
     echo "Saved state for outgoing profile '$old_profile'"
 }
 
+# Show workspace preferences
+show_prefs() {
+    local profile="${1:-$(get_monitor_profile)}"
+    echo "=== Workspace-Monitor Preferences ==="
+    echo ""
+
+    local prefs=$(get_workspace_prefs)
+
+    if [ "$prefs" = "{}" ] || [ -z "$prefs" ]; then
+        echo "No preferences saved yet."
+        echo ""
+        echo "Preferences are automatically saved when you save workspace state"
+        echo "with multiple monitors connected."
+        return 0
+    fi
+
+    if [ -n "$1" ]; then
+        # Show specific profile
+        local profile_prefs=$(echo "$prefs" | jq -r --arg profile "$profile" '.[$profile] // {}')
+        if [ "$profile_prefs" = "{}" ]; then
+            echo "No preferences for profile '$profile'"
+        else
+            echo "Profile: $profile"
+            echo "$profile_prefs" | jq -r 'to_entries | sort_by(.key | tonumber) | .[] | "  WS \(.key) -> \(.value)"'
+        fi
+    else
+        # Show all profiles
+        echo "$prefs" | jq -r 'to_entries[] | "Profile: \(.key)\n" + (.value | to_entries | sort_by(.key | tonumber) | map("  WS \(.key) -> \(.value)") | join("\n")) + "\n"'
+    fi
+}
+
+# Update preferences now (manual command)
+update_prefs() {
+    local profile=$(get_monitor_profile)
+    local monitor_count=$(echo "$profile" | tr '_' '\n' | wc -l)
+
+    if [ "$monitor_count" -lt 2 ]; then
+        echo "Cannot update preferences: only one monitor connected."
+        echo "Connect multiple monitors and arrange workspaces first."
+        return 1
+    fi
+
+    echo "Updating workspace preferences for profile '$profile'..."
+    update_all_workspace_prefs
+    echo "Done. Current preferences:"
+    show_prefs "$profile"
+}
+
 # Main command handler
 case "${1:-}" in
     "save")
@@ -769,12 +974,18 @@ case "${1:-}" in
     "handle-change")
         handle_monitor_change "$2" "$3"
         ;;
+    "prefs"|"preferences")
+        show_prefs "${2:-}"
+        ;;
+    "update-prefs")
+        update_prefs
+        ;;
     *)
-        echo "Workspace State Manager for Hyprland (v3.0 - Multi-Profile)"
+        echo "Workspace State Manager for Hyprland (v5.0 - Sticky Preferences)"
         echo ""
         echo "Usage: $0 <command> [profile]"
         echo ""
-        echo "Commands:"
+        echo "State Commands:"
         echo "  save              - Save current state for current monitor profile"
         echo "  restore [profile] - Restore state (current profile if not specified)"
         echo "  auto-restore      - Restore if pending flag exists for current profile"
@@ -785,21 +996,29 @@ case "${1:-}" in
         echo "  pending           - Check if restore is pending for current profile"
         echo "  clear [profile]   - Clear state for a profile"
         echo "  clear-all         - Clear all profiles"
+        echo ""
+        echo "Preference Commands (v5.0):"
+        echo "  prefs [profile]   - Show workspace-monitor preferences"
+        echo "  update-prefs      - Update preferences from current layout"
+        echo ""
+        echo "Internal Commands:"
         echo "  profile           - Show current monitor profile name"
         echo "  handle-change     - Internal: handle monitor config change"
         echo ""
-        echo "Monitor Profiles:"
-        echo "  Each monitor configuration gets its own saved state."
-        echo "  Profile names are based on connected monitors (e.g., 'eDP-1_DP-4')"
+        echo "v5.0 Features:"
+        echo "  - Sticky workspace-monitor preferences"
+        echo "  - Preferences persist even when monitors disconnect"
+        echo "  - Run 'update-prefs' after arranging workspaces to save layout"
         echo ""
         echo "KVM Workflow:"
-        echo "  1. Working on laptop+external -> state saved to 'eDP-1_DP-4'"
-        echo "  2. Switch to PC2 (monitor disconnects) -> auto-saves 'eDP-1_DP-4'"
-        echo "  3. Need laptop directly? -> works with 'eDP-1' profile"
-        echo "  4. Back to PC1 (monitor connects) -> restores 'eDP-1_DP-4'"
+        echo "  1. Connect external monitor"
+        echo "  2. Arrange workspaces (move WS 1, 2, etc. to external)"
+        echo "  3. Run 'update-prefs' to save your arrangement"
+        echo "  4. Now disconnecting/reconnecting will restore your layout"
         echo ""
         echo "Files:"
         echo "  States: $STATE_DIR/state-*.json"
+        echo "  Prefs:  $WORKSPACE_PREFS_FILE"
         echo "  Log:    $LOG_FILE"
         ;;
 esac
