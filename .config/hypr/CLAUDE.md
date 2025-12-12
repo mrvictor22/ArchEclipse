@@ -2,6 +2,10 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
+## User Preferences
+
+- **Language**: Always communicate with the user in Spanish (Español). All responses, explanations, and questions must be in Spanish.
+
 ## Repository Context
 
 This is a fork of [AymanLyesri/ArchEclipse](https://github.com/AymanLyesri/ArchEclipse), a comprehensive Hyprland rice configuration for Arch Linux. The fork adds extensive multi-monitor support, workspace state preservation for KVM switches, and clipboard management enhancements.
