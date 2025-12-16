@@ -3,8 +3,7 @@ import GLib from "gi://GLib?version=2.0";
 import Gtk from "gi://Gtk?version=4.0";
 import { globalTransition } from "../variables";
 
-// Toggle to disable Cava if it causes segfaults
-// Set to true if you experience crashes with libastal-cava
+// TODO: libastal-cava not capturing audio from pipewire (values always 0)
 const CAVA_DISABLED = false;
 
 // Import AstalCava with version - same pattern as other gi imports
