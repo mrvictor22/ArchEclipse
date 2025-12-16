@@ -29,7 +29,7 @@ import { getMonitorName } from "../utils/monitor";
 import { LauncherApp } from "../interfaces/app.interface";
 import { customApps } from "../constants/app.constants";
 import { quickApps } from "../constants/app.constants";
-import { For } from "gnim";
+import { For } from "ags";
 import Gdk from "gi://Gdk?version=4.0";
 import { convert, isConversionQuery } from "../utils/convert";
 const hyprland = Hyprland.get_default();
@@ -37,6 +37,7 @@ const hyprland = Hyprland.get_default();
 const MAX_ITEMS = 10;
 
 const [Results, setResults] = createState<LauncherApp[]>([]);
+const [monitorName, setMonitorName] = createState<string>("");
 
 let parentWindowRef: Gtk.Window | null = null;
 
@@ -354,10 +355,14 @@ const ResultsDisplay = () => {
   );
 };
 
-export default (monitor: any) => (
+export default (monitor: any) => {
+  const currentMonitorName = getMonitorName(monitor.get_display(), monitor);
+  setMonitorName(currentMonitorName);
+
+  return (
   <Astal.Window
     gdkmonitor={monitor}
-    name={`app-launcher-${getMonitorName(monitor.get_display(), monitor)}`}
+    name={`app-launcher-${currentMonitorName}`}
     namespace="app-launcher"
     application={app}
     anchor={emptyWorkspace((empty) =>
@@ -390,4 +395,5 @@ export default (monitor: any) => (
       {Help()}
     </box>
   </Astal.Window>
-);
+  );
+};

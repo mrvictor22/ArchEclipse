@@ -1,41 +1,52 @@
-import { createState, Accessor } from "ags";
+import { createState } from "ags";
 import GLib from "gi://GLib?version=2.0";
-import Cava from "gi://AstalCava";
-import { globalTransition } from "../variables";
 import Gtk from "gi://Gtk?version=4.0";
+import { globalTransition } from "../variables";
 
-// Defer Cava initialization to avoid segfault at module load
-let cava: ReturnType<typeof Cava.get_default> | null = null;
-function getCava() {
-  if (!cava) {
-    try {
-      cava = Cava.get_default();
-    } catch (e) {
-      console.error("Failed to initialize Cava:", e);
-    }
-  }
-  return cava;
+// Import AstalCava with version - same pattern as other gi imports
+let Cava: any = null;
+let cavaInstance: any = null;
+let cavaAvailable = false;
+
+// Try to import AstalCava at module load - but catch if unavailable
+try {
+  // Use standard gi:// import pattern with version
+  const AstalCava = (imports.gi.versions.AstalCava = "0.1", imports.gi.AstalCava);
+  Cava = AstalCava;
+  cavaAvailable = true;
+} catch (e) {
+  print("AstalCava module not available:", e);
+  cavaAvailable = false;
 }
 
-// --- Tunable constants (change to lower CPU usage) ---
-const CAVA_UPDATE_MS = 60; // coalesced update interval for audio visualizer (larger => less CPU)
+function getCavaInstance(): any {
+  if (!cavaAvailable || !Cava) return null;
 
-// Small lightweight throttle/coalesce helper
+  if (!cavaInstance) {
+    try {
+      cavaInstance = Cava.Cava.get_default();
+    } catch (e) {
+      print("Failed to get Cava instance:", e);
+      return null;
+    }
+  }
+  return cavaInstance;
+}
+
+// --- Tunable constants ---
+const CAVA_UPDATE_MS = 60;
+
 function scheduleCoalesced(fn: () => void, delayMs: number) {
-  let timeoutId: number | null = null;
   let pending = false;
-  return (triggerFn?: () => void) => {
-    if (triggerFn) triggerFn();
-    if (pending) return; // already scheduled
+  return () => {
+    if (pending) return;
     pending = true;
-    timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
+    GLib.timeout_add(GLib.PRIORITY_DEFAULT, delayMs, () => {
       pending = false;
-      timeoutId = null;
       try {
         fn();
       } catch (e) {
-        // swallow errors to avoid crashing the scheduler
-        console.error(e);
+        console.error("Cava update error:", e);
       }
       return GLib.SOURCE_REMOVE;
     });
@@ -44,41 +55,45 @@ function scheduleCoalesced(fn: () => void, delayMs: number) {
 
 export default ({
   transitionType,
-  barCount = 12, // Default to 12 if not specified
+  barCount = 12,
 }: {
   transitionType: Gtk.RevealerTransitionType;
-  barCount?: number; // Optional bar count parameter
+  barCount?: number;
 }) => {
-  // Set the number of bars in cava to match our barCount
-  const cavaInstance = getCava();
-  cavaInstance?.set_bars(barCount);
+  // Get cava instance (lazy initialization)
+  const cava = getCavaInstance();
+
+  if (!cava) {
+    print("Cava not available, returning empty widget");
+    return (
+      <revealer revealChild={false} transitionDuration={globalTransition} transitionType={transitionType}>
+        <label class="cava" label="" />
+      </revealer>
+    );
+  }
+
+  // Set bars count
+  try {
+    cava.set_bars(barCount);
+  } catch (e) {
+    print("Failed to set cava bars:", e);
+  }
+
   const [getBars, setBars] = createState("");
 
-  const BLOCKS = [
-    "\u2581",
-    "\u2582",
-    "\u2583",
-    "\u2584",
-    "\u2585",
-    "\u2586",
-    "\u2587",
-    "\u2588",
-  ];
+  const BLOCKS = ["\u2581", "\u2582", "\u2583", "\u2584", "\u2585", "\u2586", "\u2587", "\u2588"];
   const BLOCKS_LENGTH = BLOCKS.length;
-  const BAR_COUNT = barCount; // Use the parameter
-  const EMPTY_BARS = "".padEnd(BAR_COUNT, "\u2581");
-  // Reuse buffer to avoid allocations on every update
-  let barArray: string[] = new Array(BAR_COUNT);
-  let lastBarString = "";
+  const EMPTY_BARS = "".padEnd(barCount, "\u2581");
 
-  // visibility hysteresis: ignore short silence gaps
-  const REVEAL_SHOW_DELAY = 300; // ms before showing on non-empty
-  const REVEAL_HIDE_DELAY = 700; // ms before hiding on empty
+  let barArray: string[] = new Array(barCount);
+  let lastBarString = "";
   let visible = false;
   let showTimeoutId: number | null = null;
   let hideTimeoutId: number | null = null;
-
   let revealerInstance: Gtk.Revealer | null = null;
+
+  const REVEAL_SHOW_DELAY = 300;
+  const REVEAL_HIDE_DELAY = 700;
 
   const revealer = (
     <revealer
@@ -88,119 +103,85 @@ export default ({
       $={(self) => (revealerInstance = self)}
     >
       <label
-        class={"cava"}
+        class="cava"
         onDestroy={() => {
-          // bars.drop(); // No drop in signals
-          if (showTimeoutId) {
-            try {
-              GLib.source_remove(showTimeoutId);
-            } catch (e) {}
-            showTimeoutId = null;
-          }
-          if (hideTimeoutId) {
-            try {
-              GLib.source_remove(hideTimeoutId);
-            } catch (e) {}
-            hideTimeoutId = null;
-          }
+          if (showTimeoutId) { try { GLib.source_remove(showTimeoutId); } catch {} }
+          if (hideTimeoutId) { try { GLib.source_remove(hideTimeoutId); } catch {} }
         }}
         label={getBars}
       />
     </revealer>
   );
 
-  // Create coalesced updater so frequent "notify::values" calls are batched
+  let lastValuesCache: number[] | null = null;
+
   const doUpdate = () => {
     const values = lastValuesCache;
-    // build barArray for current values; if no values treat as empty
+
     if (!values || values.length === 0) {
-      // fill with empty blocks
-      for (let j = 0; j < BAR_COUNT; j++) barArray[j] = BLOCKS[0];
+      for (let j = 0; j < barCount; j++) barArray[j] = BLOCKS[0];
     } else {
-      if (barArray.length !== values.length)
-        barArray = new Array(values.length);
-      for (let i = 0; i < values.length && i < BAR_COUNT; i++) {
-        const val = values[i];
-        const idx = Math.min(
-          Math.floor(val * BLOCKS_LENGTH),
-          BLOCKS_LENGTH - 1
-        );
+      if (barArray.length !== values.length) barArray = new Array(values.length);
+      for (let i = 0; i < values.length && i < barCount; i++) {
+        const idx = Math.min(Math.floor(values[i] * BLOCKS_LENGTH), BLOCKS_LENGTH - 1);
         barArray[i] = BLOCKS[idx];
       }
-      for (let j = values.length; j < BAR_COUNT; j++) barArray[j] = BLOCKS[0];
+      for (let j = values.length; j < barCount; j++) barArray[j] = BLOCKS[0];
     }
 
     const b = barArray.join("");
-
-    // if nothing changed, skip heavy work
     if (b === lastBarString) return;
     lastBarString = b;
-
-    // update bound text (cheap) but control reveal/hide with timers (hysteresis)
     setBars(b);
 
     const isEmpty = b === EMPTY_BARS;
 
     if (!isEmpty) {
-      // audio present -> ensure we will show, cancel any hide timer
-      if (hideTimeoutId) {
-        try {
-          GLib.source_remove(hideTimeoutId);
-        } catch (e) {}
-        hideTimeoutId = null;
-      }
-
+      if (hideTimeoutId) { try { GLib.source_remove(hideTimeoutId); } catch {} hideTimeoutId = null; }
       if (!visible && !showTimeoutId) {
-        // schedule show after short delay (ignore brief silence gaps)
-        showTimeoutId = GLib.timeout_add(
-          GLib.PRIORITY_DEFAULT,
-          REVEAL_SHOW_DELAY,
-          () => {
-            visible = true;
-            if (revealerInstance) revealerInstance.reveal_child = true;
-            showTimeoutId = null;
-            return GLib.SOURCE_REMOVE;
-          }
-        );
-      } else if (visible) {
-        // already visible -- ensure revealer stays revealed
-        if (revealerInstance) revealerInstance.reveal_child = true;
+        showTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REVEAL_SHOW_DELAY, () => {
+          visible = true;
+          if (revealerInstance) revealerInstance.reveal_child = true;
+          showTimeoutId = null;
+          return GLib.SOURCE_REMOVE;
+        });
+      } else if (visible && revealerInstance) {
+        revealerInstance.reveal_child = true;
       }
     } else {
-      // empty -> cancel any pending show and schedule hide if currently visible
-      if (showTimeoutId) {
-        try {
-          GLib.source_remove(showTimeoutId);
-        } catch (e) {}
-        showTimeoutId = null;
-      }
-
+      if (showTimeoutId) { try { GLib.source_remove(showTimeoutId); } catch {} showTimeoutId = null; }
       if (visible && !hideTimeoutId) {
-        // schedule hide after a longer delay (ignore short silence gaps)
-        hideTimeoutId = GLib.timeout_add(
-          GLib.PRIORITY_DEFAULT,
-          REVEAL_HIDE_DELAY,
-          () => {
-            visible = false;
-            if (revealerInstance) revealerInstance.reveal_child = false;
-            hideTimeoutId = null;
-            return GLib.SOURCE_REMOVE;
-          }
-        );
-      } else if (!visible) {
-        // already hidden
-        if (revealerInstance) revealerInstance.reveal_child = false;
+        hideTimeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, REVEAL_HIDE_DELAY, () => {
+          visible = false;
+          if (revealerInstance) revealerInstance.reveal_child = false;
+          hideTimeoutId = null;
+          return GLib.SOURCE_REMOVE;
+        });
+      } else if (!visible && revealerInstance) {
+        revealerInstance.reveal_child = false;
       }
     }
   };
 
-  let lastValuesCache: number[] | null = null;
   const schedule = scheduleCoalesced(doUpdate, CAVA_UPDATE_MS);
 
-  cavaInstance?.connect("notify::values", () => {
-    // store latest values, schedule an update if not already scheduled
-    lastValuesCache = cavaInstance?.get_values() || null;
-    schedule();
+  // Connect to cava signal with delay to avoid race condition
+  GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+    try {
+      if (cava) {
+        cava.connect("notify::values", () => {
+          try {
+            lastValuesCache = cava.get_values() || null;
+            schedule();
+          } catch (e) {
+            // Silently ignore errors
+          }
+        });
+      }
+    } catch (e) {
+      print("Failed to connect cava signal:", e);
+    }
+    return GLib.SOURCE_REMOVE;
   });
 
   return revealer;

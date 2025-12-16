@@ -1,7 +1,7 @@
 import { createPoll } from "ags/time";
 import Gtk from "gi://Gtk?version=4.0";
 import GLib from "gi://GLib?version=2.0";
-import { With } from "gnim";
+import { With } from "ags";
 import { Eventbox } from "./Custom/Eventbox";
 
 export default () => {

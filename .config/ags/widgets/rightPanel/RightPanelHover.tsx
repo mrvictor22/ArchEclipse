@@ -7,7 +7,7 @@ import {
   rightPanelVisibility,
   setRightPanelVisibility,
 } from "../../variables";
-import { createComputed } from "gnim";
+import { createComputed } from "ags";
 
 export default (monitor: Gdk.Monitor) => {
   return (

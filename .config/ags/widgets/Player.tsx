@@ -271,7 +271,7 @@ export default ({
             <With value={barCount}>
               {(count) => (
                 <Cava
-                  barCount={count} // Use computed bar count
+                  barCount={count}
                   transitionType={Gtk.RevealerTransitionType.SWING_UP}
                 />
               )}
