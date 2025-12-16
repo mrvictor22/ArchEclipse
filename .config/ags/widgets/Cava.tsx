@@ -3,7 +3,19 @@ import GLib from "gi://GLib?version=2.0";
 import Cava from "gi://AstalCava";
 import { globalTransition } from "../variables";
 import Gtk from "gi://Gtk?version=4.0";
-const cava = Cava.get_default()!;
+
+// Defer Cava initialization to avoid segfault at module load
+let cava: ReturnType<typeof Cava.get_default> | null = null;
+function getCava() {
+  if (!cava) {
+    try {
+      cava = Cava.get_default();
+    } catch (e) {
+      console.error("Failed to initialize Cava:", e);
+    }
+  }
+  return cava;
+}
 
 // --- Tunable constants (change to lower CPU usage) ---
 const CAVA_UPDATE_MS = 60; // coalesced update interval for audio visualizer (larger => less CPU)
@@ -38,7 +50,8 @@ export default ({
   barCount?: number; // Optional bar count parameter
 }) => {
   // Set the number of bars in cava to match our barCount
-  cava?.set_bars(barCount);
+  const cavaInstance = getCava();
+  cavaInstance?.set_bars(barCount);
   const [getBars, setBars] = createState("");
 
   const BLOCKS = [
@@ -184,9 +197,9 @@ export default ({
   let lastValuesCache: number[] | null = null;
   const schedule = scheduleCoalesced(doUpdate, CAVA_UPDATE_MS);
 
-  cava?.connect("notify::values", () => {
+  cavaInstance?.connect("notify::values", () => {
     // store latest values, schedule an update if not already scheduled
-    lastValuesCache = cava.get_values() || null;
+    lastValuesCache = cavaInstance?.get_values() || null;
     schedule();
   });
 
