@@ -1,3 +1,5 @@
+// TODO: Brightness widget bug - screen flickers when adjusting, brightness not applied correctly
+// TODO: Keyboard brightness keys not working
 import Brightness from "../../../services/brightness";
 const brightness = Brightness.get_default();
 import CustomRevealer from "../../CustomRevealer";
