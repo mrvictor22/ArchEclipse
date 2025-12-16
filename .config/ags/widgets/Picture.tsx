@@ -61,7 +61,7 @@ export default function Picture({
     >
       <Gtk.Picture
         $type="overlay"
-        class={className}
+        class={"picture " + className}
         file={fileBinding}
         contentFit={contentFit}
         $={(self) => {

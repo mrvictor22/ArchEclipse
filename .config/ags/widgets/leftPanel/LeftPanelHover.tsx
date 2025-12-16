@@ -1,30 +1,40 @@
 import App from "ags/gtk4/app";
+import Gtk from "gi://Gtk?version=4.0";
 import Gdk from "gi://Gdk?version=4.0";
 import Astal from "gi://Astal?version=4.0";
-import { leftPanelLock, setLeftPanelVisibility } from "../../variables";
-import { Eventbox } from "../Custom/Eventbox";
+import {
+  leftPanelLock,
+  leftPanelVisibility,
+  setLeftPanelVisibility,
+} from "../../variables";
+import { createComputed } from "ags";
 
 export default (monitor: Gdk.Monitor) => {
   return (
     <window
-      gdkmonitor={monitor}
-      class="LeftPanel"
+      name="left-panel-hover"
       application={App}
-      exclusivity={Astal.Exclusivity.IGNORE}
-      layer={Astal.Layer.TOP}
+      gdkmonitor={monitor}
       anchor={
         Astal.WindowAnchor.LEFT |
         Astal.WindowAnchor.TOP |
         Astal.WindowAnchor.BOTTOM
       }
+      exclusivity={Astal.Exclusivity.IGNORE}
+      layer={Astal.Layer.TOP}
+      visible={createComputed(
+        [leftPanelVisibility, leftPanelLock],
+        (v, l) => !v && !l
+      )}
+      $={(self) => {
+        const motion = new Gtk.EventControllerMotion();
+        motion.connect("enter", () => {
+          setLeftPanelVisibility(true);
+        });
+        self.add_controller(motion);
+      }}
     >
-      <Eventbox
-        onHover={() => {
-          if (!leftPanelLock()) setLeftPanelVisibility(true);
-        }}
-      >
-        <box css="min-width: 1px" />
-      </Eventbox>
+      <box css="min-width: 5px; background-color: rgba(0,0,0,0.01);" />
     </window>
   );
 };

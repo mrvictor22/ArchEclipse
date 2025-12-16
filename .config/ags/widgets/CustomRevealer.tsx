@@ -1,6 +1,7 @@
 import Gtk from "gi://Gtk?version=4.0";
 import { globalTransition } from "../variables";
 import { Eventbox } from "./Custom/Eventbox";
+import { Accessor } from "ags";
 
 export default ({
   trigger,
@@ -12,12 +13,12 @@ export default ({
 }: {
   trigger: any;
   child: any;
-  visible?: boolean;
-  revealChild?: boolean | (() => boolean);
-  custom_class?: string;
+  visible?: boolean | Accessor<boolean>;
+  revealChild?: boolean | Accessor<boolean>;
+  custom_class?: string | Accessor<string>;
   on_primary_click?: () => void;
 }) => {
-  const revealer: Gtk.Revealer = (
+  const revealer = (
     <revealer
       revealChild={revealChild}
       transitionDuration={globalTransition}
@@ -31,10 +32,10 @@ export default ({
       visible={visible}
       class={"custom-revealer " + custom_class}
       onHover={(self) => {
-        revealer.reveal_child = true;
+        (revealer as Gtk.Revealer).reveal_child = true;
       }}
       onHoverLost={() => {
-        revealer.reveal_child = false;
+        (revealer as Gtk.Revealer).reveal_child = false;
       }}
       onClick={() => on_primary_click()}
     >

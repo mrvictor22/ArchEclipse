@@ -1,13 +1,22 @@
 import Brightness from "../../../services/brightness";
 const brightness = Brightness.get_default();
 import CustomRevealer from "../../CustomRevealer";
-import { Accessor, createBinding, createComputed } from "ags";
+import {
+  Accessor,
+  createBinding,
+  createComputed,
+  createState,
+  With,
+} from "ags";
 import { execAsync } from "ags/process";
 
 import Wp from "gi://AstalWp";
 
 import Battery from "gi://AstalBattery";
 const battery = Battery.get_default();
+
+import Notifd from "gi://AstalNotifd";
+const notifd = Notifd.get_default();
 
 import Gtk from "gi://Gtk?version=4.0";
 import {
@@ -69,7 +78,7 @@ function BrightnessWidget() {
     <CustomRevealer
       trigger={label}
       child={slider}
-      visible={createComputed(() => brightness.screen != 0)}
+      visible={screen((s) => s != 0)}
     />
   );
 }
@@ -79,7 +88,7 @@ function Volume() {
   const volumeIcon = createBinding(speaker, "volumeIcon");
   const volume = createBinding(speaker, "volume");
 
-  const icon = <image pixelSize={11} class="trigger" iconName={volumeIcon} />;
+  const icon = <image pixelSize={11} iconName={volumeIcon} />;
 
   const slider = (
     <slider
@@ -91,9 +100,15 @@ function Volume() {
     />
   );
 
+  const percentage = (
+    <label label={volume((v: number) => `${Math.round(v * 100)}%`)} />
+  );
+
   return (
     <CustomRevealer
-      trigger={icon}
+      trigger={
+        <box class="trigger" spacing={5} children={[icon, percentage]} />
+      }
       child={slider}
       on_primary_click={() => {
         execAsync(`pavucontrol`).catch((err) =>
@@ -105,25 +120,14 @@ function Volume() {
 }
 
 function BatteryWidget() {
-  const percentage = createBinding(battery, "percentage");
+  const _percentage = createBinding(battery, "percentage");
   const charging = createBinding(battery, "charging");
-
-  // if (battery.percentage <= 0) return <box />;
 
   const label = (
     <label
-      class={createComputed(() => {
-        const isCharging = charging.get();
-        const value = percentage.get();
-        if (isCharging) {
-          return "trigger charging";
-        } else {
-          return value * 100 <= 15 ? "trigger low" : "trigger";
-        }
-      })}
       label={createComputed(() => {
         const isCharging = charging.get();
-        const p = percentage.get() * 100;
+        const p = _percentage.get() * 100;
         switch (true) {
           case isCharging:
             return "⚡";
@@ -146,32 +150,42 @@ function BatteryWidget() {
     />
   );
 
-  const info = (
-    <label label={percentage((p: number) => `${Math.round(p * 100)}%`)} />
+  const percentage = (
+    <label label={_percentage((p: number) => `${Math.round(p * 100)}%`)} />
   );
 
   const levelbar = (
     <levelbar
       widthRequest={100}
-      value={percentage((v: number) => (isNaN(v) || v < 0 ? 0 : v > 1 ? 1 : v))}
+      value={_percentage((v: number) =>
+        isNaN(v) || v < 0 ? 0 : v > 1 ? 1 : v
+      )}
     />
   );
 
   const box = (
     <box class={"details"} spacing={5}>
-      {info}
       {levelbar}
     </box>
   );
 
   return (
     <CustomRevealer
-      trigger={label}
+      trigger={
+        <box class="trigger" spacing={5} children={[label, percentage]} />
+      }
       child={box}
-      custom_class="battery"
+      custom_class={createComputed([charging, _percentage], (c, p) => {
+        const isCharging = c;
+        const value = p * 100;
+        if (isCharging) {
+          return "battery charging";
+        } else {
+          return value <= 15 ? "battery low" : "battery";
+        }
+      })}
       visible={createComputed(() => battery.percentage > 0)}
-      revealChild={createComputed(() => {
-        const v = percentage.get();
+      revealChild={_percentage((v) => {
         const isCharging = charging.get();
         return (v < 0.1 && !isCharging) || (v >= 0.95 && isCharging);
       })}
@@ -181,6 +195,7 @@ function BatteryWidget() {
 function Tray() {
   const tray = AstalTray.get_default();
   const items = createBinding(tray, "items");
+  const MAX_VISIBLE = 3;
 
   const init = (btn: Gtk.MenuButton, item: AstalTray.TrayItem) => {
     btn.menuModel = item.menuModel;
@@ -190,15 +205,64 @@ function Tray() {
     });
   };
 
+  const visibleItems = items((itemList) => itemList.slice(0, MAX_VISIBLE));
+  const hiddenItems = items((itemList) => itemList.slice(MAX_VISIBLE));
+  const hasHidden = items((itemList) => itemList.length > MAX_VISIBLE);
+
   return (
     <box class="system-tray">
-      <For each={items}>
-        {(item) => (
-          <menubutton class="tray-icon" $={(self) => init(self, item)}>
-            <image pixelSize={11} gicon={createBinding(item, "gicon")} />
-          </menubutton>
-        )}
-      </For>
+      <box spacing={2}>
+        <For each={visibleItems}>
+          {(item) => (
+            <menubutton
+              class="tray-icon"
+              $={(self) => init(self, item)}
+              tooltipText={item.tooltip_text}
+            >
+              <image pixelSize={11} gicon={createBinding(item, "gicon")} />
+            </menubutton>
+          )}
+        </For>
+      </box>
+      <box spacing={2}>
+        <With value={hasHidden}>
+          {(hidden) =>
+            hidden && (
+              <menubutton
+                class="tray-icon tray-overflow"
+                tooltipText="More icons"
+              >
+                <image pixelSize={11} iconName="view-more-symbolic" />
+                <popover>
+                  <box
+                    class="tray-popover"
+                    orientation={Gtk.Orientation.VERTICAL}
+                    spacing={5}
+                  >
+                    <For each={hiddenItems}>
+                      {(item) => (
+                        <menubutton
+                          class="tray-icon"
+                          $={(self) => init(self, item)}
+                          tooltipText={item.tooltip_text}
+                        >
+                          <box spacing={8}>
+                            <image
+                              pixelSize={11}
+                              gicon={createBinding(item, "gicon")}
+                            />
+                            <label label={item.tooltip_text} xalign={0} />
+                          </box>
+                        </menubutton>
+                      )}
+                    </For>
+                  </box>
+                </popover>
+              </menubutton>
+            )
+          }
+        </With>
+      </box>
     </box>
   );
 }
@@ -217,32 +281,48 @@ function PinBar() {
 }
 
 function DndToggle() {
+  const [hasPing, setHasPing] = createState(false);
+
+  // Listen for new notifications when DND is on
+  notifd.connect("notified", () => {
+    if (DND.get()) {
+      print("New notification while DND is on");
+      setHasPing(true);
+      // Reset ping after animation completes
+      setTimeout(() => setHasPing(false), 600);
+    }
+  });
+
+  // Reset ping when DND is turned off
+  const dndActive = DND((dnd) => {
+    if (!dnd) {
+      setHasPing(false);
+    }
+    return dnd;
+  });
+
   return (
     <togglebutton
-      active={DND}
+      active={dndActive}
       onToggled={({ active }) => {
         setDND(active);
       }}
-      class="dnd-toggle icon"
-      label={DND((dnd) => (dnd ? "" : ""))}
-    />
+      // class="dnd-toggle icon"
+      class={hasPing((ping) => (ping ? "dnd-toggle active" : "dnd-toggle"))}
+    >
+      <label label={DND((dnd) => (dnd ? "" : ""))}></label>
+    </togglebutton>
   );
 }
 
 function BarOrientation() {
   return (
-    // <button
-    //   onClicked={() => setBarOrientation(!barOrientation.get())}
-    //   class="bar-orientation icon"
-    //   label={barOrientation((orientation) => (orientation ? "" : ""))}
-    // />
-    <togglebutton
-      active={barOrientation}
-      onToggled={({ active }) => {
-        setBarOrientation(active);
+    <button
+      onClicked={() => {
+        setBarOrientation(!barOrientation.get());
       }}
       class="bar-orientation icon"
-      label={barOrientation((orientation) => (orientation ? "" : ""))}
+      label={barOrientation((orientation) => (!orientation ? "" : ""))}
     />
   );
 }
@@ -256,8 +336,8 @@ export default ({
 }) => {
   return (
     <box class="bar-right" spacing={5} halign={halign} hexpand>
-      {/* <BatteryWidget /> */}
-      {/* <BrightnessWidget /> */}
+      <BatteryWidget />
+      <BrightnessWidget />
       <Volume />
       <Tray />
       <Theme />

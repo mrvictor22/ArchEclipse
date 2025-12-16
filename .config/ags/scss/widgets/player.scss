@@ -5,6 +5,7 @@
   &.widget {
     .bottom-bar:hover {
       background-color: $background-secondary;
+      margin-bottom: 20px;
     }
 
     .bottom-bar {
@@ -14,6 +15,7 @@
   }
 
   &.popup {
+    min-width: 250px;
     &:hover {
       background-color: $background-secondary;
     }
@@ -28,7 +30,7 @@
 
   .bottom-bar {
     border-radius: 10px;
-    margin: 5px;
+    margin: 0px 5px 5px 5px;
 
     .title {
       color: $secondary;

@@ -3,11 +3,12 @@ import Gtk from "gi://Gtk?version=4.0";
 import Gdk from "gi://Gdk?version=4.0";
 import Astal from "gi://Astal?version=4.0";
 import {
+  barLock,
   barOrientation,
   barVisibility,
   setBarVisibility,
 } from "../../variables";
-import { Eventbox } from "../Custom/Eventbox";
+import { createComputed } from "ags";
 
 export default (monitor: Gdk.Monitor) => {
   return (
@@ -25,16 +26,18 @@ export default (monitor: Gdk.Monitor) => {
             Astal.WindowAnchor.RIGHT
       )}
       exclusivity={Astal.Exclusivity.IGNORE}
-      layer={Astal.Layer.OVERLAY}
-    >
-      <Eventbox
-        onHover={() => {
-          print("visible", barVisibility.get());
+      visible={createComputed([barVisibility, barLock], (v, l) => !v && !l)}
+      layer={Astal.Layer.TOP}
+      $={(self) => {
+        const motion = new Gtk.EventControllerMotion();
+        motion.connect("enter", () => {
           setBarVisibility(true);
-        }}
-      >
-        <box css="min-height: 5px;" />
-      </Eventbox>
+          print("visible", barVisibility.get());
+        });
+        self.add_controller(motion);
+      }}
+    >
+      <box css="min-height: 5px; background-color: rgba(0,0,0,0.01);" />
     </window>
   );
 };

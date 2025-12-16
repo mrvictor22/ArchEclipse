@@ -14,6 +14,7 @@ import { hideWindow } from "../utils/window";
 import { getMonitorName } from "../utils/monitor";
 import { notify } from "../utils/notification";
 import { FileChooserButton } from "./FileChooser";
+import Picture from "./Picture";
 const hyprland = Hyprland.get_default();
 
 const pfpPath = exec(`bash -c "echo $HOME/.face.icon"`);
@@ -43,34 +44,14 @@ const UserPanel = (monitorName: string) => {
     );
 
     const ProfilePicture = (
-      <box
-        class="profile-picture"
-        css={`
-          background-image: url("${pfpPath}");
-        `}
-      >
-        <FileChooserButton
-          hexpand
-          vexpand
-          usePreviewLabel={false}
-          onFileSet={(self: any) => {
-            let uri = self.get_uri();
-            if (!uri) return;
-            const cleanUri = uri.replace("file://", ""); // Remove 'file://' from the URI
-            execAsync(`bash -c "cp '${cleanUri}' ${pfpPath}"`)
-              .then(() => {
-                ProfilePicture.css = `background-image: url('${pfpPath}');`;
-              })
-              .finally(() => {
-                notify({
-                  summary: "Profile picture",
-                  body: `${cleanUri} set to ${pfpPath}`,
-                });
-              })
-              .catch((err) => notify(err));
-          }}
-        />
-      </box>
+
+      <Picture
+        class={"profile-picture"}
+        file={pfpPath}
+        width={200}
+        height={200}
+      />
+      // </box>
     );
 
     return (
@@ -174,7 +155,7 @@ const UserPanel = (monitorName: string) => {
       spacing={10}
     >
       {/* {Resources()} */}
-      {/* {NotificationHistory()} */}
+      {NotificationHistory()}
       <label label={"WIP"}></label>
       {Date}
     </box>

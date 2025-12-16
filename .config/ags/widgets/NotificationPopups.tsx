@@ -4,7 +4,7 @@ import Gdk from "gi://Gdk?version=4.0";
 import Astal from "gi://Astal?version=4.0";
 import Notifd from "gi://AstalNotifd";
 import Notification from "./rightPanel/components/Notification";
-import { createState, createComputed, With, For } from "ags";
+import { createState, createComputed, With, For, Accessor } from "ags";
 import { DND, globalMargin } from "../variables";
 
 // see comment below in constructor
@@ -19,8 +19,8 @@ class NotificationMap {
 
   // it makes sense to use a Variable under the hood and use its
   // reactivity implementation instead of keeping track of subscribers ourselves
-  private notifications: any;
-  private setNotifications: any;
+  private notifications: Accessor<Array<any>>;
+  private setNotifications: (value: Array<any>) => void;
 
   // notify subscribers to rerender when state changes
   private notify() {
@@ -54,19 +54,51 @@ class NotificationMap {
         return;
       }
       print(`[NotificationPopups] Creating notification widget for: ${notification.summary}`);
-      const widget = Notification({
-        n: notification,
-        newNotification: true,
-        popup: true,
-      });
-      print(`[NotificationPopups] Widget created, adding to map`);
-      this.set(id, widget);
+
+      let timeoutId: number | null = null;
+      let hideFunc: (() => void) | null = null;
+
+      this.set(
+        id,
+        Notification({
+          n: notification,
+          newNotification: true,
+          isPopup: true,
+          onClose: () => {
+            // Cancel the auto-timeout if manually closed
+            if (timeoutId !== null) {
+              clearTimeout(timeoutId);
+              timeoutId = null;
+            }
+            setTimeout(() => {
+              this.delete(id);
+            }, 200); // Wait for animation to complete
+          },
+          onHide: (func) => {
+            hideFunc = func;
+          },
+        })
+      );
+
+      // Auto-remove notification from popup after delay
+      // Don't dismiss from daemon to keep in history
+      timeoutId = setTimeout(() => {
+        if (this.notificationMap.has(id) && hideFunc) {
+          // Trigger close animation via the notification's hide function
+          hideFunc();
+        }
+      }, TIMEOUT_DELAY);
     });
 
     // notifications can be closed by the outside before
     // any user input, which have to be handled too
     notifd.connect("resolved", (_, id) => {
-      this.delete(id);
+      // Remove from popup when dismissed from history or externally
+      if (this.notificationMap.has(id)) {
+        setTimeout(() => {
+          this.delete(id);
+        }, 200); // Wait for animation to complete
+      }
     });
   }
 
@@ -90,34 +122,9 @@ class NotificationMap {
     this.notify();
   }
 
-  // private clearOldNotifications() {
-  //   const now = Date.now();
-
-  //   const notifd = Notifd.get_default();
-
-  //   // Clear notifications that are older than TIMEOUT_DELAY
-  //   for (const [id, widget] of this.notificationMap.entries()) {
-  //     const notification = notifd.get_notification(id);
-  //     if (!notification) {
-  //       // If notification doesn't exist in notifd, remove it
-  //       this.delete(id);
-  //       continue;
-  //     }
-
-  //     // Calculate age of notification in milliseconds
-  //     const age = now - notification.get_time() * 1000;
-
-  //     print(`Notification ${id} age: ${age} milliseconds`);
-
-  //     if (age > TIMEOUT_DELAY) {
-  //       this.delete(id);
-  //     }
-  //   }
-  // }
-
   // needed by the Subscribable interface
   get() {
-    return this.notifications();
+    return this.notifications;
   }
 
   // needed by the Subscribable interface
@@ -136,7 +143,7 @@ let globalNotifications: NotificationMap | null = null;
 
 export default (monitor: Gdk.Monitor) => {
   const { TOP, RIGHT } = Astal.WindowAnchor;
-  
+
   // Use global singleton instance to prevent duplicate notifications
   if (!globalNotifications) {
     print("\t\t Creating NEW NotificationMap instance");
@@ -144,8 +151,8 @@ export default (monitor: Gdk.Monitor) => {
   } else {
     print("\t\t Reusing EXISTING NotificationMap instance");
   }
-  
-  const notifications = globalNotifications;
+
+  const notifications = globalNotifications.get();
 
   return (
     <window
@@ -159,19 +166,16 @@ export default (monitor: Gdk.Monitor) => {
       anchor={TOP | RIGHT}
       margin={globalMargin}
       widthRequest={400}
+      visible={true}
+      resizable={false}
     >
       <box
         class={"notification-popups"}
         orientation={Gtk.Orientation.VERTICAL}
         vexpand={true}
+        spacing={5}
       >
-        <With value={createComputed(() => notifications.get())}>
-          {(items) => (
-            <box orientation={Gtk.Orientation.VERTICAL}>
-              {items.map((n: any) => n)}
-            </box>
-          )}
-        </With>
+        <For each={notifications}>{(n) => n}</For>
       </box>
     </window>
   );

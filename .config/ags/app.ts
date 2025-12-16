@@ -8,7 +8,6 @@ import AppLauncher from "./widgets/AppLauncher";
 import Progress from "./widgets/Progress";
 import UserPanel from "./widgets/UserPanel";
 import WallpaperSwitcher from "./widgets/WallpaperSwitcher";
-import MediaPopups from "./widgets/MediaPopups";
 import SettingsWidget from "./widgets/SettingsWidget";
 import BarHover from "./widgets/bar/BarHover";
 import OSD from "./widgets/OSD";
@@ -43,7 +42,7 @@ const perMonitorDisplay = () => {
     // List of widget initializers
     const widgetInitializers = [
       { name: "Bar", fn: () => Bar(monitor) },
-      // { name: "BarHover", fn: () => BarHover(monitor) },
+      { name: "BarHover", fn: () => BarHover(monitor) },
       // { name: "Progress", fn: () => Progress(monitor) },
       { name: "RightPanel", fn: () => RightPanel(monitor) },
       { name: "RightPanelHover", fn: () => RightPanelHover(monitor) },
@@ -52,7 +51,7 @@ const perMonitorDisplay = () => {
       // Only create NotificationPopups on main monitor to prevent duplicates
       ...(isMainMonitor ? [{ name: "NotificationPopups", fn: () => NotificationPopups(monitor) }] : []),
       { name: "AppLauncher", fn: () => AppLauncher(monitor) },
-      // { name: "UserPanel", fn: () => UserPanel(monitor) },
+      { name: "UserPanel", fn: () => UserPanel(monitor) },
       { name: "WallpaperSwitcher", fn: () => WallpaperSwitcher(monitor) },
       // { name: "MediaPopups", fn: () => MediaPopups(monitor) },
       // { name: "SettingsWidget", fn: () => SettingsWidget(monitor) },

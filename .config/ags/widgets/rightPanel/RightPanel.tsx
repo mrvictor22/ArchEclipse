@@ -85,6 +85,15 @@ const Actions = ({ monitorName }: { monitorName: string }) => (
 );
 
 function Panel({ monitorName }: { monitorName: string }) {
+  const selectedWidgets = rightPanelWidgets((widgets) =>
+    widgets.filter((widget) => {
+      const selector = rightPanelWidgetSelectors.find(
+        (w) => w.name === widget.name
+      );
+      return selector?.widget;
+    })
+  );
+
   return (
     <box>
       <box
@@ -92,21 +101,19 @@ function Panel({ monitorName }: { monitorName: string }) {
         class="main-content"
         orientation={Gtk.Orientation.VERTICAL}
         spacing={10}
+        widthRequest={rightPanelWidth} // ignore action section
       >
-        <For each={rightPanelWidgets}>
+        <For each={selectedWidgets}>
           {(widget) => {
             const selector = rightPanelWidgetSelectors.find(
               (w) => w.name === widget.name
             );
-            if (selector?.widget) {
-              try {
-                return selector.widget() as JSX.Element;
-              } catch (error) {
-                console.error(`Error rendering widget:`, error);
-                return (<box />) as JSX.Element;
-              }
+            try {
+              return selector!.widget() as JSX.Element;
+            } catch (error) {
+              console.error(`Error rendering widget:`, error);
+              return (<box />) as JSX.Element;
             }
-            return (<box />) as JSX.Element;
           }}
         </For>
       </box>
@@ -144,24 +151,41 @@ export default (monitor: Gdk.Monitor) => {
       )}
       keymode={Astal.Keymode.ON_DEMAND}
       visible={rightPanelVisibility}
-      // onKeyPressEvent={(self, event) => {
-      //   if (event.get_keyval()[1] === Gdk.KEY_Escape) {
-      //     setRightPanelVisibility(false);
-      //     hideWindow(
-      //       `right-panel-${getMonitorName(monitor.get_display(), monitor)}`
-      //     );
-      //   }
-      // }}
-
-      widthRequest={rightPanelWidth}
       $={(self) => {
+        let hideTimeout: NodeJS.Timeout | null = null;
+
         const motion = new Gtk.EventControllerMotion();
+
         motion.connect("leave", () => {
-          if (!rightPanelLock.get()) setRightPanelVisibility(false);
+          if (rightPanelLock.get()) return;
+
+          hideTimeout = setTimeout(() => {
+            hideTimeout = null;
+            if (!rightPanelLock.get()) {
+              setRightPanelVisibility(false);
+            }
+          }, 500);
         });
+
+        motion.connect("enter", () => {
+          if (hideTimeout !== null) {
+            clearTimeout(hideTimeout);
+            hideTimeout = null;
+          }
+        });
+
         self.add_controller(motion);
       }}
     >
+      <Gtk.EventControllerKey
+        onKeyPressed={({ widget }, keyval: number) => {
+          if (keyval === Gdk.KEY_Escape) {
+            setRightPanelVisibility(false);
+            widget.hide();
+            return true;
+          }
+        }}
+      />
       <Panel monitorName={monitorName} />
     </window>
   );

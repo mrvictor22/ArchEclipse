@@ -6,7 +6,7 @@
   }
 
   .messages {
-    .message-eventbox:hover .message {
+    .message:hover {
       background-color: $background-secondary;
     }
     .message {
@@ -17,10 +17,6 @@
         background-position: center;
         background-size: cover;
         border-radius: 10px;
-      }
-      .copy {
-        padding: 5px;
-        margin: 5px;
       }
 
       &.user {
@@ -34,7 +30,6 @@
 
       .body {
         padding: 10px;
-        font-size: 1em;
 
         .code-block {
           background: $background-transparent;
@@ -42,8 +37,9 @@
           padding: 10px;
           color: $secondary;
 
-          .copy {
-            margin: 0px;
+          &:hover {
+            background: $background-transparent;
+            box-shadow: 0px 0px 10px 2px $secondary;
           }
         }
       }
@@ -51,17 +47,29 @@
   }
 
   .bottom-bar {
+    border-radius: 50px;
     background: $background-semi-transparent;
-    border-radius: 10px;
-    padding: 10px;
+    padding: 5px 15px;
+
+    &:hover {
+      margin-bottom: 20px;
+    }
 
     entry {
       border-radius: 50px;
+      background: transparent;
+      border: none;
     }
 
     .clear {
       @extend .danger;
       padding: 5px;
+    }
+
+    .image-generation {
+      @extend .button;
+      padding: 5px 10px;
+      border-radius: 20px;
     }
   }
 }

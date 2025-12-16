@@ -1,14 +1,9 @@
-$gradient-Colors: $color0, $color1, $color2, $color3, $color4, $color5, $color6;
-
-$custom-background: linear-gradient(
-    rgba($background, 0.33),
-    rgba($background, 0.33)
-  ),
-  linear-gradient(to bottom right, $gradient-Colors);
-
 .bar-left {
   .actions {
+    background-color: $background-semi-transparent;
+    border-radius: 10px;
     button {
+      background: transparent;
       border-radius: 0px;
     }
     button:first-child {
@@ -22,8 +17,9 @@ $custom-background: linear-gradient(
     border-radius: 10px;
     .workspace-group {
       border-radius: 10px;
-      // &.active {
-      // }
+      &.active {
+        background-color: $background-transparent;
+      }
       &.inactive button {
         background: transparent;
         padding: 0px;
@@ -42,15 +38,17 @@ $custom-background: linear-gradient(
       }
     }
     button {
+      background: transparent;
       ////////////////////////////
       &.focused {
-        background-image: $custom-background;
+        background: $background-semi-transparent;
         animation: workspace-focus 1s;
       }
       &.same-focused {
-        background-image: $custom-background;
+        background: $background-semi-transparent;
       }
       &.unfocused {
+        background: $background-transparent;
         animation: workspace-unfocus 1s;
       }
       &.new-app {
@@ -65,13 +63,13 @@ $custom-background: linear-gradient(
     background: $background-transparent;
   }
   100% {
-    background: $custom-background;
+    background: $background-semi-transparent;
   }
 }
 
 @keyframes workspace-unfocus {
   0% {
-    background: $custom-background;
+    background: $background-semi-transparent;
   }
   100% {
     background: $background-transparent;

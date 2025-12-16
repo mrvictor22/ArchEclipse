@@ -1,54 +1,91 @@
-import { createState, createComputed } from "ags";
-import App from "ags/gtk4/app";
-import Gdk from "gi://Gdk?version=4.0";
-import Astal from "gi://Astal?version=4.0";
-import { asyncSleep } from "../utils/time";
+import Gtk from "gi://Gtk?version=4.0";
+import { Accessor } from "ags";
+import { globalTransition } from "../variables";
+import { createState } from "ags";
+import GLib from "gi://GLib?version=2.0";
 
-const INTERVAL = 10;
-const INCREMENT = 0.069;
+const BLOCKS = ["▁", "▂", "▃", "▄", "▅", "▆", "▇", "█"];
 
-const [getProgressIncrement, setProgressIncrement] = createState(INCREMENT);
-const [getProgressValue, setProgressValue] = createState(0);
+const LoadingBarsLabel = ({
+  barCount = 10,
+  maxLevel = 5, // numeric "5"
+  interval = 50,
+  className = "loading-bars",
+}: {
+  barCount?: number;
+  maxLevel?: number;
+  interval?: number;
+  className?: string;
+}) => {
+  const [getText, setText] = createState("");
 
-const levelBar = (
-  <levelbar
-    class="progress-bar"
-    max_value={100}
-    widthRequest={333}
-    value={createComputed(() => getProgressValue)}
-  />
-);
+  let pos = 0;
+  let dir = 1; // 1 → right, -1 → left
+  let timeoutId: number | null = null;
 
-async function RunningProgress() {
-  setProgressValue(0);
-  setProgressIncrement(INCREMENT);
+  const tick = () => {
+    const bars = new Array(barCount);
 
-  while (getProgressValue <= 100) {
-    setProgressValue(getProgressValue + getProgressIncrement);
-    await asyncSleep(INTERVAL); // Wait for 2 seconds before continuing
-  }
-  App.toggle_window("progress");
-}
+    for (let i = 0; i < barCount; i++) {
+      const dist = Math.abs(i - pos);
+      const level = Math.max(0, maxLevel - dist);
+      const idx = Math.min(level, BLOCKS.length - 1);
+      bars[i] = BLOCKS[idx];
+    }
 
-export function openProgress() {
-  App.toggle_window("progress");
-  RunningProgress();
-}
+    setText(bars.join(""));
 
-export function closeProgress() {
-  setProgressIncrement(1); // Speed up the progress bar
-}
+    // ping-pong movement
+    if (pos === barCount - 1) dir = -1;
+    else if (pos === 0) dir = 1;
+    pos += dir;
 
-// const Spinner = <spinner />;
+    return GLib.SOURCE_CONTINUE;
+  };
 
-export default (monitor: Gdk.Monitor) => (
-  <window
-    gdkmonitor={monitor}
-    name="progress"
-    application={App}
-    anchor={Astal.WindowAnchor.BOTTOM}
-    margin={0}
-    visible={false}
-    child={<box class="progress-widget" child={levelBar}></box>}
-  ></window>
-);
+  return (
+    <label
+      class={className}
+      label={getText}
+      $={() => {
+        timeoutId = GLib.timeout_add(GLib.PRIORITY_DEFAULT, interval, tick);
+      }}
+      onDestroy={() => {
+        if (timeoutId) {
+          try {
+            GLib.source_remove(timeoutId);
+          } catch {}
+          timeoutId = null;
+        }
+      }}
+    />
+  );
+};
+
+export const Progress = ({
+  text = "Loading...",
+  revealed = false,
+  custom_class = "",
+  transitionType = Gtk.RevealerTransitionType.SLIDE_DOWN,
+}: {
+  text: string | Accessor<string>;
+  revealed: boolean | Accessor<boolean>;
+  custom_class?: string;
+  transitionType?: Gtk.RevealerTransitionType;
+}) => {
+  return (
+    <revealer
+      class={`progress-widget ${custom_class}`}
+      revealChild={revealed}
+      transitionDuration={globalTransition}
+      transitionType={transitionType}
+    >
+      <box class="progress" spacing={5} hexpand>
+        <box class="progress-content">
+          <label class="progress-text" label={text} />
+        </box>
+        <LoadingBarsLabel />
+      </box>
+    </revealer>
+  );
+};

@@ -1,18 +1,22 @@
 import Gtk from "gi://Gtk?version=4.0";
+import GLib from "gi://GLib?version=2.0";
 import { Message } from "../../../interfaces/chatbot.interface";
-import { createState, createComputed } from "ags";
 import { execAsync } from "ags/process";
 import { notify } from "../../../utils/notification";
 import { readJSONFile, writeJSONFile } from "../../../utils/json";
 import {
   chatBotApi,
   setChatBotApi,
-  chatBotImageGeneration,
-  setChatBotImageGeneration,
   globalTransition,
   leftPanelWidth,
 } from "../../../variables";
 import { chatBotApis } from "../../../constants/api.constants";
+import { Api } from "../../../interfaces/api.interface";
+import { createState, With } from "ags";
+import { Eventbox } from "../../Custom/Eventbox";
+import { Progress } from "../../Progress";
+import Picture from "../../Picture";
+import Pango from "gi://Pango?version=1.0";
 
 // Constants
 const MESSAGE_FILE_PATH = "./assets/chatbot";
@@ -21,9 +25,17 @@ const MESSAGE_FILE_PATH = "./assets/chatbot";
 const [messages, setMessages] = createState<Message[]>([]);
 const [chatHistory, setChatHistory] = createState<Message[]>([]);
 
+// Progress State
+const [isLoading, setIsLoading] = createState<boolean>(false);
+const [loadingText, setLoadingText] = createState<string>("...");
+
+// image generation
+const [chatBotImageGeneration, setChatBotImageGeneration] =
+  createState<boolean>(false);
+
 // Utils
 const getMessageFilePath = () =>
-  `${MESSAGE_FILE_PATH}/${chatBotApi().value}/history.json`;
+  `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/history.json`;
 
 const formatTextWithCodeBlocks = (text: string) => {
   const parts = text.split(/```(\w*)?\n?([\s\S]*?)```/gs);
@@ -36,22 +48,19 @@ const formatTextWithCodeBlocks = (text: string) => {
     if (i % 3 === 2) {
       // Code content
       elements.push(
-        <box class="code-block" spacing={5}>
+        <Eventbox
+          onClick={() => execAsync(`wl-copy "${part}"`).catch(print)}
+          class="code-block"
+        >
           <label
-            class="text"
+            class="code-block-text"
             hexpand
             wrap
+            wrapMode={Pango.WrapMode.WORD_CHAR}
             halign={Gtk.Align.START}
             label={part}
           />
-          <button
-            halign={Gtk.Align.END}
-            valign={Gtk.Align.START}
-            class="copy"
-            label=""
-            onClick={() => execAsync(`wl-copy "${part}"`).catch(print)}
-          />
-        </box>
+        </Eventbox>
       );
     } else if (i % 3 === 0 && part) {
       // Regular text
@@ -81,51 +90,57 @@ const fetchMessages = () => {
 };
 
 const saveMessages = () => {
-  writeJSONFile(getMessageFilePath(), messages());
+  writeJSONFile(getMessageFilePath(), messages.get());
 };
 
 const sendMessage = async (message: Message) => {
-  try {
-    const beginTime = Date.now();
+  const imagePath = `./assets/chatbot/${chatBotApi.get().value}/images/${
+    message.id
+  }.jpg`;
 
-    const imagePath = `./assets/chatbot/${chatBotApi().value}/images/${
-      message.id
-    }.jpg`;
-
-    // Escape single quotes in message content
-    const escapedContent = message.content.replace(/'/g, "'\\''");
-
-    const prompt =
-      `tgpt --quiet ` +
-      `${chatBotImageGeneration() ? "--img" : ""} ` +
-      `${chatBotImageGeneration() ? `--out ${imagePath}` : ""} ` +
-      `--provider ${chatBotApi().value} ` +
-      `--preprompt 'short and straight forward response, 
-        ${JSON.stringify(chatHistory())
+  // Escape single quotes in message content
+  const escapedContent = message.content.replace(/'/g, "'\\''");
+  const prompt =
+    `tgpt --quiet ` +
+    `${chatBotImageGeneration.get() ? "--img" : ""} ` +
+    `${chatBotImageGeneration.get() ? `--out ${imagePath}` : ""} ` +
+    `--provider ${chatBotApi.get().value} ` +
+    `--preprompt 'short and straight forward response, 
+        ${JSON.stringify(chatHistory.get())
           .replace(/'/g, `'"'"'`)
           .replace(/`/g, "\\`")}'` +
-      ` '${escapedContent}'`;
+    ` '${escapedContent}'`;
+  try {
+    setIsLoading(true);
+    setLoadingText(
+      chatBotImageGeneration.get() ? "Generating image..." : "Thinking..."
+    );
+
+    const beginTime = Date.now();
 
     const response = await execAsync(prompt);
     const endTime = Date.now();
 
-    notify({ summary: chatBotApi().name, body: response });
+    notify({ summary: chatBotApi.get().name, body: response });
 
     const newMessage: Message = {
-      id: (messages().length + 1).toString(),
-      sender: chatBotApi().value,
+      id: (messages.get().length + 1).toString(),
+      sender: chatBotApi.get().value,
       receiver: "user",
       content: response,
       timestamp: Date.now(),
       responseTime: endTime - beginTime,
-      image: chatBotImageGeneration() ? imagePath : undefined,
+      image: chatBotImageGeneration.get() ? imagePath : undefined,
     };
 
-    setMessages([...messages(), newMessage]);
+    setMessages([...messages.get(), newMessage]);
+    setIsLoading(false);
   } catch (error) {
+    setLoadingText("Error occurred.");
+    setIsLoading(false);
     notify({
       summary: "Error",
-      body: error instanceof Error ? error.message : String(error),
+      body: (error instanceof Error ? error.message : String(error)) + prompt,
     });
   }
 };
@@ -135,10 +150,12 @@ const ApiList = () => (
     {chatBotApis.map((provider) => (
       <togglebutton
         hexpand
-        active={createComputed(() => chatBotApi().name === provider.name)}
+        active={chatBotApi((p) => p.name === provider.name)}
         class="provider"
         label={provider.name}
-        onToggled={() => setChatBotApi(provider)}
+        onToggled={({ active }) => {
+          if (active) setChatBotApi(provider);
+        }}
       />
     ))}
   </box>
@@ -147,58 +164,64 @@ const ApiList = () => (
 // Components
 const Info = () => (
   <box class="info" orientation={Gtk.Orientation.VERTICAL} spacing={5}>
-    {createComputed(() => {
-      const { name, description } = chatBotApi();
-      return [
-        <label class="name" hexpand wrap label={`[${name}]`} />,
-        <label class="description" hexpand wrap label={description} />,
-      ];
-    })}
+    <label
+      class="name"
+      hexpand
+      wrap
+      label={chatBotApi((api) => `[${api.name}]`)}
+    />
+    <label
+      class="description"
+      hexpand
+      wrap
+      label={chatBotApi((api) => api.description || "")}
+    />
   </box>
 );
 
 const MessageItem = ({ message }: { message: Message }) => {
-  const Revealer = () => (
+  const [revealerVisible, setRevealerVisible] = createState(false);
+  const Revealer = (
     <revealer
       revealChild={false}
       transitionDuration={globalTransition}
-      transitionType={Gtk.RevealerTransitionType.SWING_DOWN}
-      child={
-        <box class={"info"} spacing={10}>
-          <label
-            wrap
-            class="time"
-            label={new Date(message.timestamp).toLocaleString(undefined, {
-              hour: "2-digit",
-              minute: "2-digit",
-              hour12: false,
-            })}
-          />
-          <label
-            wrap
-            class="response-time"
-            label={
-              message.responseTime
-                ? `Response Time: ${message.responseTime} ms`
-                : ""
-            }
-          />
-        </box>
-      }
-    />
+      transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}
+    >
+      <box class={"info"} spacing={10}>
+        <label
+          wrap
+          class="time"
+          label={new Date(message.timestamp).toLocaleString(undefined, {
+            hour: "2-digit",
+            minute: "2-digit",
+            hour12: false,
+          })}
+        />
+        <label
+          wrap
+          class="response-time"
+          label={
+            message.responseTime
+              ? `Response Time: ${message.responseTime} ms`
+              : ""
+          }
+        />
+      </box>
+    </revealer>
   );
 
   const Actions = () => (
     <box
       class="actions"
       spacing={5}
-      valign={message.sender === "user" ? Gtk.Align.START : Gtk.Align.END}
+      valign={Gtk.Align.END}
+      halign={message.sender === "user" ? Gtk.Align.END : Gtk.Align.START}
       orientation={Gtk.Orientation.VERTICAL}
     >
       {[
         <button
           class="copy"
-          label=""
+          label=""
           onClicked={() =>
             execAsync(`wl-copy "${message.content}"`).catch(print)
           }
@@ -208,26 +231,26 @@ const MessageItem = ({ message }: { message: Message }) => {
   );
 
   const messageContent = (
-    <box orientation={Gtk.Orientation.VERTICAL} hexpand>
+    <box
+      orientation={Gtk.Orientation.VERTICAL}
+      hexpand
+      tooltipText={"Click to copy"}
+    >
       {formatTextWithCodeBlocks(message.content)}
-      <box
-        visible={message.image !== undefined}
-        class={"image"}
-        css={`
-          background-image: url("${message.image}");
-        `}
-        heightRequest={leftPanelWidth()}
-        hexpand
-      ></box>
+      {message.image && (
+        <Picture
+          contentFit={Gtk.ContentFit.SCALE_DOWN}
+          height={leftPanelWidth}
+          file={message.image}
+        ></Picture>
+      )}
     </box>
   );
 
-  const revealerInstance = Revealer();
   return (
-    <Eventbox
-      class={"message-Eventbox"}
-      onHover={() => (revealerInstance.reveal_child = true)}
-      onHoverLost={() => (revealerInstance.reveal_child = false)}
+    <box
+      class={`message ${message.sender}`}
+      orientation={Gtk.Orientation.VERTICAL}
       halign={
         message.image === undefined
           ? message.sender === "user"
@@ -235,56 +258,64 @@ const MessageItem = ({ message }: { message: Message }) => {
             : Gtk.Align.START
           : undefined
       }
-      child={
-        <box
-          class={`message ${message.sender}`}
-          orientation={Gtk.Orientation.VERTICAL}
-        >
-          <box class={"main"}>
-            {message.sender !== "user"
-              ? [<Actions />, messageContent]
-              : [messageContent, <Actions />]}
-          </box>
-          {revealerInstance}
-        </box>
-      }
-    />
+    >
+      {/* <box class="main">
+        {message.sender !== "user"
+          ? [<Actions />, messageContent]
+          : [messageContent, <Actions />]}
+      </box> */}
+      <Eventbox
+        class="message-eventbox"
+        onClick={(self, n, x, y) => {
+          // Check if click is on a code block button
+          const pick = self.pick(x, y, Gtk.PickFlags.DEFAULT);
+          if (
+            (pick && pick.get_css_classes().includes("code-block")) ||
+            (pick && pick.get_css_classes().includes("code-block-text"))
+          ) {
+            return; // Don't copy message content if code block was clicked
+          }
+          execAsync(`wl-copy "${message.content}"`).catch(print);
+        }}
+      >
+        {/* <Actions $type="overlay" /> */}
+        {messageContent}
+      </Eventbox>
+
+      {Revealer}
+    </box>
   );
 };
 
 const Messages = () => {
-  let scrolledwindow: any;
-
-  createComputed(() => {
-    // Trigger on messages change
-    const msgs = messages();
-    if (scrolledwindow) {
-      setTimeout(() => {
-        scrolledwindow
-          .get_vadjustment()
-          .set_value(scrolledwindow.get_vadjustment().get_upper());
-      }, 100);
-    }
-  });
-
   return (
     <scrolledwindow
       vexpand
       $={(self) => {
-        scrolledwindow = self;
+        messages.subscribe(() => {
+          GLib.timeout_add(GLib.PRIORITY_DEFAULT, 100, () => {
+            const adj = self.get_vadjustment();
+            adj.set_value(adj.get_upper());
+            return false;
+          });
+        });
       }}
-      child={
-        <box
-          class="messages"
-          orientation={Gtk.Orientation.VERTICAL}
-          spacing={10}
-        >
-          {createComputed(() =>
-            messages().map((msg) => <MessageItem message={msg} />)
-          )}
-        </box>
-      }
-    />
+    >
+      {/* {messages((msgs) => msgs.map((msg) => <MessageItem message={msg} />))} */}
+      <With value={messages}>
+        {(msgs) => (
+          <box
+            class="messages"
+            orientation={Gtk.Orientation.VERTICAL}
+            spacing={10}
+          >
+            {msgs.map((msg) => (
+              <MessageItem message={msg} />
+            ))}
+          </box>
+        )}
+      </With>
+    </scrolledwindow>
   );
 };
 
@@ -292,24 +323,24 @@ const ClearButton = () => (
   <button
     halign={Gtk.Align.CENTER}
     valign={Gtk.Align.CENTER}
-    label=""
+    label=""
     class="clear"
     onClicked={() => {
       setMessages([]);
-      execAsync(`rm ${MESSAGE_FILE_PATH}/${chatBotApi().value}/images/*`).catch(
-        (err) => notify({ summary: "err", body: err })
-      );
+      execAsync(
+        `rm -rf ${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/images`
+      ).catch((err) => notify({ summary: "err", body: err }));
     }}
   />
 );
 
 const ImageGenerationSwitch = () => (
   <togglebutton
-    visible={createComputed(() => chatBotApi().imageGenerationSupport)}
-    active={chatBotImageGeneration()}
+    sensitive={chatBotApi((api) => api.imageGenerationSupport ?? false)}
+    active={chatBotImageGeneration}
     class="image-generation"
-    label={" Image Generation"}
-    onToggled={(self, on) => setChatBotImageGeneration(on)}
+    label=""
+    onToggled={({ active }) => setChatBotImageGeneration(active)}
   />
 );
 
@@ -319,47 +350,42 @@ const MessageEntry = () => {
     if (!text) return;
 
     const newMessage: Message = {
-      id: (messages().length + 1).toString(),
+      id: (messages.get().length + 1).toString(),
       sender: "user",
-      receiver: chatBotApi().value,
+      receiver: chatBotApi.get().value,
       content: text,
       timestamp: Date.now(),
     };
 
-    setMessages([...messages(), newMessage]);
+    setMessages([...messages.get(), newMessage]);
     sendMessage(newMessage);
     self.set_text("");
   };
 
   return (
-    <entry hexpand placeholderText="Type a message" onActivate={handleSubmit} />
+    <entry
+      hexpand
+      placeholderText="Ask anything..."
+      $={(self) => {
+        self.connect("activate", () => handleSubmit(self));
+      }}
+    />
   );
 };
 
 const BottomBar = () => (
-  <Eventbox
-    class={"bottom-Eventbox"}
-    child={
-      <box
-        class={"bottom-bar"}
-        spacing={10}
-        orientation={Gtk.Orientation.VERTICAL}
-      >
-        <box spacing={5}>
-          <MessageEntry />
-          <ClearButton />
-        </box>
-        <box child={<ImageGenerationSwitch />}></box>
-      </box>
-    }
-  />
+  <box class="bottom-bar" spacing={10}>
+    <MessageEntry />
+    <ClearButton />
+    <ImageGenerationSwitch />
+  </box>
 );
 
 const EnsurePaths = async () => {
   const paths = [
     `${MESSAGE_FILE_PATH}`,
-    `${MESSAGE_FILE_PATH}/${chatBotApi().value}`,
-    `${MESSAGE_FILE_PATH}/${chatBotApi().value}/images`,
+    `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}`,
+    `${MESSAGE_FILE_PATH}/${chatBotApi.get().value}/images`,
   ];
 
   paths.forEach((path) => {
@@ -368,19 +394,14 @@ const EnsurePaths = async () => {
 };
 
 export default () => {
-  // Subscribe to chatBotApi changes
-  createComputed(() => {
-    chatBotApi();
+  chatBotApi.subscribe(() => {
     EnsurePaths();
     fetchMessages();
   });
-
-  // Subscribe to messages changes
-  createComputed(() => {
-    const msgs = messages();
+  messages.subscribe(() => {
     saveMessages();
     // set the last 50 messages to chat history
-    setChatHistory(msgs.slice(-50));
+    setChatHistory(messages.get().slice(-50));
   });
 
   EnsurePaths();
@@ -396,7 +417,15 @@ export default () => {
       <ApiList />
       <Info />
       <Messages />
-      <BottomBar />
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <Progress
+          text={loadingText}
+          revealed={isLoading}
+          transitionType={Gtk.RevealerTransitionType.SWING_DOWN}
+          custom_class="booru-progress"
+        />
+        <BottomBar />
+      </box>
     </box>
   );
 };

@@ -13,17 +13,15 @@ import {
 import Gtk from "gi://Gtk?version=4.0";
 import { getSetting, setSetting } from "../../../utils/settings";
 import { notify } from "../../../utils/notification";
-import { closeProgress, openProgress } from "../../Progress";
 import { Api } from "../../../interfaces/api.interface";
-import hyprland from "gi://AstalHyprland";
 import { Waifu } from "../../../interfaces/waifu.interface";
 import { readJson } from "../../../utils/json";
 import { booruApis } from "../../../constants/api.constants";
 import { PinImageToTerminal, previewFloatImage } from "../../../utils/image";
-import { Eventbox } from "../../Custom/Eventbox";
-import Gio from "gi://Gio?version=2.0";
 import Picture from "../../Picture";
+import { Progress } from "../../Progress";
 const waifuDir = "./assets/booru/waifu";
+const [waifuLoading, setWaifuLoading] = createState<boolean>(false);
 
 const fetchImage = async (image: Waifu, saveDir: string) => {
   const url = image.url!;
@@ -42,7 +40,7 @@ const fetchImage = async (image: Waifu, saveDir: string) => {
 };
 
 const GetImageByid = async (id: number) => {
-  // openProgress();
+  setWaifuLoading(true);
   try {
     const res = await execAsync(
       `python ./scripts/search-booru.py 
@@ -59,14 +57,16 @@ const GetImageByid = async (id: number) => {
           url_path: waifuDir + "/waifu.webp",
           api: waifuApi.get(),
         });
+        setWaifuLoading(false);
       })
       .catch(() => {
         print("Failed to fetch image");
+        setWaifuLoading(false);
       });
-    // closeProgress();
   } catch (err) {
     notify({ summary: "Error", body: String(err) });
     print("Error fetching waifu by ID:", err);
+    setWaifuLoading(false);
   }
 };
 
@@ -148,46 +148,50 @@ function Actions() {
             hexpand
             label=""
             class="entry-search"
-            onClicked={() => Entry.activate()}
+            onClicked={() => (Entry as Gtk.Entry).activate()}
           />
           {Entry}
           <button
             hexpand
             label={""}
             class="upload"
-            onClicked={() => {
-              let dialog = new Gtk.FileChooserDialog({
+            onClicked={async (self) => {
+              let dialog = new Gtk.FileDialog({
                 title: "Open Image",
-                action: Gtk.FileChooserAction.OPEN,
               });
-              dialog.add_button("Open", Gtk.ResponseType.OK);
-              dialog.add_button("Cancel", Gtk.ResponseType.CANCEL);
-              let response = dialog.run();
-              if (response == Gtk.ResponseType.OK) {
-                let filename = dialog.get_filename();
-                let [height, width] = exec(
-                  `identify -format "%h %w" ${filename}`
-                ).split(" ");
-                execAsync(`cp ${filename} ${waifuCurrent.get().url_path}`)
-                  .then(() =>
-                    setWaifuCurrent({
-                      id: 0,
-                      preview: waifuCurrent.get().url_path,
-                      height: Number(height) ?? 0,
-                      width: Number(width) ?? 0,
-                      api: {} as Api,
-                      url_path: waifuCurrent.get().url_path,
-                    })
-                  )
-                  .finally(() =>
-                    notify({
-                      summary: "Waifu",
-                      body: "Custom image set",
-                    })
-                  )
-                  .catch((err) => notify({ summary: "Error", body: err }));
+
+              try {
+                const parent = self.get_root() as Gtk.Window;
+                let file = (await dialog.open(parent, null, null)) as any;
+                if (file) {
+                  let filename = file.get_parse_name();
+                  let [height, width] = exec(
+                    `identify -format "%h %w" ${filename}`
+                  ).split(" ");
+                  execAsync(`cp ${filename} ${waifuCurrent.get().url_path}`)
+                    .then(() =>
+                      setWaifuCurrent({
+                        id: 0,
+                        preview: waifuCurrent.get().url_path,
+                        height: Number(height) ?? 0,
+                        width: Number(width) ?? 0,
+                        api: {} as Api,
+                        url_path: waifuCurrent.get().url_path,
+                      })
+                    )
+                    .finally(() =>
+                      notify({
+                        summary: "Waifu",
+                        body: "Custom image set",
+                      })
+                    )
+                    .catch((err) => notify({ summary: "Error", body: err }));
+                }
+              } catch (err) {
+                // User cancelled or error occurred
+
+                notify({ summary: "Error", body: String(err) });
               }
-              dialog.destroy();
             }}
           />
         </box>
@@ -219,12 +223,13 @@ function Actions() {
           class="action-trigger"
           halign={Gtk.Align.END}
           onToggled={(self) => {
-            actions.reveal_child = self.active;
+            (actions as Gtk.Revealer).reveal_child = self.active;
             self.label = self.active ? "" : "";
-            actions.reveal_child = self.active;
+            (actions as Gtk.Revealer).reveal_child = self.active;
           }}
         />
       }
+      <Progress text={"Image Loading..."} revealed={waifuLoading} />
       {actions}
     </box>
   );
@@ -241,7 +246,7 @@ function Image() {
     [waifuCurrent, rightPanelWidth],
     (current, width) => {
       print("Waifu Image Dimensions:", current.width, "x", current.height);
-      return (Number(current.height) / Number(current.width)) * (width - 50);
+      return (Number(current.height) / Number(current.width)) * width;
     }
   );
 

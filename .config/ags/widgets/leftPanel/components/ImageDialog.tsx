@@ -1,16 +1,12 @@
 import { closeProgress, openProgress } from "../../Progress";
-import { createBinding, createState } from "ags";
 import { execAsync } from "ags/process";
-
 import { notify } from "../../../utils/notification";
 import { booruApi, waifuCurrent, setWaifuCurrent } from "../../../variables";
 import { Waifu } from "../../../interfaces/waifu.interface";
 
-import hyprland from "gi://AstalHyprland";
 import { PinImageToTerminal, previewFloatImage } from "../../../utils/image";
 import Gtk from "gi://Gtk?version=4.0";
-const Hyprland = hyprland.get_default();
-
+import Gio from "gi://Gio";
 const waifuPath = "./assets/booru/waifu";
 const imageUrlPath = "./assets/booru/images";
 
@@ -19,7 +15,7 @@ const fetchImage = async (
   savePath: string,
   name: string = ""
 ) => {
-  openProgress();
+  // openProgress();
   const url = image.url!;
   name = name || String(image.id);
   image.url_path = `${savePath}/${name}.jpg`;
@@ -31,7 +27,7 @@ const fetchImage = async (
   await execAsync(
     `bash -c "[ -e "${imageUrlPath}/${image.id}.jpg" ] || curl -o ${savePath}/${name}.jpg ${url}"`
   ).catch((err) => notify({ summary: "Error", body: String(err) }));
-  closeProgress();
+  // closeProgress();
 };
 
 const waifuThisImage = async (image: Waifu) => {
@@ -41,12 +37,21 @@ const waifuThisImage = async (image: Waifu) => {
     .then(() =>
       setWaifuCurrent({ ...image, url_path: waifuPath + "/waifu.jpg" })
     )
-    .catch((err) => notify({ summary: "Error", body: String(err) }));
+    .catch((err) =>
+      notify({
+        summary: "Error",
+        body:
+          String(err) +
+          `bash -c "mkdir -p ${waifuPath} && cp ${image.url_path} ${waifuPath}/waifu.jpg"`,
+      })
+    );
 };
 
 const OpenInBrowser = (image: Waifu) =>
   execAsync(
-    `bash -c "xdg-open '${booruApi.idSearchUrl}${image.id}' && xdg-settings get default-web-browser | sed 's/\.desktop$//'" `
+    `bash -c "xdg-open '${booruApi.get().idSearchUrl}${
+      image.id
+    }' && xdg-settings get default-web-browser | sed 's/\.desktop$//'"`
   )
     .then((browser) =>
       notify({ summary: "Waifu", body: `opened in ${browser}` })
@@ -73,59 +78,76 @@ const addToWallpapers = (image: Waifu) => {
     .catch((err) => notify({ summary: "Error", body: String(err) }));
 };
 
+const checkImageDownloaded = async (img: Waifu): Promise<boolean> => {
+  try {
+    const result = await execAsync(
+      `bash -c "[ -e '${imageUrlPath}/${img.id}.jpg' ] && echo 'exists' || echo 'not-exists'"`
+    );
+    return result.trim() === "exists";
+  } catch {
+    return false;
+  }
+};
+
 export class ImageDialog {
-  private dialog: Gtk.Dialog;
-  private imageDownloaded: boolean;
-  private setImageDownloaded: (value: boolean) => void;
+  private dialog: Gtk.Window | null = null;
+  private imageDownloaded: boolean = false;
+  private image: Waifu;
+  private buttons: { button: Gtk.Revealer; needDownload: boolean }[] = [];
 
   constructor(img: Waifu) {
-    [this.imageDownloaded, this.setImageDownloaded] =
-      createState<boolean>(false);
-    fetchImage(img, imageUrlPath).finally(() => this.setImageDownloaded(true));
-    // Create dialog without default action area
-    this.dialog = new Gtk.Dialog({
-      title: "booru-image",
-      window_position: Gtk.WindowPosition.CENTER,
-      modal: false,
+    this.image = img;
+
+    // Check if image is already downloaded
+    checkImageDownloaded(img).then((downloaded) => {
+      this.imageDownloaded = downloaded;
+      this.updateButtonStates();
     });
+  }
 
-    // Get content area
-    const contentArea = this.dialog.get_content_area();
+  private createLayout(includeCloseButton: boolean = false): Gtk.Box {
+    const buttonRefs: { button: Gtk.Revealer; needDownload: boolean }[] = [];
 
-    // Create main orientation={Gtk.Orientation.VERTICAL} box to hold everything
+    // Create main vertical box to hold everything
     const mainBox = new Gtk.Box({
+      cssClasses: ["dialog"],
       orientation: Gtk.Orientation.VERTICAL,
-      margin: 5,
     });
-    // const ctx = mainBox.get_style_context();
-    // ctx.add_class("module");
-    contentArea.add(mainBox);
+    mainBox.set_margin_start(5);
+    mainBox.set_margin_end(5);
+    mainBox.set_margin_top(5);
+    mainBox.set_margin_bottom(5);
 
-    // create button box
-    const buttonBoxTop = new Gtk.Box({
-      orientation: Gtk.Orientation.HORIZONTAL,
-      halign: Gtk.Align.END,
-      spacing: 10,
-    });
-    const closeButton = new Gtk.Button({
-      label: "",
-      halign: Gtk.Align.CENTER,
-      valign: Gtk.Align.CENTER,
-    });
-    closeButton.connect("clicked", () => {
-      this.dialog.destroy();
-    });
-    buttonBoxTop.add(closeButton);
-    mainBox.add(buttonBoxTop);
+    // create button box (only for window mode)
+    if (includeCloseButton) {
+      const buttonBoxTop = new Gtk.Box({
+        orientation: Gtk.Orientation.HORIZONTAL,
+        halign: Gtk.Align.END,
+        spacing: 10,
+      });
+      const closeButton = new Gtk.Button({
+        label: "",
+        halign: Gtk.Align.CENTER,
+        valign: Gtk.Align.CENTER,
+      });
+      closeButton.connect("clicked", () => {
+        if (this.dialog && this.dialog.get_visible()) {
+          this.dialog.close();
+        }
+      });
+      buttonBoxTop.append(closeButton);
+      mainBox.append(buttonBoxTop);
+    }
 
     // Add image
-    const image = new Gtk.Image({
-      file: img.preview_path,
+    const image = new Gtk.Picture({
+      file: Gio.File.new_for_path(this.image.preview_path!),
+      cssClasses: ["image"],
       hexpand: false,
       vexpand: false,
-      marginTop: 10,
     });
-    mainBox.add(image);
+    image.set_margin_top(10);
+    mainBox.append(image);
 
     // Create centered button box
     const buttonBox = new Gtk.Box({
@@ -136,7 +158,7 @@ export class ImageDialog {
     });
 
     // Create buttons with icons
-    const buttons = [
+    const buttonsDTO = [
       {
         icon: "",
         needImageDownload: false,
@@ -144,62 +166,97 @@ export class ImageDialog {
         response: 1,
       },
       {
+        icon: "",
+        needImageDownload: false,
+        tooltip: "Download image",
+        response: 2,
+      },
+      {
         icon: "",
         needImageDownload: true,
         tooltip: "Copy image",
-        response: 2,
+        response: 3,
       },
       {
         icon: "",
         needImageDownload: true,
         tooltip: "Waifu this image",
-        response: 3,
+        response: 4,
       },
       {
         icon: "",
         needImageDownload: true,
         tooltip: "Open image",
-        response: 4,
+        response: 5,
       },
       {
         icon: "",
         needImageDownload: true,
         tooltip: "Pin to terminal",
-        response: 5,
+        response: 6,
       },
       {
         icon: "󰸉",
         needImageDownload: true,
         tooltip: "Add to wallpapers",
-        response: 6,
+        response: 7,
       },
     ];
 
-    buttons.forEach((btn) => {
-      const button = new Gtk.Button({
-        label: btn.icon,
-        halign: Gtk.Align.CENTER, // Center horizontally
-        valign: Gtk.Align.CENTER, // Center orientation={Gtk.Orientation.VERTICAL}ly
-        sensitive: btn.needImageDownload
-          ? createBinding(this, "imageDownloaded")
-          : true,
+    buttonsDTO.forEach((btnDTO) => {
+      const btn = new Gtk.Button({
+        label: btnDTO.icon,
+        halign: Gtk.Align.CENTER,
+        valign: Gtk.Align.CENTER,
       });
 
-      // Add CSS class for styling
-      // const ctx = button.get_style_context();
-      // ctx.add_class("image-dialog-button");
-
-      button.connect("clicked", () => {
-        this.handleResponse(btn.response, img);
-        // this.dialog.destroy();
+      const revealer = new Gtk.Revealer({
+        transition_type: Gtk.RevealerTransitionType.SWING_RIGHT,
+        transition_duration: 200,
+        reveal_child: !btnDTO.needImageDownload,
       });
 
-      buttonBox.add(button);
+      btn.set_tooltip_text(btnDTO.tooltip);
+      revealer.set_child(btn);
+
+      if (btnDTO.needImageDownload) {
+        buttonRefs.push({ button: revealer, needDownload: true });
+      }
+
+      btn.connect("clicked", () => {
+        this.handleResponse(btnDTO.response, this.image);
+      });
+
+      buttonBox.append(revealer);
+    });
+    this.buttons = buttonRefs;
+
+    mainBox.append(buttonBox);
+
+    return mainBox;
+  }
+
+  public showAsWindow() {
+    // Create window with close button
+    this.dialog = new Gtk.Window({
+      title: "booru-image",
+      modal: false,
     });
 
-    mainBox.add(buttonBox);
+    const layout = this.createLayout(true);
+    this.dialog.set_child(layout);
+    this.dialog.present();
+  }
 
-    this.dialog.show_all();
+  public getBox(): Gtk.Box {
+    // Create layout without close button for popover
+    return this.createLayout(false);
+  }
+
+  private updateButtonStates() {
+    this.buttons.forEach(({ button }) => {
+      button.revealChild = this.imageDownloaded;
+    });
   }
 
   private handleResponse(responseId: number, img: Waifu) {
@@ -208,18 +265,25 @@ export class ImageDialog {
         OpenInBrowser(img);
         break;
       case 2:
-        CopyImage(img);
+        fetchImage(img, imageUrlPath).finally(() => {
+          print("Image downloaded", img.id);
+          this.imageDownloaded = true;
+          this.updateButtonStates();
+        });
         break;
       case 3:
-        waifuThisImage(img);
+        CopyImage(img);
         break;
       case 4:
-        OpenImage(img);
+        waifuThisImage(img);
         break;
       case 5:
-        PinImageToTerminal(img);
+        OpenImage(img);
         break;
       case 6:
+        PinImageToTerminal(img);
+        break;
+      case 7:
         addToWallpapers(img);
         break;
     }

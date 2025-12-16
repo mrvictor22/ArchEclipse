@@ -1,21 +1,24 @@
-.notification-eventbox {
-  &:hover .top-bar {
-    background-color: $background-secondary;
-  }
-}
-
 .notification {
   @extend .module;
   margin: 0px;
-  padding: 0px;
+  padding: 5px;
   transition: opacity 0.5s ease-out; /* Adjust timing */
+  min-width: 0px;
+  min-height: 0px;
 
-  .main-content {
-    padding: 10px;
+  &:hover .top-bar {
+    background-color: $background-secondary;
+    .copy,
+    .lock,
+    .close,
+    .expand {
+      opacity: 1;
+    }
   }
 
   .top-bar {
     padding: 0px 5px;
+
     border-radius: 5px;
     background: $background-transparent;
 
@@ -41,23 +44,25 @@
     .close,
     .expand {
       padding: 0px 5px;
-    }
+      opacity: 0;
+      background-color: transparent;
 
-    .close {
-      @extend .danger;
-      &:not(:hover) {
-        background: transparent;
+      &:hover {
+        background-color: $background-semi-transparent;
       }
+
+      // &.close {
+      //   @extend .danger;
+      //   &:not(:hover) {
+      //     background: transparent;
+      //   }
+      // }
     }
 
     .time {
       font-size: 0.8em;
       color: $foreground-secondary;
     }
-  }
-
-  separator {
-    margin-bottom: 5px;
   }
 
   &.Spotify .app-name {
@@ -69,7 +74,6 @@
     font-size: 30px;
     min-width: 50px;
     min-height: 50px;
-
     color: $secondary;
   }
 

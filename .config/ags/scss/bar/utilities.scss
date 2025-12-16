@@ -1,18 +1,24 @@
 .bar-right {
   .system-tray {
+    background-color: $background-semi-transparent;
     border-radius: 10px;
     padding: 0px;
-    .tray-icon * {
-      border-radius: 0px;
-      border: unset;
+    button {
+      background: transparent;
+      &:hover {
+        background: $background-semi-transparent;
+      }
     }
-    .tray-icon:first-child > * {
+    button {
+      border-radius: 0px;
+    }
+    button:first-child {
       border-radius: 10px 0px 0px 10px;
     }
-    .tray-icon:last-child > * {
+    button:last-child {
       border-radius: 0px 10px 10px 0px;
     }
-    .tray-icon:only-child > * {
+    button:only-child {
       border-radius: 10px;
     }
     popover {
@@ -37,7 +43,73 @@
   .charging {
     background: $green;
   }
-  .low {
+  &.low {
     background: $red;
+  }
+}
+
+.dnd-toggle {
+  // opacity: 0;
+  transition: opacity 0.6s ease;
+  animation: ping-background 0.6s ease-in-out;
+
+  &.active {
+    opacity: 1;
+    animation: ping-pulse 0.6s ease-in-out;
+
+    label {
+      animation: ping-color 0.6s ease-in-out;
+      animation: ping-rotate 0.6s ease-in-out;
+    }
+  }
+}
+
+@keyframes ping-pulse {
+  0%,
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 1;
+    transform: scale(1.3);
+  }
+}
+
+@keyframes ping-color {
+  0%,
+  100% {
+    color: $foreground;
+  }
+  50% {
+    color: $red;
+  }
+}
+
+@keyframes ping-background {
+  0% {
+  }
+  50% {
+    background-color: $background-transparent;
+  }
+  100% {
+  }
+}
+
+@keyframes ping-rotate {
+  0% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(25deg);
+  }
+  50% {
+    transform: rotate(0deg);
+  }
+  75% {
+    transform: rotate(-25deg);
+  }
+  100% {
+    transform: rotate(0deg);
   }
 }
