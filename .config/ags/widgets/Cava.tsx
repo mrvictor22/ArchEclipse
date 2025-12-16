@@ -3,20 +3,25 @@ import GLib from "gi://GLib?version=2.0";
 import Gtk from "gi://Gtk?version=4.0";
 import { globalTransition } from "../variables";
 
+// Toggle to disable Cava if it causes segfaults
+// Set to true if you experience crashes with libastal-cava
+const CAVA_DISABLED = false;
+
 // Import AstalCava with version - same pattern as other gi imports
 let Cava: any = null;
 let cavaInstance: any = null;
 let cavaAvailable = false;
 
-// Try to import AstalCava at module load - but catch if unavailable
-try {
-  // Use standard gi:// import pattern with version
-  const AstalCava = (imports.gi.versions.AstalCava = "0.1", imports.gi.AstalCava);
-  Cava = AstalCava;
-  cavaAvailable = true;
-} catch (e) {
-  print("AstalCava module not available:", e);
-  cavaAvailable = false;
+// Only try to import if not disabled
+if (!CAVA_DISABLED) {
+  try {
+    const AstalCava = (imports.gi.versions.AstalCava = "0.1", imports.gi.AstalCava);
+    Cava = AstalCava;
+    cavaAvailable = true;
+  } catch (e) {
+    print("AstalCava module not available:", e);
+    cavaAvailable = false;
+  }
 }
 
 function getCavaInstance(): any {
