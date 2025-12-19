@@ -272,10 +272,9 @@ update_aur_packages() {
     if [ "$updates" -gt 0 ]; then
         info "Se encontraron $updates paquetes para actualizar"
 
-        local output
         local exit_code=0
         if [ "$AUTO_MODE" = true ]; then
-            output=$($aur_helper -Syu --noconfirm 2>&1) || exit_code=$?
+            $aur_helper -Syu --noconfirm || exit_code=$?
         else
             $aur_helper -Syu || exit_code=$?
         fi
@@ -284,7 +283,7 @@ update_aur_packages() {
             log "Paquetes AUR actualizados"
             UPDATES_PERFORMED+=1
         else
-            handle_error $exit_code "AUR ($aur_helper)" "$output"
+            handle_error $exit_code "AUR ($aur_helper)" "Ver output arriba"
         fi
     else
         log "Todos los paquetes AUR están actualizados"
@@ -314,10 +313,9 @@ update_flatpak() {
     if [ "$updates" -gt 0 ]; then
         info "Se encontraron $updates actualizaciones de Flatpak"
 
-        local output
         local exit_code=0
         if [ "$AUTO_MODE" = true ]; then
-            output=$(flatpak update -y 2>&1) || exit_code=$?
+            flatpak update -y || exit_code=$?
         else
             flatpak update || exit_code=$?
         fi
@@ -326,7 +324,7 @@ update_flatpak() {
             log "Flatpak actualizado"
             UPDATES_PERFORMED+=1
         else
-            handle_error $exit_code "Flatpak" "$output"
+            handle_error $exit_code "Flatpak" "Ver output arriba"
         fi
     else
         log "Todos los paquetes Flatpak están actualizados"
@@ -345,18 +343,20 @@ update_snap() {
 
     subheader "Actualizando paquetes Snap..."
 
-    local output
     local exit_code=0
-    output=$(sudo snap refresh 2>&1) || exit_code=$?
+    sudo snap refresh || exit_code=$?
 
     if [ $exit_code -eq 0 ]; then
         log "Snap actualizado"
         UPDATES_PERFORMED+=1
-    elif echo "$output" | grep -q "All snaps up to date"; then
-        log "Todos los snaps están actualizados"
-        UPDATES_SKIPPED+=1
     else
-        handle_error $exit_code "Snap" "$output"
+        # snap returns non-zero when no updates, check manually
+        if snap changes 2>/dev/null | tail -1 | grep -q "Done"; then
+            log "Todos los snaps están actualizados"
+            UPDATES_SKIPPED+=1
+        else
+            handle_error $exit_code "Snap" "Ver output arriba"
+        fi
     fi
 }
 
@@ -367,18 +367,16 @@ update_pip_packages() {
     if command_exists pipx; then
         subheader "Actualizando paquetes pipx..."
 
-        local output
         local exit_code=0
-        output=$(pipx upgrade-all 2>&1) || exit_code=$?
+        pipx upgrade-all || exit_code=$?
 
         if [ $exit_code -eq 0 ]; then
             log "Paquetes pipx actualizados"
             UPDATES_PERFORMED+=1
-        elif echo "$output" | grep -qE "(No packages|Nothing to upgrade)"; then
+        else
+            # pipx returns 1 when nothing to upgrade
             log "No hay paquetes pipx para actualizar"
             UPDATES_SKIPPED+=1
-        else
-            handle_error $exit_code "pipx" "$output"
         fi
     else
         info "pipx no está instalado (opcional)"
@@ -395,15 +393,14 @@ update_pip_packages() {
             info "Se encontraron $outdated paquetes pip desactualizados"
 
             if [ "$AUTO_MODE" = true ]; then
-                local output
                 local exit_code=0
-                output=$(pip list --user --outdated --format=freeze 2>/dev/null | cut -d= -f1 | xargs -n1 pip install --user --upgrade 2>&1) || exit_code=$?
+                pip list --user --outdated --format=freeze 2>/dev/null | cut -d= -f1 | xargs -n1 pip install --user --upgrade || exit_code=$?
 
                 if [ $exit_code -eq 0 ]; then
                     log "Paquetes pip actualizados"
                     UPDATES_PERFORMED+=1
                 else
-                    handle_error $exit_code "pip" "$output"
+                    handle_error $exit_code "pip" "Ver output arriba"
                 fi
             else
                 warn "Para actualizar pip manualmente, ejecute:"
