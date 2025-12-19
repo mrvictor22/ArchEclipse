@@ -1,4 +1,4 @@
-import { createState, createComputed, createBinding } from "ags";
+import { createState, createComputed, createBinding, With } from "ags";
 import { execAsync, exec } from "ags/process";
 import {
   waifuApi,
@@ -20,19 +20,27 @@ import { booruApis } from "../../../constants/api.constants";
 import { PinImageToTerminal, previewFloatImage } from "../../../utils/image";
 import Picture from "../../Picture";
 import { Progress } from "../../Progress";
-const waifuDir = "./assets/booru/waifu";
+import GLib from "gi://GLib?version=2.0";
+import Gio from "gi://Gio?version=2.0";
+import Video from "../../Video";
+import { booruImagesPath } from "../../../constants/path.constants";
+import { Eventbox } from "../../Custom/Eventbox";
 const [waifuLoading, setWaifuLoading] = createState<boolean>(false);
+
+// execAsync(`bash -c "mkdir -p ${booruImagesPath}"`).catch((err) => {
+//   print("Error creating waifu directory:", err);
+//   notify({ summary: "Error", body: String(err) });
+// });
 
 const fetchImage = async (image: Waifu, saveDir: string) => {
   const url = image.url!;
-  image.url_path = `${saveDir}/waifu.webp`;
 
   await execAsync(`bash -c "mkdir -p ${saveDir}"`).catch((err) => {
     print("Error creating waifu directory:", err);
     notify({ summary: "Error", body: String(err) });
   });
 
-  await execAsync(`curl -o ${image.url_path} ${url}`).catch((err) => {
+  await execAsync(`curl -o ${saveDir}/${image.id}.jpg ${url}`).catch((err) => {
     print("Error downloading waifu image:", err);
     notify({ summary: "Error", body: String(err) });
   });
@@ -50,11 +58,10 @@ const GetImageByid = async (id: number) => {
 
     const image: Waifu = readJson(res)[0];
 
-    fetchImage(image, waifuDir)
+    fetchImage(image, booruImagesPath)
       .then((image: Waifu) => {
         setWaifuCurrent({
           ...image,
-          url_path: waifuDir + "/waifu.webp",
           api: waifuApi.get(),
         });
         setWaifuLoading(false);
@@ -82,11 +89,12 @@ const OpenInBrowser = (image: Waifu) =>
     .catch((err) => notify({ summary: "Error", body: err }));
 
 const CopyImage = (image: Waifu) =>
-  execAsync(`bash -c "wl-copy --type image/png < ${image.url_path}"`).catch(
-    (err) => notify({ summary: "Error", body: err })
-  );
+  execAsync(
+    `bash -c "wl-copy --type image/png < ${booruImagesPath}/${image.id}.jpg"`
+  ).catch((err) => notify({ summary: "Error", body: err }));
 
-const OpenImage = (image: Waifu) => previewFloatImage(image.url_path!);
+const OpenImage = (image: Waifu) =>
+  previewFloatImage(`${booruImagesPath}/${image.id}.jpg`);
 
 function Actions() {
   const Entry = (
@@ -106,158 +114,220 @@ function Actions() {
     />
   );
 
-  const actions = (
-    <revealer
-      revealChild={false}
-      transitionDuration={globalTransition}
-      transition_type={Gtk.RevealerTransitionType.SWING_UP}
-    >
-      <box
-        class="bottom-bar"
-        orientation={Gtk.Orientation.VERTICAL}
-        spacing={5}
-      >
-        <box class="section">
-          <button
-            label=""
-            class="open"
-            hexpand
-            onClicked={() => OpenImage(waifuCurrent.get())}
-          />
-          <button
-            label=""
-            hexpand
-            class="browser"
-            onClicked={() => OpenInBrowser(waifuCurrent.get())}
-          />
-          <button
-            label=""
-            hexpand
-            class="pin"
-            onClicked={() => PinImageToTerminal(waifuCurrent.get())}
-          />
-          <button
-            label=""
-            hexpand
-            class="copy"
-            onClicked={() => CopyImage(waifuCurrent.get())}
-          />
-        </box>
-        <box class="section">
-          <button
-            hexpand
-            label=""
-            class="entry-search"
-            onClicked={() => (Entry as Gtk.Entry).activate()}
-          />
-          {Entry}
-          <button
-            hexpand
-            label={""}
-            class="upload"
-            onClicked={async (self) => {
-              let dialog = new Gtk.FileDialog({
-                title: "Open Image",
-              });
-
-              try {
-                const parent = self.get_root() as Gtk.Window;
-                let file = (await dialog.open(parent, null, null)) as any;
-                if (file) {
-                  let filename = file.get_parse_name();
-                  let [height, width] = exec(
-                    `identify -format "%h %w" ${filename}`
-                  ).split(" ");
-                  execAsync(`cp ${filename} ${waifuCurrent.get().url_path}`)
-                    .then(() =>
-                      setWaifuCurrent({
-                        id: 0,
-                        preview: waifuCurrent.get().url_path,
-                        height: Number(height) ?? 0,
-                        width: Number(width) ?? 0,
-                        api: {} as Api,
-                        url_path: waifuCurrent.get().url_path,
-                      })
-                    )
-                    .finally(() =>
-                      notify({
-                        summary: "Waifu",
-                        body: "Custom image set",
-                      })
-                    )
-                    .catch((err) => notify({ summary: "Error", body: err }));
-                }
-              } catch (err) {
-                // User cancelled or error occurred
-
-                notify({ summary: "Error", body: String(err) });
-              }
-            }}
-          />
-        </box>
-        <box class="section">
-          {booruApis.map((api) => (
-            <togglebutton
-              hexpand
-              class="api"
-              label={api.name}
-              active={waifuApi((current) => current.value === api.value)}
-              onToggled={({ active }) => setWaifuApi(api)}
-            />
-          ))}
-        </box>
-      </box>
-    </revealer>
-  );
-
-  const bottom = (
-    <box
-      class="bottom"
-      orientation={Gtk.Orientation.VERTICAL}
-      vexpand
-      valign={Gtk.Align.END}
-    >
-      {
-        <togglebutton
-          label=""
-          class="action-trigger"
-          halign={Gtk.Align.END}
-          onToggled={(self) => {
-            (actions as Gtk.Revealer).reveal_child = self.active;
-            self.label = self.active ? "" : "";
-            (actions as Gtk.Revealer).reveal_child = self.active;
-          }}
-        />
-      }
-      <Progress text={"Image Loading..."} revealed={waifuLoading} />
-      {actions}
-    </box>
-  );
-
   return (
-    <box class="layout" orientation={Gtk.Orientation.VERTICAL}>
-      {bottom}
-    </box>
+    <Eventbox
+      class={"bottom"}
+      onHover={(self) => {
+        const revealer = self.get_last_child() as Gtk.Revealer;
+        revealer.reveal_child = true;
+      }}
+      onHoverLost={(self) => {
+        const revealer = self.get_last_child() as Gtk.Revealer;
+        revealer.reveal_child = false;
+      }}
+    >
+      <revealer
+        revealChild={false}
+        transitionDuration={globalTransition}
+        transition_type={Gtk.RevealerTransitionType.SWING_UP}
+      >
+        <box
+          class="actions"
+          valign={Gtk.Align.END}
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={5}
+        >
+          <Progress text={"Image Loading..."} revealed={waifuLoading} />
+          <box class="section">
+            <button
+              label=""
+              class="open"
+              hexpand
+              onClicked={() => OpenImage(waifuCurrent.get())}
+            />
+            <button
+              label=""
+              hexpand
+              class="browser"
+              onClicked={() => OpenInBrowser(waifuCurrent.get())}
+            />
+            <button
+              label=""
+              hexpand
+              class="pin"
+              onClicked={() => PinImageToTerminal(waifuCurrent.get())}
+            />
+            <button
+              label=""
+              hexpand
+              class="copy"
+              onClicked={() => CopyImage(waifuCurrent.get())}
+            />
+          </box>
+          <box class="section">
+            <button
+              hexpand
+              label=""
+              class="entry-search"
+              onClicked={() => (Entry as Gtk.Entry).activate()}
+            />
+            {Entry}
+            <button
+              hexpand
+              label={""}
+              class="upload"
+              onClicked={async (self) => {
+                const dialog = new Gtk.FileDialog({
+                  title: "Open Image",
+                  modal: true,
+                });
+
+                // Image filter
+                const filter = new Gtk.FileFilter();
+                filter.set_name("Images");
+                filter.add_mime_type("image/png");
+                filter.add_mime_type("image/jpeg");
+                filter.add_mime_type("image/webp");
+                filter.add_mime_type("image/gif");
+
+                // dialog.set_filters([filter]);
+                dialog.set_default_filter(filter);
+
+                try {
+                  const root = self.get_root();
+                  if (!(root instanceof Gtk.Window)) return;
+
+                  const file: Gio.File = await new Promise(
+                    (resolve, reject) => {
+                      dialog.open(root, null, (dlg, res) => {
+                        try {
+                          resolve(dlg!.open_finish(res));
+                        } catch (e) {
+                          reject(e);
+                        }
+                      });
+                    }
+                  );
+
+                  if (!file) return;
+
+                  const filename = file.get_path();
+                  if (!filename) return;
+
+                  const [height, width] = exec(
+                    `identify -format "%h %w" "${filename}"`
+                  ).split(" ");
+
+                  // Copy to waifu path, change the file type based on original
+
+                  // await execAsync(
+                  //   `cp "${filename}" "${waifuCurrent.get().url_file_path}"`
+                  // );
+
+                  await execAsync(
+                    `cp "${filename}" "${booruImagesPath}/-1.${filename
+                      .split(".")
+                      .pop()!}"`
+                  ).catch((err) =>
+                    notify({
+                      summary: "Error",
+                      body: String(err),
+                    })
+                  );
+
+                  setWaifuCurrent({
+                    id: -1,
+                    height: Number(height) || 0,
+                    width: Number(width) || 0,
+                    api: {} as Api,
+                    extension: filename.split(".").pop()!,
+                  });
+
+                  notify({
+                    summary: "Waifu",
+                    body: "Custom image set",
+                  });
+                } catch (err) {
+                  // Gtk.FileDialog throws on cancel — ignore silently
+                  if (
+                    err instanceof GLib.Error &&
+                    err.matches(
+                      Gtk.dialog_error_quark(),
+                      Gtk.DialogError.CANCELLED
+                    )
+                  )
+                    return;
+
+                  notify({
+                    summary: "Error",
+                    body: String(err),
+                  });
+                }
+              }}
+            />
+          </box>
+          <box class="section">
+            {booruApis.map((api) => (
+              <togglebutton
+                hexpand
+                class="api"
+                label={api.name}
+                active={waifuApi((current) => current.value === api.value)}
+                onToggled={({ active }) => {
+                  if (active) {
+                    setWaifuApi(api);
+                    setSetting(
+                      "waifu.api",
+                      api.value,
+                      globalSettings,
+                      setGlobalSettings
+                    );
+                  }
+                }}
+              />
+            ))}
+          </box>
+        </box>
+      </revealer>
+    </Eventbox>
   );
 }
 
 function Image() {
   const imageHeight = createComputed(
     [waifuCurrent, rightPanelWidth],
-    (current, width) => {
-      print("Waifu Image Dimensions:", current.width, "x", current.height);
-      return (Number(current.height) / Number(current.width)) * width;
-    }
+    (current, width) =>
+      current.width && current.height
+        ? (current.height / current.width) * width
+        : width
   );
 
   return (
-    <overlay class={"overlay"}>
-      <Picture
-        class="image"
-        height={imageHeight}
-        file={waifuCurrent((w) => w.url_path || "")}
-        contentFit={Gtk.ContentFit.COVER}
-      />
+    <overlay class="overlay">
+      <With value={waifuCurrent}>
+        {(w) => {
+          print("Waifu URL Path:", `${booruImagesPath}/${w.id}.${w.extension}`);
+          return w.extension === "mp4" ||
+            w.extension === "webm" ||
+            w.extension === "mkv" ||
+            w.extension === "gif" ||
+            w.extension === "zip" ? (
+            <Video
+              class="image"
+              width={rightPanelWidth}
+              file={`${booruImagesPath}/${w.id}.${w.extension}`}
+            />
+          ) : (
+            <Picture
+              class="image"
+              height={imageHeight}
+              file={`${booruImagesPath}/${w.id}.${w.extension}`}
+              contentFit={Gtk.ContentFit.COVER}
+            />
+          );
+        }}
+      </With>
+
       <Actions $type="overlay" />
     </overlay>
   );
@@ -265,15 +335,9 @@ function Image() {
 
 export default () => {
   return (
-    <revealer
-      transitionDuration={globalTransition}
-      transition_type={Gtk.RevealerTransitionType.SWING_DOWN}
-      revealChild={globalSettings((s) => s.waifu.visibility)}
-    >
-      <box class="waifu" orientation={Gtk.Orientation.VERTICAL}>
-        {Image()}
-      </box>
-    </revealer>
+    <box class="waifu" orientation={Gtk.Orientation.VERTICAL}>
+      {Image()}
+    </box>
   );
 };
 
