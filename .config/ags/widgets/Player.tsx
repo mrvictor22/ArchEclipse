@@ -66,7 +66,7 @@ export default ({
   const positionSlider = (
     <slider
       class="slider"
-      css={dominantColor((c) => `highlight{background: ${c}00};`)}
+      css={dominantColor((c) => c ? `background: ${c};` : "")}
       $={(self) => {
         let unsubscribe: (() => void) | null = null;
 

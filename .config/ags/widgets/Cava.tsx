@@ -3,8 +3,10 @@ import GLib from "gi://GLib?version=2.0";
 import Gtk from "gi://Gtk?version=4.0";
 import { globalTransition } from "../variables";
 
-// TODO: libastal-cava not capturing audio from pipewire (values always 0)
+// Use pulse instead of pipewire due to pipewire capture bug
+// See: https://github.com/karlstav/cava/issues/689
 const CAVA_DISABLED = false;
+const CAVA_INPUT_PULSE = 4; // AstalCavaInput.PULSE
 
 // Import AstalCava with version - same pattern as other gi imports
 let Cava: any = null;
@@ -76,11 +78,12 @@ export default ({
     );
   }
 
-  // Set bars count
+  // Configure cava: use pulse input (pipewire has capture bug) and set bars
   try {
+    cava.set_input(CAVA_INPUT_PULSE);
     cava.set_bars(barCount);
   } catch (e) {
-    print("Failed to set cava bars:", e);
+    print("Failed to configure cava:", e);
   }
 
   const [getBars, setBars] = createState("");

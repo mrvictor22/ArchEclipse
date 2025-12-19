@@ -34,13 +34,14 @@ const [waifuLoading, setWaifuLoading] = createState<boolean>(false);
 
 const fetchImage = async (image: Waifu, saveDir: string) => {
   const url = image.url!;
+  const ext = image.extension || "jpg";
 
   await execAsync(`bash -c "mkdir -p ${saveDir}"`).catch((err) => {
     print("Error creating waifu directory:", err);
     notify({ summary: "Error", body: String(err) });
   });
 
-  await execAsync(`curl -o ${saveDir}/${image.id}.jpg ${url}`).catch((err) => {
+  await execAsync(`curl -o ${saveDir}/${image.id}.${ext} ${url}`).catch((err) => {
     print("Error downloading waifu image:", err);
     notify({ summary: "Error", body: String(err) });
   });
@@ -90,11 +91,11 @@ const OpenInBrowser = (image: Waifu) =>
 
 const CopyImage = (image: Waifu) =>
   execAsync(
-    `bash -c "wl-copy --type image/png < ${booruImagesPath}/${image.id}.jpg"`
+    `bash -c "wl-copy --type image/png < ${booruImagesPath}/${image.id}.${image.extension || "jpg"}"`
   ).catch((err) => notify({ summary: "Error", body: err }));
 
 const OpenImage = (image: Waifu) =>
-  previewFloatImage(`${booruImagesPath}/${image.id}.jpg`);
+  previewFloatImage(`${booruImagesPath}/${image.id}.${image.extension || "jpg"}`);
 
 function Actions() {
   const Entry = (
