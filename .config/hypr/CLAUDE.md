@@ -191,21 +191,46 @@ git fetch upstream && git log --oneline HEAD..upstream/master
 
 ### Update Script
 
+The `UPDATE.sh` script handles **only system package updates** across multiple package managers. It does NOT sync with upstream git repositories - that should be done manually via Claude Code or git commands.
+
 ```bash
-# Standard update from upstream (DESTRUCTIVE - loses local changes)
+# Interactive mode (default) - prompts for each action
 ./maintenance/UPDATE.sh
 
-# Developer mode: preserves local changes via git stash
-./maintenance/UPDATE.sh --dev
+# Update everything without prompts
+./maintenance/UPDATE.sh --all
 
-# Update from your fork instead of upstream
-./maintenance/UPDATE.sh --fork
+# Quick daily update (AUR + flatpak only)
+./maintenance/UPDATE.sh --quick
 
-# Combine options
-./maintenance/UPDATE.sh --dev --fork
+# Specific package managers only
+./maintenance/UPDATE.sh --aur       # AUR packages (yay/paru)
+./maintenance/UPDATE.sh --flatpak   # Flatpak packages
+./maintenance/UPDATE.sh --snap      # Snap packages
+./maintenance/UPDATE.sh --pip       # Python packages (pipx/pip)
+
+# Maintenance operations
+./maintenance/UPDATE.sh --rice      # Rice maintenance (wallpapers, wal, plugins)
+./maintenance/UPDATE.sh --clean     # Clean system caches
+./maintenance/UPDATE.sh --services  # Verify Hyprland services
+
+# Show help
+./maintenance/UPDATE.sh --help
 ```
 
-**WARNING**: Default `UPDATE.sh` (without `--dev`) does `git reset --hard` and will destroy uncommitted changes. Always use `--dev` if you have local modifications.
+**Supported Package Managers:**
+- pacman/yay/paru (Arch Linux AUR)
+- flatpak
+- snap
+- pip/pipx (Python)
+
+**Additional Features:**
+- System cache cleanup (pacman cache, journal logs, thumbnails)
+- Hyprland services verification (monitor-hotplug, lid-handler, AGS, clipboard)
+- Rice maintenance scripts (wallpapers, pywal, plugins, tweaks)
+- Summary report at the end
+
+**Note:** For syncing with upstream Ayman's repository, use manual git commands or Claude Code to review changes before merging.
 
 ## Development Commands
 
