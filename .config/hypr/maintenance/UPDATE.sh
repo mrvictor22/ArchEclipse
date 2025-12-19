@@ -20,7 +20,8 @@
 #   ./UPDATE.sh --help       # Show help
 #==============================================================================
 
-set -e
+# Note: Not using 'set -e' because package managers may return non-zero
+# exit codes for non-fatal conditions (e.g., "no updates available")
 
 MAINTENANCE_DIR="$HOME/.config/hypr/maintenance"
 SCRIPT_NAME=$(basename "$0")
@@ -36,10 +37,10 @@ BOLD="\e[1m"
 DIM="\e[2m"
 RESET="\e[0m"
 
-# Counters for summary
-UPDATES_PERFORMED=0
-UPDATES_SKIPPED=0
-UPDATES_FAILED=0
+# Counters for summary (using declare to ensure arithmetic works)
+declare -i UPDATES_PERFORMED=0
+declare -i UPDATES_SKIPPED=0
+declare -i UPDATES_FAILED=0
 
 #------------------------------------------------------------------------------
 # Utility Functions
@@ -73,6 +74,35 @@ subheader() {
 
 command_exists() {
     command -v "$1" >/dev/null 2>&1
+}
+
+# Handle errors - show message and ask user if they want to continue
+handle_error() {
+    local exit_code=$1
+    local component=$2
+    local message=$3
+
+    if [ $exit_code -ne 0 ]; then
+        error "$component falló (código: $exit_code)"
+        [ -n "$message" ] && echo -e "  ${DIM}$message${RESET}"
+        UPDATES_FAILED+=1
+
+        echo ""
+        echo -e "${YELLOW}¿Desea continuar con las siguientes actualizaciones?${RESET}"
+        read -p "[S/n]: " choice
+        case "$choice" in
+            [Nn]*)
+                warn "Actualización cancelada por el usuario"
+                show_summary
+                exit 1
+                ;;
+            *)
+                info "Continuando..."
+                return 0
+                ;;
+        esac
+    fi
+    return 0
 }
 
 show_help() {
@@ -211,7 +241,7 @@ clean_system_cache() {
 
     if [ "$cleaned" = true ]; then
         log "Limpieza de caché completada"
-        ((UPDATES_PERFORMED++))
+        UPDATES_PERFORMED+=1
     else
         warn "No se encontraron cachés para limpiar"
     fi
@@ -242,17 +272,23 @@ update_aur_packages() {
     if [ "$updates" -gt 0 ]; then
         info "Se encontraron $updates paquetes para actualizar"
 
+        local output
+        local exit_code=0
         if [ "$AUTO_MODE" = true ]; then
-            $aur_helper -Syu --noconfirm
+            output=$($aur_helper -Syu --noconfirm 2>&1) || exit_code=$?
         else
-            $aur_helper -Syu
+            $aur_helper -Syu || exit_code=$?
         fi
 
-        log "Paquetes AUR actualizados"
-        ((UPDATES_PERFORMED++))
+        if [ $exit_code -eq 0 ]; then
+            log "Paquetes AUR actualizados"
+            UPDATES_PERFORMED+=1
+        else
+            handle_error $exit_code "AUR ($aur_helper)" "$output"
+        fi
     else
         log "Todos los paquetes AUR están actualizados"
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
     fi
 
     # Remove deprecated agsv1 if present
@@ -267,7 +303,7 @@ update_flatpak() {
 
     if ! command_exists flatpak; then
         warn "Flatpak no está instalado"
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
         return 0
     fi
 
@@ -278,17 +314,23 @@ update_flatpak() {
     if [ "$updates" -gt 0 ]; then
         info "Se encontraron $updates actualizaciones de Flatpak"
 
+        local output
+        local exit_code=0
         if [ "$AUTO_MODE" = true ]; then
-            flatpak update -y
+            output=$(flatpak update -y 2>&1) || exit_code=$?
         else
-            flatpak update
+            flatpak update || exit_code=$?
         fi
 
-        log "Flatpak actualizado"
-        ((UPDATES_PERFORMED++))
+        if [ $exit_code -eq 0 ]; then
+            log "Flatpak actualizado"
+            UPDATES_PERFORMED+=1
+        else
+            handle_error $exit_code "Flatpak" "$output"
+        fi
     else
         log "Todos los paquetes Flatpak están actualizados"
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
     fi
 }
 
@@ -297,18 +339,24 @@ update_snap() {
 
     if ! command_exists snap; then
         warn "Snap no está instalado"
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
         return 0
     fi
 
     subheader "Actualizando paquetes Snap..."
 
-    if sudo snap refresh 2>/dev/null; then
+    local output
+    local exit_code=0
+    output=$(sudo snap refresh 2>&1) || exit_code=$?
+
+    if [ $exit_code -eq 0 ]; then
         log "Snap actualizado"
-        ((UPDATES_PERFORMED++))
+        UPDATES_PERFORMED+=1
+    elif echo "$output" | grep -q "All snaps up to date"; then
+        log "Todos los snaps están actualizados"
+        UPDATES_SKIPPED+=1
     else
-        warn "No hay actualizaciones de Snap disponibles"
-        ((UPDATES_SKIPPED++))
+        handle_error $exit_code "Snap" "$output"
     fi
 }
 
@@ -318,13 +366,22 @@ update_pip_packages() {
     # pipx (recommended for user packages)
     if command_exists pipx; then
         subheader "Actualizando paquetes pipx..."
-        if pipx upgrade-all 2>/dev/null; then
+
+        local output
+        local exit_code=0
+        output=$(pipx upgrade-all 2>&1) || exit_code=$?
+
+        if [ $exit_code -eq 0 ]; then
             log "Paquetes pipx actualizados"
-            ((UPDATES_PERFORMED++))
+            UPDATES_PERFORMED+=1
+        elif echo "$output" | grep -qE "(No packages|Nothing to upgrade)"; then
+            log "No hay paquetes pipx para actualizar"
+            UPDATES_SKIPPED+=1
         else
-            warn "No hay actualizaciones de pipx"
-            ((UPDATES_SKIPPED++))
+            handle_error $exit_code "pipx" "$output"
         fi
+    else
+        info "pipx no está instalado (opcional)"
     fi
 
     # pip user packages (with caution)
@@ -338,7 +395,16 @@ update_pip_packages() {
             info "Se encontraron $outdated paquetes pip desactualizados"
 
             if [ "$AUTO_MODE" = true ]; then
-                pip list --user --outdated --format=freeze 2>/dev/null | cut -d= -f1 | xargs -n1 pip install --user --upgrade 2>/dev/null || true
+                local output
+                local exit_code=0
+                output=$(pip list --user --outdated --format=freeze 2>/dev/null | cut -d= -f1 | xargs -n1 pip install --user --upgrade 2>&1) || exit_code=$?
+
+                if [ $exit_code -eq 0 ]; then
+                    log "Paquetes pip actualizados"
+                    UPDATES_PERFORMED+=1
+                else
+                    handle_error $exit_code "pip" "$output"
+                fi
             else
                 warn "Para actualizar pip manualmente, ejecute:"
                 echo "  pip list --user --outdated"
@@ -348,8 +414,7 @@ update_pip_packages() {
             log "Todos los paquetes pip están actualizados"
         fi
     else
-        warn "pip no está instalado"
-        ((UPDATES_SKIPPED++))
+        info "pip no está instalado (opcional)"
     fi
 }
 
@@ -364,28 +429,28 @@ run_rice_maintenance() {
     if [ -f "$MAINTENANCE_DIR/WALLPAPERS.sh" ]; then
         subheader "Verificando wallpapers..."
         "$MAINTENANCE_DIR/WALLPAPERS.sh"
-        ((UPDATES_PERFORMED++))
+        UPDATES_PERFORMED+=1
     fi
 
     # Pywal theme
     if [ -f "$MAINTENANCE_DIR/WAL.sh" ]; then
         subheader "Actualizando tema pywal..."
         "$MAINTENANCE_DIR/WAL.sh"
-        ((UPDATES_PERFORMED++))
+        UPDATES_PERFORMED+=1
     fi
 
     # Hyprland plugins
     if [ -f "$MAINTENANCE_DIR/PLUGINS.sh" ]; then
         subheader "Actualizando plugins de Hyprland..."
         "$MAINTENANCE_DIR/PLUGINS.sh"
-        ((UPDATES_PERFORMED++))
+        UPDATES_PERFORMED+=1
     fi
 
     # Tweaks
     if [ -f "$MAINTENANCE_DIR/TWEAKS.sh" ]; then
         subheader "Aplicando tweaks..."
         "$MAINTENANCE_DIR/TWEAKS.sh"
-        ((UPDATES_PERFORMED++))
+        UPDATES_PERFORMED+=1
     fi
 
     log "Mantenimiento de rice completado"
@@ -458,7 +523,7 @@ interactive_mode() {
         cleanup_package_managers
         update_aur_packages
     else
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
     fi
 
     # Flatpak
@@ -466,7 +531,7 @@ interactive_mode() {
         if continue_prompt "¿Actualizar paquetes Flatpak?"; then
             update_flatpak
         else
-            ((UPDATES_SKIPPED++))
+            UPDATES_SKIPPED+=1
         fi
     fi
 
@@ -475,7 +540,7 @@ interactive_mode() {
         if continue_prompt "¿Actualizar paquetes Snap?"; then
             update_snap
         else
-            ((UPDATES_SKIPPED++))
+            UPDATES_SKIPPED+=1
         fi
     fi
 
@@ -484,7 +549,7 @@ interactive_mode() {
         if continue_prompt "¿Actualizar paquetes Python (pipx/pip)?"; then
             update_pip_packages
         else
-            ((UPDATES_SKIPPED++))
+            UPDATES_SKIPPED+=1
         fi
     fi
 
@@ -492,21 +557,21 @@ interactive_mode() {
     if continue_prompt "¿Ejecutar mantenimiento de la rice (wallpapers, wal, plugins)?"; then
         run_rice_maintenance
     else
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
     fi
 
     # Cache cleanup
     if continue_prompt "¿Limpiar cachés del sistema?"; then
         clean_system_cache
     else
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
     fi
 
     # Service verification
     if continue_prompt "¿Verificar servicios de Hyprland?"; then
         verify_hyprland_services
     else
-        ((UPDATES_SKIPPED++))
+        UPDATES_SKIPPED+=1
     fi
 }
 
