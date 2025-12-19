@@ -356,3 +356,69 @@ Scripts use color-coded logging:
 - `error()`: Red - errors
 
 All long-running scripts log to `/tmp/` with timestamps for debugging.
+
+## AGS Widgets Migration Status (Upstream)
+
+This section tracks widgets and elements from upstream (AymanLyesri) that are commented out, disabled, or pending migration to GTK4/AGS 3.0.
+
+### Widgets Completely Commented (in `app.ts`)
+
+| Widget | File | Status | Notes |
+|--------|------|--------|-------|
+| **Progress** | `widgets/Progress.tsx` | Comentado | Loading indicator widget |
+| **MediaPopups** | N/A | Eliminado | File deleted, import commented |
+| **SettingsWidget** | `widgets/SettingsWidget.tsx` | Comentado | Settings panel |
+| **OSD** | `widgets/OSD.tsx` | Comentado | On-Screen Display (volume, brightness) |
+| **ScreenShot** | `widgets/ScreenShot.tsx` | 100% Comentado | Screenshot preview widget - entire file is commented |
+
+### Widgets with Internal Issues
+
+| Widget | File | Issue | Priority |
+|--------|------|-------|----------|
+| **Brightness** | `widgets/bar/components/Utilities.tsx` | Screen flickers when adjusting, brightness not applied correctly | Alta |
+| **Keyboard Brightness** | `widgets/bar/components/Utilities.tsx` | Keyboard brightness keys not working | Alta |
+| **FileChooser** | `widgets/FileChooser.tsx` | File deleted but still imported in UserPanel.tsx | Alta |
+| **WallpaperSwitcher** | `widgets/WallpaperSwitcher.tsx` | FileChooserDialog section commented (~30 lines) | Media |
+| **ImageDialog** | `widgets/leftPanel/components/ImageDialog.tsx` | `openProgress()` commented | Baja |
+| **UserPanel** | `widgets/UserPanel.tsx` | Section marked as "WIP" | Baja |
+
+### Settings Disabled by Default
+
+```typescript
+// In constants/settings.constants.ts
+rightPanel: {
+  visibility: false,  // Right panel hidden by default
+},
+chatBot: {
+  visibility: false,  // ChatBot hidden by default
+}
+```
+
+### Broken Imports/References
+
+| Missing File | Referenced In | Impact |
+|--------------|---------------|--------|
+| `FileChooser.tsx` | `UserPanel.tsx` line 16 | Import will fail |
+| `MediaPopups.tsx` | `app.ts` line 56 | Commented, no impact |
+
+### Migration Priority
+
+**High Priority (broken functionality):**
+1. Brightness widget - flickering and keys not working
+2. FileChooser - broken import in UserPanel
+
+**Medium Priority (disabled widgets):**
+3. ScreenShot - completely commented
+4. OSD - commented
+5. SettingsWidget - commented
+
+**Low Priority (minor issues):**
+6. WallpaperSwitcher - FileChooser section
+7. Progress - loading bars commented
+8. UserPanel WIP section
+
+### Notes
+
+- Last updated: 2025-12-18
+- All widgets need GTK4 compatibility review
+- Some widgets may depend on deprecated AGS 2.x APIs
