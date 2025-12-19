@@ -88,7 +88,7 @@ export default ({
       justify={Gtk.Justification.LEFT}
       maxWidthChars={24}
       wrap={true}
-      label={n.summary}
+      label={GLib.markup_escape_text(n.summary || "", -1)}
       useMarkup={true}
     />
   );

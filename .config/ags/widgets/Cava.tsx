@@ -8,6 +8,11 @@ import { globalTransition } from "../variables";
 const CAVA_DISABLED = false;
 const CAVA_INPUT_PULSE = 4; // AstalCavaInput.PULSE
 
+// Cava audio settings for more natural response
+const CAVA_FRAMERATE = 144;      // Higher = smoother animation (default: 60)
+const CAVA_NOISE_REDUCTION = 0.5; // Lower = more sensitive to quiet sounds (default: 0.77)
+const CAVA_AUTOSENS = true;       // Auto-adjust sensitivity to audio level
+
 // Import AstalCava with version - same pattern as other gi imports
 let Cava: any = null;
 let cavaInstance: any = null;
@@ -40,7 +45,7 @@ function getCavaInstance(): any {
 }
 
 // --- Tunable constants ---
-const CAVA_UPDATE_MS = 60;
+const CAVA_UPDATE_MS = 16; // ~60fps widget update rate (was 60ms)
 
 function scheduleCoalesced(fn: () => void, delayMs: number) {
   let pending = false;
@@ -78,10 +83,13 @@ export default ({
     );
   }
 
-  // Configure cava: use pulse input (pipewire has capture bug) and set bars
+  // Configure cava for natural audio response
   try {
     cava.set_input(CAVA_INPUT_PULSE);
     cava.set_bars(barCount);
+    cava.set_framerate(CAVA_FRAMERATE);
+    cava.set_noise_reduction(CAVA_NOISE_REDUCTION);
+    cava.set_autosens(CAVA_AUTOSENS);
   } catch (e) {
     print("Failed to configure cava:", e);
   }
