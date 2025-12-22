@@ -24,7 +24,7 @@ interface PictureProps {
   $?: (self: Gtk.Picture) => void;
 }
 export default function Picture({
-  class: className = "image",
+  class: className,
   height,
   width,
   file,
@@ -63,7 +63,7 @@ export default function Picture({
     >
       <Gtk.Picture
         $type="overlay"
-        class={"picture " + className}
+        class={"image " + className}
         file={fileBinding}
         contentFit={contentFit}
         $={(self) => {
