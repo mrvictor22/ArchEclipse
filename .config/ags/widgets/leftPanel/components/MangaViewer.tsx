@@ -8,6 +8,7 @@ import { Progress } from "../../Progress";
 import Pango from "gi://Pango?version=1.0";
 import { load } from "mime";
 import Gdk from "gi://Gdk?version=4.0";
+import GLib from "gi://GLib?version=2.0";
 import { leftPanelWidth, globalTransition } from "../../../variables";
 
 const [mangaList, setMangaList] = createState<Manga[]>([]);
@@ -22,7 +23,7 @@ const [searchQuery, setSearchQuery] = createState<string>("");
 const [initialized, setInitialized] = createState(false);
 const [bottomIsRevealed, setBottomIsRevealed] = createState<boolean>(false);
 
-const scriptPath = "/home/ayman/.config/ags/scripts/manga.py";
+const scriptPath = `${GLib.get_home_dir()}/.config/ags/scripts/manga.py`;
 
 const fetchPopular = async () => {
   setIsLoading(true);
