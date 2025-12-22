@@ -21,6 +21,7 @@ interface PictureProps {
   width?: Accessor<number> | number;
   file: Accessor<string> | string;
   contentFit?: Gtk.ContentFit;
+  $?: (self: Gtk.Picture) => void;
 }
 export default function Picture({
   class: className = "image",
@@ -28,6 +29,7 @@ export default function Picture({
   width,
   file,
   contentFit = Gtk.ContentFit.COVER,
+  $,
 }: PictureProps) {
   let pictureRef: Gtk.Picture | undefined;
 
