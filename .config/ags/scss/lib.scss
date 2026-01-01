@@ -2,10 +2,11 @@
 
 * {
   font-weight: 500;
+  // font-size: $FONT-SIZE;
   transition: all 0.2s;
 }
 
-.module {
+@mixin module {
   background: $background-transparent;
   color: $foreground;
   min-height: 1px;
@@ -14,56 +15,57 @@
   border-radius: 10px;
   font-size: $FONT-SIZE;
   text-shadow: none;
-  // padding: ($SCALE - 5) / 5 $SCALE / 1.5;
+  padding: $SCALE / 2 $SCALE / 1.5;
   margin: 0;
+  .image {
+    border-radius: 10px;
+  }
 }
 
-.icon,
-button,
-.button {
-  font-size: $ICON-SIZE;
+@mixin button {
+  @include module;
   font-family: "JetBrainsMono NFP";
   color: $foreground;
-}
-
-button,
-.button {
-  @extend .module;
   border: none;
-  padding: $SCALE / $phi $SCALE;
-  min-width: 20px;
-  min-height: 20px;
-  outline: none;
+  min-width: $phi * 15 + px;
 
   background: $background-semi-transparent;
 
   &:hover {
     background: $background;
-    text-shadow: $foreground 0 0 1px;
+    border-radius: 10px;
+    transform: scale(1.02) translateY(-5\px); /* Expand height by 10% */
   }
-  // &:focus,
-  // &:checked {
-
-  //   // border-color: transparent;
-  // }
+  &:active {
+    transform: scale(1) translateY(0px);
+  }
   &:checked {
-    background: $secondary;
-    color: $color0;
+    background: $foreground-secondary;
+    color: $background;
   }
+}
 
-  & .picture {
-    all: unset;
+button,
+.button {
+  @include button;
+}
+
+menubutton {
+  // background: transparent;
+  // font-size: 1em;
+  button {
+    background-color: black;
   }
 }
 
 .toggle {
   border: none;
   padding: 0px;
-  @extend .button;
+  @include button;
 }
 
 .dialog {
-  @extend .module;
+  @include module;
 }
 
 filechooserbutton * {
@@ -74,11 +76,9 @@ filechooserbutton * {
 }
 
 .danger {
-  background: $red;
-  color: $foreground;
   &:hover,
   &:checked {
-    background: rgba($red, 0.8); // Pre-calculated hover and checked state
+    background: $red;
   }
 }
 
@@ -99,6 +99,7 @@ filechooserbutton * {
 }
 
 entry {
+  all: unset;
   padding: $SCALE / $phi;
   border-radius: 10px;
   color: $foreground;
@@ -113,49 +114,59 @@ separator {
   border-top: 1px solid $tertiary;
 }
 
-// menu {
-//   @extend .module;
-//   border-radius: 0;
-//   background: $background;
-//   padding: 0;
-//   menuitem {
-//     border-radius: 0;
-//     padding: 0;
-//     margin: 0;
-//     &:hover {
-//       background: $secondary;
-//     }
-//   }
-// }
-
-levelbar {
+switch {
+  background-color: $background-secondary;
   margin: 0;
-  padding: 0;
+  padding: 5px;
+  slider {
+    background-color: $background;
+  }
+
+  &:checked {
+    background-color: $foreground-secondary;
+  }
+
+  &:checked slider {
+    background-color: white;
+  }
+}
+
+scale {
+  padding: 0px;
+
   trough {
     background: $background-transparent;
     color: black;
-    min-height: 5px; // Match slider's min-height
-    padding: 0px; // Match slider's padding
-    border-radius: 10px; // Match slider's border-radius
+    min-height: 10px;
+    padding: 0px;
 
-    .filled {
-      background: $secondary; // Match slider's highlight background
-      border-radius: 10px; // Match slider's border-radius
-      box-shadow: none; // Remove shadow to match slider
-      border: unset;
+    slider {
+      background: transparent;
+      min-height: 0px;
+      min-width: 0px;
+      margin: 0px;
+    }
+
+    highlight {
+      background: $secondary;
     }
   }
 
-  &:hover .filled {
-    background: $tertiary; // Match slider's hover highlight
+  &:hover highlight {
+    background: $foreground;
   }
 }
-switch {
-  @extend .module;
-  margin: 0;
-  padding: 0;
-  slider {
-    @extend .slider;
+
+.custom-revealer {
+  @include button;
+
+  .slider {
+    margin: 0px 5px;
+  }
+
+  .trigger {
+    // @include button;
+    padding: 0px 5px;
   }
 }
 
@@ -174,61 +185,45 @@ scrollbar {
   }
 }
 
-.switch {
-  @extend .module;
-  margin: 0;
-  padding: 0;
-  slider {
-    border-radius: 10px;
-    font-size: 0.9em;
-    margin: 5px;
-    background: mix($foreground, $secondary, $phi-min);
-  }
-}
-
-.slider {
-  padding: 0px;
-
-  trough {
-    background: $background-transparent;
-    color: black;
-    min-height: 6.9px;
-    padding: 0px;
-
-    slider {
-      background: transparent;
-      min-height: 0px;
-      min-width: 0px;
-      margin: 0px;
-    }
-
-    highlight {
-      background: $secondary;
-    }
-  }
-
-  &:hover highlight {
-    background: $tertiary;
-  }
-}
-
-.custom-revealer {
-  @extend .button;
-
-  .slider {
-    margin: 0px 5px;
-  }
-
-  .trigger {
-    // @extend .button;
-    padding: 0px 5px;
-  }
-}
-
 popover > * {
   all: unset;
 }
+.drag {
+  &:hover {
+    animation: grab-rotate infinite 0.2s ease-in-out;
+  }
 
-.image {
-  border-radius: 10px;
+  &:drop(active) {
+    background-color: $tertiary;
+    animation: grab-rotate infinite 0.2s ease-in-out;
+  }
+
+  @keyframes grab-rotate {
+    0% {
+      transform: rotate(0deg);
+    }
+    25% {
+      transform: rotate(10deg);
+    }
+    50% {
+      transform: rotate(0deg);
+    }
+    75% {
+      transform: rotate(-10deg);
+    }
+    100% {
+      transform: rotate(0deg);
+    }
+  }
+}
+
+scrolledwindow {
+  viewport {
+    border-radius: 10px;
+  }
+}
+
+flowbox > flowboxchild:first-child {
+  background-color: transparent; /* or your desired default color */
+  background-image: none; /* important if the theme uses background images for highlights */
 }

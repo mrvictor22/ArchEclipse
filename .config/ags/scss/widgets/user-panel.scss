@@ -1,22 +1,32 @@
 .user-panel {
   .main {
-    @extend .module;
+    @include module;
     padding: 1rem;
   }
 
   .player {
-    min-width: 200px;
+    min-width: 300px;
   }
   .middle {
     min-width: 300px;
   }
   .date {
-    @extend .module;
+    @include module;
     padding: 20px;
-    font-size: 3em;
+
+    .less {
+      font-size: 3em;
+    }
+
+    .more {
+      font-size: 1.5em;
+      .secondary {
+        color: $secondary;
+      }
+    }
   }
   .profile {
-    @extend .module;
+    @include module;
     padding: 33px;
 
     .profile-picture {
@@ -38,7 +48,7 @@
     button {
       min-height: 69px;
       min-width: 69px;
-      font-size: 3em;
+      font-size: 2em;
       background: $background-transparent;
       &:hover {
         background: $background;

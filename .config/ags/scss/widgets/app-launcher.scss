@@ -1,50 +1,21 @@
 .app-launcher {
-  @extend .module;
-  padding: 10px;
-  border-radius: 10px;
-  min-width: 500px;
+  @include module;
 
-  entry {
-    min-height: 36px;
-    padding: 8px 12px;
-    margin-bottom: 8px;
-    font-size: 14px;
-  }
+  min-width: 45em;
 
-  .help > * {
-    @extend .button;
-    font-size: $phi-min + em;
-    color: $secondary;
-  }
-
-  .quick-apps {
-    button {
-      padding: 6px;
-      &:focus {
-        background: $secondary;
-      }
+  .help {
+    popover {
+      @include module;
     }
   }
-
-  .icon {
-    margin: 5px 10px;
-  }
-
   .results {
     button {
-      padding: 10px;
+      padding: 1em;
       .argument {
         color: $secondary;
       }
       &:focus {
         background: $secondary;
-
-        // &.checked {
-        //   background: $secondary;
-        //   .argument {
-        //     color: white;
-        //   }
-        // }
       }
       &.checked {
         .argument {

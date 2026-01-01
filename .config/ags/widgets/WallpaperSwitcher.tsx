@@ -11,8 +11,13 @@ import { getMonitorName } from "../utils/monitor";
 import { hideWindow } from "../utils/window";
 import Picture from "./Picture";
 import Gio from "gi://Gio";
+import { Progress } from "./Progress";
+import { timeout } from "ags/time";
 
-const Hyprland = hyprland.get_default();
+// progress status
+const [progressStatus, setProgressStatus] = createState<
+  "loading" | "error" | "success" | "idle"
+>("idle");
 
 // State management
 const [selectedWorkspaceId, setSelectedWorkspaceId] = createState<number>(0);
@@ -26,7 +31,6 @@ const updateSelectedWorkspaceWidget = (workspaceId: number, widget: any) => {
 
 const targetTypes = ["workspace", "sddm", "lockscreen"];
 const [targetType, setTargetType] = createState<string>("workspace");
-const [wallpaperType, setWallpaperType] = createState<boolean>(false);
 
 const [allWallpapers, setAllWallpapers] = createState<string[]>([]);
 
@@ -49,6 +53,12 @@ const FetchWallpapers = async () => {
     print("Error fetching wallpapers: " + String(err));
   }
 };
+
+const [wallpaperType, setWallpaperType] = createState<boolean>(false);
+
+wallpaperType.subscribe(() => {
+  FetchWallpapers();
+});
 
 export function toThumbnailPath(file: string) {
   return file.replace(
@@ -77,7 +87,6 @@ function Display(monitor: string) {
           })}
           onClicked={(self) => {
             setTargetType("workspace");
-            (bottomRevealer as any).reveal_child = true;
             updateSelectedWorkspaceWidget(workspaceId, self);
           }}
           $={(self) => {
@@ -86,6 +95,7 @@ function Display(monitor: string) {
               updateSelectedWorkspaceWidget(workspaceId, self);
             }
           }}
+          tooltipMarkup={`Set wallpaper for <b>Workspace ${workspaceId}</b>`}
         >
           <Picture
             class="wallpaper"
@@ -96,9 +106,8 @@ function Display(monitor: string) {
     });
   };
 
-  const getAllWallpapers = () => (
+  const allWallpapersDisplay = (
     <Gtk.ScrolledWindow
-      class="all-wallpapers-scrolledwindow"
       hscrollbarPolicy={Gtk.PolicyType.ALWAYS}
       vscrollbarPolicy={Gtk.PolicyType.NEVER}
       hexpand
@@ -110,60 +119,78 @@ function Display(monitor: string) {
             return (
               <button
                 class="wallpaper-button preview"
-                onClicked={() => {
-                  const target = targetType.get();
-                  const command = {
-                    sddm: `pkexec sh -c 'sed -i "s|^background=.*|background=\"${wallpaper}\"|" /usr/share/sddm/themes/where_is_my_sddm_theme/theme.conf'`,
-                    lockscreen: `bash -c "cp ${wallpaper} $HOME/.config/wallpapers/lockscreen/wallpaper"`,
-                    workspace: `bash -c "$HOME/.config/hypr/hyprpaper/set-wallpaper.sh ${selectedWorkspaceId.get()} ${wallpaper} ${monitor}"`,
-                  }[target];
+                $={(self) => {
+                  const gesture = new Gtk.GestureClick({
+                    button: 0, // 0 = listen to all buttons
+                  });
 
-                  execAsync(command!)
-                    .then(() => {
-                      const picture = selectedWorkspaceWidget
-                        .get()
-                        .child.getPicture() as Gtk.Picture;
-                      if (target === "workspace" && picture) {
-                        picture.file = Gio.File.new_for_path(wallpaper);
-                        setSelectedWorkspaceWidget(picture);
-                      }
-                      notify({
-                        summary: target,
-                        body: `${target} wallpaper changed successfully!`,
-                      });
-                    })
-                    .catch(notify);
+                  gesture.connect("pressed", (gesture, nPress, x, y) => {
+                    if (gesture.get_current_button() === 1) {
+                      // Left click
+                      setProgressStatus("loading");
+                      const target = targetType.get();
+                      const command = {
+                        sddm: `pkexec sh -c 'sed -i "s|^background=.*|background=\"${wallpaper}\"|" /usr/share/sddm/themes/where_is_my_sddm_theme/theme.conf'`,
+                        lockscreen: `bash -c "cp ${wallpaper} $HOME/.config/wallpapers/lockscreen/wallpaper"`,
+                        workspace: `bash -c "$HOME/.config/hypr/hyprpaper/set-wallpaper.sh ${selectedWorkspaceId.get()} ${monitor} ${wallpaper}"`,
+                      }[target];
+
+                      execAsync(command!)
+                        .then(() => {
+                          const picture = selectedWorkspaceWidget
+                            .get()
+                            .child.getPicture() as Gtk.Picture;
+                          if (target === "workspace" && picture) {
+                            picture.file = Gio.File.new_for_path(wallpaper);
+                          }
+                        })
+                        .finally(() => {
+                          setProgressStatus("success");
+                        })
+                        .catch((err) => {
+                          setProgressStatus("error");
+                          notify({ summary: "Error", body: String(err) });
+                          throw err;
+                        });
+                    } else if (gesture.get_current_button() === 3) {
+                      // Right click
+                      setProgressStatus("loading");
+                      execAsync(
+                        `bash -c "rm -f '${toThumbnailPath(
+                          wallpaper
+                        )}' && rm -f '${wallpaper}'"`
+                      )
+                        .then(() =>
+                          notify({
+                            summary: "Success",
+                            body: "Wallpaper deleted successfully!",
+                          })
+                        )
+                        .catch((err) => {
+                          setProgressStatus("error");
+                          notify({ summary: "Error", body: String(err) });
+                          throw err;
+                        })
+                        .finally(() => {
+                          FetchWallpapers();
+                          setProgressStatus("success");
+                        });
+                    }
+                  });
+
+                  self.add_controller(gesture);
                 }}
+                tooltipMarkup={targetType(
+                  (type) =>
+                    "Click to set as <b>" +
+                    type +
+                    "</b> wallpaper.\nRight-click to delete."
+                )}
               >
                 <Picture
                   class="wallpaper"
                   file={toThumbnailPath(wallpaper)}
                 ></Picture>
-                {/* <button
-                  visible={wallpaperType.get()}
-                  class="delete-wallpaper"
-                  halign={Gtk.Align.END}
-                  valign={Gtk.Align.START}
-                  onClicked={() => {
-                    execAsync(
-                      `bash -c "rm -f '${toThumbnailPath(
-                        wallpaper
-                      )}' '${wallpaper}'"`
-                    )
-                      .then(() =>
-                        notify({
-                          summary: "Success",
-                          body: "Wallpaper deleted successfully!",
-                        })
-                      )
-                      .catch((err) =>
-                        notify({
-                          summary: "Error",
-                          body: String(err),
-                        })
-                      );
-                  }}
-                /> */}
               </button>
             );
           }}
@@ -200,6 +227,7 @@ function Display(monitor: string) {
       class="random-wallpaper"
       label=""
       onClicked={() => {
+        setProgressStatus("loading");
         const randomWallpaper =
           allWallpapers.get()[
             Math.floor(Math.random() * allWallpapers.get().length)
@@ -211,13 +239,18 @@ function Display(monitor: string) {
             const newWallpaper = JSON.parse(
               exec(`bash ./scripts/get-wallpapers.sh --current ${monitor}`)
             )[selectedWorkspaceId.get() - 1];
-            const widget = selectedWorkspaceWidget.get();
-            if (widget) {
-              widget.css = `background-image: url('${newWallpaper}');`;
-              setSelectedWorkspaceWidget(widget);
+            const picture = selectedWorkspaceWidget
+              .get()
+              .child.getPicture() as Gtk.Picture;
+            if (picture) {
+              picture.file = Gio.File.new_for_path(newWallpaper);
             }
+            setProgressStatus("success");
           })
-          .catch(notify);
+          .catch((err) => {
+            setProgressStatus("error");
+            notify({ summary: "Error", body: String(err) });
+          });
       }}
     />
   );
@@ -249,7 +282,13 @@ function Display(monitor: string) {
 
   const selectedWorkspaceLabel = (
     <label
-      class="button selected-workspace"
+      // class="selected-workspace"
+      class={createComputed(
+        [selectedWorkspaceId, targetType],
+        (workspace, targetType) =>
+          // set a timout to add a ping class and remove the class after 2 seconds
+          `selected-workspace }`
+      )}
       label={createComputed(
         [selectedWorkspaceId, targetType],
         (workspace, targetType) =>
@@ -257,6 +296,14 @@ function Display(monitor: string) {
             targetType === "workspace" ? workspace : ""
           }`
       )}
+      $={(self) =>
+        createComputed([selectedWorkspaceId, targetType]).subscribe(() => {
+          self.add_css_class("ping");
+          timeout(500, () => {
+            self.remove_css_class("ping");
+          });
+        })
+      }
     />
   );
 
@@ -290,37 +337,17 @@ function Display(monitor: string) {
   //   />
   // );
 
-  const bottomRevealer = (
-    <revealer
-      visible={true}
-      revealChild={false}
-      transitionType={Gtk.RevealerTransitionType.SWING_DOWN}
-      transitionDuration={globalTransition}
-    >
-      <box>{getAllWallpapers()}</box>
-    </revealer>
-  );
-
-  const revealButton = (
-    <togglebutton
-      valign={Gtk.Align.CENTER}
-      class="bottom-revealer-button"
-      label={""}
-      onToggled={(source) => {
-        (bottomRevealer as Gtk.Revealer).reveal_child = source.active;
-        source.label = source.active ? "" : "";
-      }}
-    />
-  );
-
   const actions = (
     <box class="actions" hexpand={true} halign={Gtk.Align.CENTER} spacing={10}>
       {targetButtons}
       {selectedWorkspaceLabel}
-      {revealButton}
       {customToggle}
       {randomButton}
       {resetButton}
+      <Progress
+        status={progressStatus}
+        transitionType={Gtk.RevealerTransitionType.SWING_RIGHT}
+      />
       {/* {addWallpaperButton} */}
     </box>
   );
@@ -335,9 +362,7 @@ function Display(monitor: string) {
         {currentWorkspaces}
       </box>
       {actions}
-      <box class="bottom" hexpand={true} vexpand={true}>
-        {bottomRevealer}
-      </box>
+      {allWallpapersDisplay}
     </box>
   );
 }
@@ -356,12 +381,11 @@ export default (monitor: any) => {
       application={app}
       visible={false}
       keymode={Astal.Keymode.ON_DEMAND}
-      // onKeysChanged={(self: any, event: any) => {
-      //   if (event.get_keyval()[1] === 65307) {
-      //     hideWindow(`wallpaper-switcher-${monitorName}`);
-      //     return true;
-      //   }
-      // }}
+      anchor={
+        Astal.WindowAnchor.LEFT |
+        Astal.WindowAnchor.BOTTOM |
+        Astal.WindowAnchor.RIGHT
+      }
     >
       {Display(monitorName)}
     </window>

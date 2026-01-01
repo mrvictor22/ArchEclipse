@@ -60,7 +60,6 @@ function BrightnessWidget() {
 
   const label = (
     <label
-      class="trigger"
       label={screen((v) => {
         switch (true) {
           case v > 0.75:
@@ -76,9 +75,14 @@ function BrightnessWidget() {
     />
   );
 
+  const percentage = (
+    <label label={screen((v: number) => `${Math.round(v * 100)}%`)} />
+  );
   return (
     <CustomRevealer
-      trigger={label}
+      trigger={
+        <box class="trigger" spacing={5} children={[label, percentage]} />
+      }
       child={slider}
       visible={screen((s) => s != 0)}
     />
@@ -317,24 +321,12 @@ function DndToggle() {
   );
 }
 
-function BarOrientation() {
-  return (
-    <button
-      onClicked={() => {
-        setBarOrientation(!barOrientation.get());
-      }}
-      class="bar-orientation icon"
-      label={barOrientation((orientation) => (!orientation ? "" : ""))}
-    />
-  );
-}
-
 export default ({
   monitorName,
   halign,
 }: {
   monitorName: string;
-  halign: Accessor<Gtk.Align>;
+  halign: Gtk.Align;
 }) => {
   return (
     <box class="bar-right" spacing={5} halign={halign} hexpand>
@@ -345,7 +337,6 @@ export default ({
       <Theme />
       <PinBar />
       <DndToggle />
-      <BarOrientation />
     </box>
   );
 };

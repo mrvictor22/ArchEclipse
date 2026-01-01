@@ -176,17 +176,36 @@ Then tell Claude Code to read the specific file.
 
 ## Syncing with Upstream
 
-### Commands
+### Upstream Integration Procedure (via Claude Code)
+
+**IMPORTANT:** All upstream integrations must follow this procedure:
+
+1. **Create integration branch** with naming convention:
+   ```
+   integration/upstream-sync-YYYYMMDD
+   ```
+
+2. **Fetch and analyze** upstream commits before merging
+
+3. **Merge with conflict detection** - never force merge
+
+4. **Verify AGS compilation** after merge
+
+5. **Ask user before creating PR**
+
+6. **NEVER include in commits:**
+   - `Co-Authored-By: Claude`
+   - `Generated with [Claude Code]`
+   - Any AI attribution markers
+
+### Manual Commands
 
 ```bash
-# Recommended: Automatic sync (preserves your changes)
-./sync-upstream-auto.sh
-
-# Interactive sync (more control)
-./sync-upstream.sh
-
-# Check for updates
+# Check for new upstream commits
 git fetch upstream && git log --oneline HEAD..upstream/master
+
+# View upstream changes
+git diff master..upstream/master --stat
 ```
 
 ### Update Script

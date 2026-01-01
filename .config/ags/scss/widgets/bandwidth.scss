@@ -1,12 +1,18 @@
 .bandwidth {
+  .bandwidth-button {
+    .packet {
+      // min-width: 25px;
+    }
+  }
+
   .bandwidth-popover {
     min-width: 400px;
   }
 
   .bandwidth-heading {
-    @extend .module;
+    @include module;
     font-weight: bold;
-    font-size: 16px;
+    font-size: 1.25em;
   }
 
   .bandwidth-section {
@@ -21,16 +27,16 @@
 
   .bandwidth-subheading {
     font-weight: bold;
-    font-size: 14px;
+    font-size: 1.1em;
     margin-bottom: 8px;
   }
 
   .bandwidth-label {
-    font-size: 11px;
+    font-size: 1em;
   }
 
   .bandwidth-value {
-    font-size: 13px;
+    font-size: 0.9em;
     font-weight: bold;
   }
 }

@@ -1,43 +1,27 @@
-import { Accessor, createComputed } from "ags";
+import { Accessor } from "ags";
+import Gdk from "gi://Gdk";
 import Gio from "gi://Gio?version=2.0";
 import Gtk from "gi://Gtk?version=4.0";
-
-// Helper to safely create Gio.File from path
-function safeGioFile(path: string | null | undefined): Gio.File | null {
-  if (!path || path.trim() === "") {
-    return null;
-  }
-  try {
-    return Gio.File.new_for_path(path);
-  } catch (e) {
-    console.error("Failed to create Gio.File for path:", path, e);
-    return null;
-  }
-}
 
 interface PictureProps {
   class?: Accessor<string> | string;
   height?: Accessor<number> | number;
   width?: Accessor<number> | number;
-  file: Accessor<string> | string;
+  file?: Accessor<string> | string;
+  paintable?: Accessor<Gdk.Texture> | Gdk.Texture;
   contentFit?: Gtk.ContentFit;
+  $?: (self: Gtk.Picture) => void;
 }
 export default function Picture({
-  class: className = "image",
+  class: className,
   height,
   width,
   file,
   contentFit = Gtk.ContentFit.COVER,
+  paintable,
+  $,
 }: PictureProps) {
   let pictureRef: Gtk.Picture | undefined;
-
-  // Create a computed binding that safely handles null/empty paths
-  const fileBinding = typeof file === "string"
-    ? safeGioFile(file)
-    : createComputed(() => {
-        const path = typeof file === "function" ? file() : null;
-        return safeGioFile(path);
-      });
 
   return (
     <overlay
@@ -61,8 +45,21 @@ export default function Picture({
     >
       <Gtk.Picture
         $type="overlay"
-        class={"picture " + className}
-        file={fileBinding}
+        class={"image " + className}
+        file={
+          file != undefined
+            ? typeof file === "string"
+              ? Gio.File.new_for_path(file)
+              : file!((f) => Gio.File.new_for_path(f))
+            : undefined
+        }
+        paintable={
+          paintable != undefined
+            ? typeof paintable === "object"
+              ? paintable
+              : paintable!((p) => p)
+            : undefined
+        }
         contentFit={contentFit}
         $={(self) => {
           // also capture directly (more reliable)

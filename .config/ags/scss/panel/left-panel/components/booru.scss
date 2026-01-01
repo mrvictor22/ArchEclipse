@@ -1,48 +1,51 @@
 .booru {
-  // .images-container {
-  //   position: relative;
-  // }
-
   .images {
     .image-button {
-      border-radius: 15px;
-      padding: 0px;
-
-      // &:hover {
-      //   box-shadow: 0px 0px 20px 10px white inset;
-      //   transition: all 0.2s;
-      // }
+      > button {
+        padding: 0px;
+      }
     }
   }
 
   .bottom {
     .bottom-bar {
+      @include module;
       background: $background-semi-transparent;
-
-      @extend .module;
       margin-top: 10px;
 
-      &:hover {
-        margin-bottom: 20px;
-      }
-
-      .clear {
-        @extend .danger;
-        font-size: 1em;
-      }
-      .tags {
-        padding-bottom: 10px;
-        .applied-tags {
-          .explicit {
-            background: $red;
-          }
-          button:hover {
-            background: $red;
-          }
+      .input {
+        @include module;
+        background: $background-semi-transparent;
+        entry {
+          background-color: transparent;
         }
-        .fetched-tags {
-          button:hover {
-            background: $green;
+
+        .clear {
+          @extend .danger;
+        }
+        .tags {
+          * {
+            font-size: 0.95em;
+          }
+
+          .separator {
+            border-top: 1px solid $secondary;
+          }
+
+          button.tag.rating {
+            &:hover {
+              background: $blue;
+            }
+          }
+          button.tag.enabled {
+            &:hover {
+              background: $red;
+            }
+          }
+          button.tag.fetched {
+            &:hover {
+              background: $green;
+            }
           }
         }
       }

@@ -110,6 +110,8 @@ export function WindowActions({
   setWindowLock,
   windowVisibility,
   setWindowVisibility,
+  maxPanelWidth = 1500,
+  minPanelWidth = 250,
 }: {
   windowName: string;
   windowWidth: Accessor<number>;
@@ -120,9 +122,10 @@ export function WindowActions({
   setWindowLock: (lock: boolean) => void;
   windowVisibility: Accessor<boolean>;
   setWindowVisibility: (visibility: boolean) => void;
+
+  maxPanelWidth?: number;
+  minPanelWidth?: number;
 }) {
-  const maxRightPanelWidth = 600;
-  const minRightPanelWidth = 250;
   return (
     <box
       class="window-actions"
@@ -138,7 +141,7 @@ export function WindowActions({
         onClicked={() => {
           const current = windowWidth.get();
           setWindowWidth(
-            current < maxRightPanelWidth ? current + 50 : maxRightPanelWidth
+            current < maxPanelWidth ? current + 50 : maxPanelWidth
           );
           queueResize(windowName);
         }}
@@ -149,7 +152,7 @@ export function WindowActions({
         onClicked={() => {
           const current = windowWidth.get();
           setWindowWidth(
-            current > minRightPanelWidth ? current - 50 : minRightPanelWidth
+            current > minPanelWidth ? current - 50 : minPanelWidth
           );
           queueResize(windowName);
         }}
@@ -157,7 +160,7 @@ export function WindowActions({
       <togglebutton
         label=""
         class="exclusivity"
-        active={!windowExclusivity}
+        active={windowExclusivity((exclusivity) => !exclusivity)}
         onToggled={({ active }) => {
           setWindowExclusivity(!active);
         }}

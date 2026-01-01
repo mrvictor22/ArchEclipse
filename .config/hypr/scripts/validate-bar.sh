@@ -62,8 +62,9 @@ validate_bar_geometry() {
         return 1
     fi
 
-    # Allow small margin difference (bars have margins)
-    local margin=20
+    # Allow margin difference (bars have dynamic margins: globalMargin ~16px or 5px)
+    # globalMargin = phi * 10 ≈ 16px per side = 32px total, plus some tolerance
+    local margin=50
     local min_expected=$((monitor_width - margin))
 
     if [ "$bar_width" -lt "$min_expected" ]; then

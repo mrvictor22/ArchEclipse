@@ -1,29 +1,47 @@
-import { createState } from "ags";
 import { execAsync } from "ags/process";
 import GLib from "gi://GLib?version=2.0";
+import { createState } from "ags";
 import Gtk from "gi://Gtk?version=4.0";
-import Pango from "gi://Pango?version=1.0";
+import Astal from "gi://Astal?version=4.0";
 import Notifd from "gi://AstalNotifd";
 import { globalTransition, NOTIFICATION_DELAY } from "../../../variables";
+import hyprland from "gi://AstalHyprland";
 import { notify } from "../../../utils/notification";
-import { time } from "../../../utils/time";
+import { asyncSleep, time } from "../../../utils/time";
+import { Eventbox } from "../../Custom/Eventbox";
+import Pango from "gi://Pango?version=1.0";
 import Picture from "../../Picture";
+import GdkPixbuf from "gi://GdkPixbuf?version=2.0";
+import Gdk from "gi://Gdk?version=4.0";
+const Hyprland = hyprland.get_default();
+
+// const isIcon = (icon: string) => !!Astal.Icon.lookup_icon(icon);
 
 const [wrapText, setWrapText] = createState<boolean>(false);
 
 const TRANSITION = 200;
 
-function NotificationIcon(n: Notifd.Notification): JSX.Element {
+function NotificationIcon(n: Notifd.Notification) {
+  function textureFromFile(path: string): Gdk.Texture | undefined {
+    try {
+      const pixbuf = GdkPixbuf.Pixbuf.new_from_file(path);
+      return Gdk.Texture.new_for_pixbuf(pixbuf);
+    } catch (e) {
+      print("Failed to load image:", e);
+    }
+  }
   const notificationIcon = n.image || n.app_icon || n.desktopEntry;
 
-  if (!notificationIcon) {
-    return (
-      <image iconName="dialog-information-symbolic" class="icon" />
-    );
+  if (notificationIcon.endsWith(".webp")) {
+    const texture = textureFromFile(notificationIcon);
+    return <Picture paintable={texture} />;
   }
 
+  if (!notificationIcon)
+    return <image class="icon" iconName={"dialog-information-symbolic"} />;
+
   return (
-    <Picture file={notificationIcon} class="icon" />
+    <Picture file={"/tmp/clipboard_image_20251229_112252.webp"} class="icon" /> //hardcoded for testing
   );
 }
 
@@ -31,14 +49,14 @@ function copyNotificationContent(n: Notifd.Notification) {
   if (n.appIcon) {
     execAsync(`bash -c "wl-copy --type image/png < '${n.appIcon}'"`)
       .finally(() => notify({ summary: "Copied", body: n.appIcon }))
-      .catch((err) => notify({ summary: "Error", body: String(err) }));
+      .catch((err) => notify({ summary: "Error", body: err }));
     return;
   }
 
   const content = n.body || n.app_name;
   if (!content) return;
   execAsync(`wl-copy "${content}"`).catch((err) =>
-    notify({ summary: "Error", body: String(err) })
+    notify({ summary: "Error", body: err })
   );
 }
 
@@ -56,13 +74,17 @@ export default ({
   onHide?: (hideFunc: () => void) => void;
 }) => {
   const [IsLocked, setIsLocked] = createState<boolean>(false);
-
-  let Revealer: Gtk.Revealer;
+  const [isEllipsized, setIsEllipsized] = createState<boolean>(true);
+  // IsLocked.subscribe((value) => {
+  //   if (!value)
+  //     GLib.timeout_add(GLib.PRIORITY_DEFAULT, NOTIFICATION_DELAY, () => {
+  //       if (!IsLocked.get() && isPopup) closeNotification();
+  //       return false;
+  //     });
+  // });
 
   async function closeNotification(dismiss = false) {
-    if (Revealer) {
-      Revealer.reveal_child = false;
-    }
+    (Revealer as Gtk.Revealer).reveal_child = false;
     GLib.timeout_add(GLib.PRIORITY_DEFAULT, globalTransition, () => {
       // Only dismiss from daemon when in history (not popup)
       // This keeps notifications in history even when popup is closed
@@ -76,7 +98,7 @@ export default ({
   }
 
   const icon = (
-    <box valign={Gtk.Align.CENTER} halign={Gtk.Align.CENTER} class="icon">
+    <box valign={Gtk.Align.START} halign={Gtk.Align.START} class="icon">
       {NotificationIcon(n)}
     </box>
   );
@@ -88,7 +110,7 @@ export default ({
       justify={Gtk.Justification.LEFT}
       maxWidthChars={24}
       wrap={true}
-      label={GLib.markup_escape_text(n.summary || "", -1)}
+      label={n.summary}
       useMarkup={true}
     />
   );
@@ -99,9 +121,32 @@ export default ({
       label={n.body}
       wrap={true}
       wrapMode={Pango.WrapMode.WORD_CHAR}
-      lines={2}
-      vexpand={false}
+      ellipsize={isEllipsized((ellipsized) =>
+        ellipsized ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE
+      )}
+      maxWidthChars={10}
+      singleLineMode={isEllipsized}
+      vexpand={false} // need height constraint to make wrap work
     />
+  );
+
+  const actions: Notifd.Action[] = n.actions;
+
+  const Actions = (
+    <box class="actions">
+      {actions.map((action) => {
+        return (
+          <button
+            hexpand
+            onClicked={() => {
+              n.invoke(action.id);
+            }}
+          >
+            <label label={action.label.split(":").at(-1)!} />
+          </button>
+        );
+      })}
+    </box>
   );
 
   const expand = (
@@ -109,16 +154,16 @@ export default ({
       class="expand"
       active={false}
       onToggled={(self) => {
-        setWrapText(self.active);
+        setIsEllipsized(!self.active);
       }}
-      label={wrapText((wrap) => (wrap ? "" : ""))}
+      label={isEllipsized((ellipsized) => (!ellipsized ? "" : ""))}
     />
   );
 
   const lockButton = (
     <togglebutton
       class="lock"
-      label=""
+      label=""
       onToggled={(self) => {
         setIsLocked(self.active);
       }}
@@ -128,7 +173,7 @@ export default ({
   const copyButton = (
     <button
       class="copy"
-      label=""
+      label=""
       onClicked={() => copyNotificationContent(n)}
     />
   );
@@ -136,7 +181,8 @@ export default ({
   const close = (
     <button
       class="close"
-      label=""
+      label=""
+      // sensitive={isPopup}
       onClicked={() => {
         closeNotification(true);
       }}
@@ -147,42 +193,43 @@ export default ({
     <box class="top-bar" spacing={5}>
       <box spacing={5}>
         <box visible={isPopup} class="circular-progress-box">
+          {/* {CircularProgress} */}
         </box>
         <label wrap={true} class="app-name" label={n.app_name} />
+
         {copyButton}
       </box>
       <box class={"separator"} hexpand />
       <box class="quick-actions">
+        {expand}
         {close}
+        {/* {expand} */}
       </box>
+
       <label halign={Gtk.Align.END} class="time" label={time(n.time)} />
     </box>
   );
 
   const Box = (
-    <box
-      class={`notification ${n.urgency} ${n.app_name}`}
-      hexpand
-      orientation={Gtk.Orientation.VERTICAL}
-    >
+    <box class={`notification`} hexpand orientation={Gtk.Orientation.VERTICAL}>
       {topBar}
-      <box spacing={5}>
+      <box class={"content"} spacing={5}>
         {icon}
         <box orientation={Gtk.Orientation.VERTICAL} spacing={5}>
           {title}
           {body}
         </box>
       </box>
+      {Actions}
     </box>
   );
 
-  const RevealerElement = (
+  const Revealer = (
     <revealer
       transitionType={Gtk.RevealerTransitionType.SWING_DOWN}
       transitionDuration={TRANSITION}
       reveal_child={!newNotification}
       $={(self) => {
-        Revealer = self;
         GLib.timeout_add(GLib.PRIORITY_DEFAULT, 1, () => {
           self.reveal_child = true;
           return false;
@@ -192,7 +239,6 @@ export default ({
       {Box}
     </revealer>
   );
-
   const Parent = (
     <box
       class="notification-parent"
@@ -214,7 +260,7 @@ export default ({
         }
       }}
     >
-      {RevealerElement}
+      {Revealer}
     </box>
   );
 

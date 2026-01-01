@@ -29,7 +29,7 @@ import { getMonitorName } from "../utils/monitor";
 import { LauncherApp } from "../interfaces/app.interface";
 import { customApps } from "../constants/app.constants";
 import { quickApps } from "../constants/app.constants";
-import { For } from "ags";
+import { For } from "gnim";
 import Gdk from "gi://Gdk?version=4.0";
 import { convert, isConversionQuery } from "../utils/convert";
 const hyprland = Hyprland.get_default();
@@ -37,7 +37,6 @@ const hyprland = Hyprland.get_default();
 const MAX_ITEMS = 10;
 
 const [Results, setResults] = createState<LauncherApp[]>([]);
-const [monitorName, setMonitorName] = createState<string>("");
 
 let parentWindowRef: Gtk.Window | null = null;
 
@@ -50,7 +49,7 @@ const QuickApps = () => {
     >
       <scrolledwindow heightRequest={quickApps.length * 40}>
         <box
-          class="quick-apps"
+          class="results quick-apps"
           spacing={5}
           orientation={Gtk.Orientation.VERTICAL}
         >
@@ -66,7 +65,7 @@ const QuickApps = () => {
               }}
             >
               <box spacing={5}>
-                <label class="icon" label={app.app_icon} />
+                <label widthRequest={24} label={app.app_icon} />
                 <label label={app.app_name} />
               </box>
             </Gtk.Button>
@@ -94,32 +93,40 @@ const helpCommands = {
 };
 
 const Help = () => (
-  <box class="help" spacing={5} orientation={Gtk.Orientation.VERTICAL}>
-    {Object.entries(helpCommands).map(([command, explanation]) => (
-      <box hexpand homogeneous>
-        <label class="command" label={command} halign={Gtk.Align.END} hexpand />
-        <label class="separator" label="=>>" halign={Gtk.Align.CENTER} />
-        <label
-          class="explanation"
-          label={explanation}
-          halign={Gtk.Align.START}
-          hexpand
-        />
+  <menubutton class="help" tooltipText="Help" halign={Gtk.Align.END}>
+    <label label="" />
+    <popover>
+      <box class="help-popover" spacing={5}>
+        <box orientation={Gtk.Orientation.VERTICAL} spacing={5}>
+          {Object.entries(helpCommands).map(([command, description]) => (
+            <box spacing={10}>
+              <label
+                label={command}
+                class="command"
+                // ellipsize={Gtk.EllipsizeMode.END}
+              />
+              <label
+                label={description}
+                class="description"
+                // ellipsize={Gtk.EllipsizeMode.END}
+              />
+            </box>
+          ))}
+        </box>
       </box>
-    ))}
-  </box>
+    </popover>
+  </menubutton>
 );
 
 let debounceTimer: any;
 let args: string[];
-// Map to track entry widgets per monitor
-const entryWidgets = new Map<string, any>();
+let entryWidget: any;
 
 const Entry = () => (
   <Gtk.Entry
     hexpand={true}
     placeholderText="Search for an app, emoji, translate, url, or do some math..."
-    $={(self) => entryWidgets.set(monitorName.get(), self)}
+    $={(self) => (entryWidget = self)}
     onChanged={async (self: any) => {
       const text = self.get_text();
       if (debounceTimer) {
@@ -265,10 +272,7 @@ const Entry = () => (
 );
 
 const EmptyEntry = () => {
-  const currentEntry = entryWidgets.get(monitorName.get());
-  if (currentEntry) {
-    currentEntry.set_text("");
-  }
+  entryWidget.set_text("");
   setResults([]);
 };
 
@@ -283,17 +287,16 @@ const launchApp = (app: LauncherApp) => {
 
 const ResultsDisplay = () => {
   const buttonContent = (element: LauncherApp) => (
-    <box
-      spacing={10}
-      halign={element.app_type === "emoji" ? Gtk.Align.CENTER : Gtk.Align.START}
-    >
-      {element.app_type === "app" ? (
-        <image iconName={element.app_icon} />
-      ) : (
-        <box />
-      )}
-      <label label={element.app_name} />
-      <label class="argument" label={element.app_arg || ""} />
+    <box spacing={10} hexpand>
+      {/* ICON SLOT — always present */}
+
+      <image visible={element.app_type === "app"} iconName={element.app_icon} />
+
+      {/* MAIN LABEL — expands */}
+      <label hexpand xalign={0} label={element.app_name} />
+
+      {/* ARGUMENT — fixed alignment */}
+      <label class="argument" xalign={1} label={element.app_arg || ""} />
     </box>
   );
 
@@ -355,19 +358,12 @@ const ResultsDisplay = () => {
   );
 };
 
-export default (monitor: any) => {
-  const currentMonitorName = getMonitorName(monitor.get_display(), monitor);
-  setMonitorName(currentMonitorName);
-
-  return (
+export default (monitor: any) => (
   <Astal.Window
     gdkmonitor={monitor}
-    name={`app-launcher-${currentMonitorName}`}
+    name={`app-launcher-${getMonitorName(monitor.get_display(), monitor)}`}
     namespace="app-launcher"
     application={app}
-    anchor={emptyWorkspace((empty) =>
-      empty ? Astal.WindowAnchor.NONE : Astal.WindowAnchor.TOP | Astal.WindowAnchor.LEFT
-    )}
     exclusivity={Astal.Exclusivity.EXCLUSIVE}
     keymode={Astal.Keymode.EXCLUSIVE}
     layer={Astal.Layer.TOP}
@@ -389,11 +385,12 @@ export default (monitor: any) => {
       class="app-launcher"
       spacing={5}
     >
-      {Entry()}
-      {ResultsDisplay()}
-      {QuickApps()}
-      {Help()}
+      <box spacing={5}>
+        <Entry />
+        <Help />
+      </box>
+      <ResultsDisplay />
+      <QuickApps />
     </box>
   </Astal.Window>
-  );
-};
+);

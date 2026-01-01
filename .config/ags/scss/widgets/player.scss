@@ -1,26 +1,16 @@
 .player {
-  @extend .module;
+  @include module;
   padding: 0px;
 
-  &.widget {
-    .bottom-bar:hover {
-      background-color: $background-secondary;
-      margin-bottom: 20px;
-    }
+  .bottom-bar {
+    background: $background-semi-transparent;
+    opacity: 0.9;
+    margin: 0px 5px 5px 5px;
 
-    .bottom-bar {
-      background: $background-semi-transparent;
-      padding: 5px;
-    }
-  }
-
-  &.popup {
-    min-width: 250px;
     &:hover {
       background-color: $background-secondary;
-    }
-    .img {
-      margin: 5px;
+      margin-bottom: 20px;
+      opacity: 1;
     }
   }
 
@@ -30,7 +20,7 @@
 
   .bottom-bar {
     border-radius: 10px;
-    margin: 0px 5px 5px 5px;
+    padding: 10px;
 
     .title {
       color: $secondary;
@@ -49,7 +39,6 @@
   }
 
   button {
-    padding: $SCALE - 10 $SCALE;
     background: transparent;
     &:hover {
       background: $background;

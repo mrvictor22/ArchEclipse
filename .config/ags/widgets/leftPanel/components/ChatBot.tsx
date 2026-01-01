@@ -26,8 +26,9 @@ const [messages, setMessages] = createState<Message[]>([]);
 const [chatHistory, setChatHistory] = createState<Message[]>([]);
 
 // Progress State
-const [isLoading, setIsLoading] = createState<boolean>(false);
-const [loadingText, setLoadingText] = createState<string>("...");
+const [progressStatus, setProgressStatus] = createState<
+  "loading" | "error" | "success" | "idle"
+>("idle");
 
 // image generation
 const [chatBotImageGeneration, setChatBotImageGeneration] =
@@ -111,10 +112,7 @@ const sendMessage = async (message: Message) => {
           .replace(/`/g, "\\`")}'` +
     ` '${escapedContent}'`;
   try {
-    setIsLoading(true);
-    setLoadingText(
-      chatBotImageGeneration.get() ? "Generating image..." : "Thinking..."
-    );
+    setProgressStatus("loading");
 
     const beginTime = Date.now();
 
@@ -134,10 +132,9 @@ const sendMessage = async (message: Message) => {
     };
 
     setMessages([...messages.get(), newMessage]);
-    setIsLoading(false);
+    setProgressStatus("success");
   } catch (error) {
-    setLoadingText("Error occurred.");
-    setIsLoading(false);
+    setProgressStatus("error");
     notify({
       summary: "Error",
       body: (error instanceof Error ? error.message : String(error)) + prompt,
@@ -146,17 +143,18 @@ const sendMessage = async (message: Message) => {
 };
 
 const ApiList = () => (
-  <box class="api-list" spacing={5}>
+  <box class="tab-list" spacing={5}>
     {chatBotApis.map((provider) => (
       <togglebutton
         hexpand
         active={chatBotApi((p) => p.name === provider.name)}
         class="provider"
-        label={provider.name}
         onToggled={({ active }) => {
           if (active) setChatBotApi(provider);
         }}
-      />
+      >
+        <label label={provider.name} ellipsize={Pango.EllipsizeMode.END} />
+      </togglebutton>
     ))}
   </box>
 );
@@ -179,7 +177,13 @@ const Info = () => (
   </box>
 );
 
-const MessageItem = ({ message }: { message: Message }) => {
+const MessageItem = ({
+  message,
+  islast = false,
+}: {
+  message: Message;
+  islast?: boolean;
+}) => {
   const [revealerVisible, setRevealerVisible] = createState(false);
   const Revealer = (
     <revealer
@@ -210,26 +214,6 @@ const MessageItem = ({ message }: { message: Message }) => {
     </revealer>
   );
 
-  const Actions = () => (
-    <box
-      class="actions"
-      spacing={5}
-      valign={Gtk.Align.END}
-      halign={message.sender === "user" ? Gtk.Align.END : Gtk.Align.START}
-      orientation={Gtk.Orientation.VERTICAL}
-    >
-      {[
-        <button
-          class="copy"
-          label=""
-          onClicked={() =>
-            execAsync(`wl-copy "${message.content}"`).catch(print)
-          }
-        />,
-      ]}
-    </box>
-  );
-
   const messageContent = (
     <box
       orientation={Gtk.Orientation.VERTICAL}
@@ -249,7 +233,7 @@ const MessageItem = ({ message }: { message: Message }) => {
 
   return (
     <box
-      class={`message ${message.sender}`}
+      class={`message ${message.sender} ${islast ? "last" : ""}`}
       orientation={Gtk.Orientation.VERTICAL}
       halign={
         message.image === undefined
@@ -259,11 +243,6 @@ const MessageItem = ({ message }: { message: Message }) => {
           : undefined
       }
     >
-      {/* <box class="main">
-        {message.sender !== "user"
-          ? [<Actions />, messageContent]
-          : [messageContent, <Actions />]}
-      </box> */}
       <Eventbox
         class="message-eventbox"
         onClick={(self, n, x, y) => {
@@ -309,8 +288,8 @@ const Messages = () => {
             orientation={Gtk.Orientation.VERTICAL}
             spacing={10}
           >
-            {msgs.map((msg) => (
-              <MessageItem message={msg} />
+            {msgs.map((msg, index) => (
+              <MessageItem message={msg} islast={index === msgs.length - 1} />
             ))}
           </box>
         )}
@@ -419,8 +398,7 @@ export default () => {
       <Messages />
       <box orientation={Gtk.Orientation.VERTICAL}>
         <Progress
-          text={loadingText}
-          revealed={isLoading}
+          status={progressStatus}
           transitionType={Gtk.RevealerTransitionType.SWING_DOWN}
           custom_class="booru-progress"
         />

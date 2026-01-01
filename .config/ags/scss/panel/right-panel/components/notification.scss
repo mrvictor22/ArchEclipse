@@ -1,5 +1,5 @@
 .notification {
-  @extend .module;
+  @include module;
   margin: 0px;
   padding: 5px;
   transition: opacity 0.5s ease-out; /* Adjust timing */
@@ -17,7 +17,7 @@
   }
 
   .top-bar {
-    padding: 0px 5px;
+    padding: 5px;
 
     border-radius: 5px;
     background: $background-transparent;
@@ -65,47 +65,39 @@
     }
   }
 
-  &.Spotify .app-name {
-    color: $spotify-foreground;
-  }
+  // &.Spotify .app-name {
+  //   color: $spotify-foreground;
+  // }
+  .content {
+    padding: 5px;
+    .image,
+    .icon {
+      font-size: 30px;
+      min-width: 50px;
+      min-height: 50px;
+      color: $secondary;
+    }
 
-  .image,
-  .icon {
-    font-size: 30px;
-    min-width: 50px;
-    min-height: 50px;
-    color: $secondary;
-  }
+    .title {
+      color: $secondary;
+      // font-size: 0.9em;
+    }
 
-  .title {
-    color: $secondary;
-    // font-size: 0.9em;
-  }
-
-  .body {
-    color: $foreground-secondary;
-    font-size: 0.9em;
+    .body {
+      color: $foreground-secondary;
+      font-size: 0.9em;
+    }
   }
   .actions {
     button {
-      // border-radius: 0px;
-      margin-top: 10px;
-      border-radius: 0px;
+      background-color: transparent;
+
+      &:hover {
+        background-color: $background-secondary;
+      }
 
       &.delete {
         @extend .danger;
-      }
-
-      &:first-child {
-        border-radius: 10px 0px 0px 10px;
-      }
-
-      &:only-child {
-        border-radius: 10px;
-      }
-
-      &:last-child {
-        border-radius: 0px 10px 10px 0px;
       }
     }
   }
@@ -124,16 +116,3 @@
   100% {
   }
 }
-
-.notification.normal {
-  // border: 1px solid rgb(255, 255, 0);
-}
-
-.notification.low {
-  // border: 1px solid rgb(255, 255, 0);
-  // border: 1px solid rgb(0, 0, 255);
-}
-
-// .notification.success {
-//   border: 1px solid rgb(0, 255, 0);
-// }

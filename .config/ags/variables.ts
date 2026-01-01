@@ -27,12 +27,8 @@ export const NOTIFICATION_DELAY = phi * 3000;
 const [globalSettings, _setGlobalSettings] =
   createState<Settings>(defaultSettings);
 
-print("Loading variables...1");
-
 // Initialize settings after creating the state
 autoCreateSettings(globalSettings.get(), setGlobalSettings);
-
-print("Loading variables...2");
 
 function setGlobalSettings(value: Settings) {
   _setGlobalSettings(value);
@@ -58,16 +54,6 @@ function setGlobalOpacity(value: AGSSetting) {
 }
 
 export { globalOpacity, setGlobalOpacity };
-
-const [globalIconSize, _setGlobalIconSize] = createState<AGSSetting>(
-  getSetting("globalIconSize", globalSettings.get())
-);
-function setGlobalIconSize(value: AGSSetting) {
-  _setGlobalIconSize(value);
-  setSetting("globalIconSize", value, globalSettings, setGlobalSettings);
-  refreshCss();
-}
-export { globalIconSize, setGlobalIconSize };
 
 const [globalScale, _setGlobalScale] = createState<AGSSetting>(
   getSetting("globalScale", globalSettings.get())
@@ -117,7 +103,6 @@ function setGlobalTheme(value: boolean) {
 }
 export { globalTheme, setGlobalTheme };
 
-export const globalMargin = phi * 10;
 export const globalTransition = phi * 300;
 
 const [dateFormat, _setDateFormat] = createState<string>(
@@ -131,11 +116,11 @@ export const date_less = createPoll(
 export const date_more = createPoll(
   "",
   phi * 1000,
-  () => GLib.DateTime.new_now_local().format(":%S %b %e, %A.")!
+  () => GLib.DateTime.new_now_local().format(" %b %e, %A. ")!
 );
 function setDateFormat(value: string) {
   _setDateFormat(value);
-  setSetting("date.format", value, globalSettings, setGlobalSettings);
+  setSetting("dateFormat", value, globalSettings, setGlobalSettings);
 }
 export { dateFormat, setDateFormat };
 
@@ -157,12 +142,12 @@ function setBarLock(value: boolean) {
 }
 export { barLock, setBarLock };
 
-const [barOrientation, _setBarOrientation] = createState<boolean>(
+const [barOrientation, _setBarOrientation] = createState<AGSSetting>(
   getSetting("bar.orientation", globalSettings.get())
 );
-function setBarOrientation(value: boolean) {
-  _setBarOrientation(value);
-  setSetting("bar.orientation", value, globalSettings, setGlobalSettings);
+function setBarOrientation(setting: AGSSetting) {
+  _setBarOrientation(setting);
+  setSetting("bar.orientation", setting, globalSettings, setGlobalSettings);
 }
 export { barOrientation, setBarOrientation };
 
@@ -196,6 +181,8 @@ export { waifuCurrent, setWaifuCurrent };
 export const focusedClient = createBinding(hyprland, "focusedClient");
 export const emptyWorkspace = focusedClient((client) => !client);
 export const focusedWorkspace = createBinding(hyprland, "focusedWorkspace");
+
+export const globalMargin = emptyWorkspace((empty) => (empty ? 20 : 5));
 
 export const [newAppWorkspace, setNewAppWorkspace] = createState(0);
 
@@ -348,6 +335,15 @@ function setBooruPage(value: number) {
   setSetting("booru.page", value, globalSettings, setGlobalSettings);
 }
 export { booruPage, setBooruPage };
+
+const [booruColumns, _setBooruColumns] = createState<number>(
+  getSetting("booru.columns", globalSettings.get())
+);
+function setBooruColumns(value: number) {
+  _setBooruColumns(value);
+  setSetting("booru.columns", value, globalSettings, setGlobalSettings);
+}
+export { booruColumns, setBooruColumns };
 
 const [booruBookMarkWaifus, _setBooruBookMarkWaifus] = createState<Waifu[]>(
   getSetting("booru.bookMarkWaifus", globalSettings.get())

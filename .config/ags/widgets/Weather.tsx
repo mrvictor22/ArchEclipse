@@ -32,7 +32,6 @@ export default () => {
     hourly: any;
   }
   // Poll every 10 minutes (600,000 ms)
-  print(``);
   const weather = createPoll(
     null,
     600000,
@@ -399,7 +398,7 @@ export default () => {
                   <Eventbox
                     onClick={() =>
                       GLib.spawn_command_line_async(
-                        "xdg-open 'https://open-meteo.com/')"
+                        "xdg-open 'https://open-meteo.com/'"
                       )
                     }
                   >

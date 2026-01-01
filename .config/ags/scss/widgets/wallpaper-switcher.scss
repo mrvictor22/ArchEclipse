@@ -1,10 +1,5 @@
 .wallpaper-switcher {
-  min-width: 1400px;
-  min-height: 150px;
-  @extend .module;
-  padding: 10px 50px;
-  border-radius: 50px;
-  border: 1px solid $secondary;
+  @include module;
 
   .wallpaper {
     border-radius: 10px;
@@ -24,7 +19,7 @@
 
     &.preview {
       min-height: 100px;
-      min-width: 50px;
+      min-width: 75px;
       &:hover {
         min-width: 150px;
       }
@@ -38,8 +33,21 @@
   }
   .actions {
     .selected-workspace {
-      color: $secondary;
-      border-radius: 50px;
+      @include button;
+      &.ping {
+        animation: ping 0.5s ease-out;
+        @keyframes ping {
+          0% {
+            transform: scale(1);
+          }
+          50% {
+            transform: scale(1.1);
+          }
+          100% {
+            transform: scale(1);
+          }
+        }
+      }
     }
     .targets {
       button {
@@ -57,14 +65,7 @@
     }
   }
 
-  .all-wallpapers-scrollable {
-    padding: 0px 50px;
-    border-radius: 10px;
-    min-height: 75px;
-  }
-
-  .all-wallpapers {
-    padding: 0px;
-    margin: 0px;
+  .no-wallpaper {
+    background-color: $background;
   }
 }

@@ -39,6 +39,7 @@ const WidgetActions = () => {
                 setLeftPanelWidget(widgetSelector);
               }
             }}
+            tooltipMarkup={`Click to select\n<b>${widgetSelector.name}</b>`}
           />
         );
       })}
@@ -63,6 +64,8 @@ const Actions = ({ monitorName }: { monitorName: string }) => (
       setWindowLock={setLeftPanelLock}
       windowVisibility={leftPanelVisibility}
       setWindowVisibility={setLeftPanelVisibility}
+      maxPanelWidth={1500}
+      minPanelWidth={300}
     />
   </box>
 );
@@ -121,13 +124,11 @@ export default (monitor: Gdk.Monitor) => {
       exclusivity={leftPanelExclusivity((exclusivity) =>
         exclusivity ? Astal.Exclusivity.EXCLUSIVE : Astal.Exclusivity.NORMAL
       )}
-      layer={leftPanelExclusivity((exclusivity) =>
-        exclusivity ? Astal.Layer.BOTTOM : Astal.Layer.TOP
-      )}
-      margin={leftPanelExclusivity((exclusivity) =>
-        exclusivity ? 0 : globalMargin
-      )}
+      layer={Astal.Layer.TOP}
       keymode={Astal.Keymode.ON_DEMAND}
+      marginTop={5}
+      marginLeft={globalMargin}
+      marginBottom={5}
       visible={leftPanelVisibility}
       $={(self) => {
         // Keyboard controller for Escape key (GTK4 compatible)
@@ -188,7 +189,8 @@ export function LeftPanelVisibility() {
         active={leftPanelVisibility}
         label={leftPanelVisibility((v) => (v ? "" : ""))}
         onToggled={({ active }) => setLeftPanelVisibility(active)}
-        class="panel-trigger icon"
+        class="panel-trigger"
+        tooltipText={"SUPER + L"}
       />
     </revealer>
   );
