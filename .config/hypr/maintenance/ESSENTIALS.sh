@@ -204,25 +204,14 @@ continue_prompt() {
         echo -e "${CYAN}${BOLD}$1${RESET} ${GREEN}[Y]${RESET}/${RED}[N]${RESET}: "
         read -p "" choice
         case "$choice" in
-<<<<<<< HEAD
-        [Yy]*)
-            echo -e "${GREEN}Great! Continuing...${RESET}"
-            $2
-            return 0
-            ;;
-        [Nn]*)
-            echo -e "${RED}Okay, skipping this step...${RESET}"
-            return 1
-=======
             [Yy]*)
                 echo -e "${GREEN}Great! Continuing...${RESET}"
                 $2
-                break
+                return 0
             ;;
             [Nn]*)
-                echo -e "${RED}Okay, exiting...${RESET}"
-                break
->>>>>>> da27a437 (feat: Update window rules and configuration scripts for improved functionality and consistency)
+                echo -e "${RED}Okay, skipping this step...${RESET}"
+                return 1
             ;;
             *) echo -e "${RED}Please answer with Y or N.${RESET}" ;;
         esac
