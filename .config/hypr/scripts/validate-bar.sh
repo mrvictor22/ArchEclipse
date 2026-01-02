@@ -134,9 +134,9 @@ restart_ags() {
         sleep 1
     fi
 
-    # Start AGS with explicit GTK version
+    # Start AGS with explicit GTK version (GDK_BACKEND=wayland for multi-monitor)
     log "Starting AGS..."
-    ags run --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
+    GDK_BACKEND=wayland ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
 
     # Wait for AGS to initialize
     sleep 3

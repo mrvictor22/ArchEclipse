@@ -54,10 +54,10 @@ restart_ags() {
         sleep 1
     fi
     
-    # Restart AGS
+    # Restart AGS (GDK_BACKEND=wayland required for gtk4-layer-shell multi-monitor)
     log "Starting AGS"
     killall gjs 2>/dev/null || true
-    ags run --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
+    GDK_BACKEND=wayland ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
     
     # Give it a moment to start
     sleep 1
