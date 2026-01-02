@@ -25,18 +25,49 @@ handle_lid() {
     fi
 }
 
-# Monitor lid events using acpi_listen
+# Get current lid state
+get_lid_state() {
+    if [ -f "/proc/acpi/button/lid/LID/state" ]; then
+        cat /proc/acpi/button/lid/LID/state | awk '{print $2}'
+    elif [ -f "/proc/acpi/button/lid/LID0/state" ]; then
+        cat /proc/acpi/button/lid/LID0/state | awk '{print $2}'
+    else
+        echo "unknown"
+    fi
+}
+
+# Monitor lid events using acpi_listen (preferred) or polling (fallback)
 monitor_lid_events() {
     log "Starting lid event monitoring"
-    
-    acpi_listen | while read -r event; do
-        case "$event" in
-            *"button/lid"*)
-                log "Lid event received: $event"
+
+    # Try acpi_listen first (more efficient)
+    if command -v acpi_listen &>/dev/null; then
+        log "Using acpi_listen for lid events"
+        acpi_listen | while read -r event; do
+            case "$event" in
+                *"button/lid"*)
+                    log "Lid event received: $event"
+                    handle_lid
+                    ;;
+            esac
+        done
+    else
+        # Fallback to polling /proc/acpi/button/lid
+        log "acpi_listen not available, using polling fallback"
+        local last_state=$(get_lid_state)
+        log "Initial lid state: $last_state"
+
+        while true; do
+            sleep 2
+            local current_state=$(get_lid_state)
+
+            if [ "$current_state" != "$last_state" ]; then
+                log "Lid state changed: $last_state -> $current_state"
+                last_state="$current_state"
                 handle_lid
-                ;;
-        esac
-    done
+            fi
+        done
+    fi
 }
 
 # Check if running as systemd service or standalone
