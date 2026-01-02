@@ -311,7 +311,8 @@ class MangaDexProvider(MangaProvider):
         )
 
     def get_chapters(self, manga_id: str) -> List[Chapter]:
-        data = self._get(f"/manga/{manga_id}/feed", {"translatedLanguage[]": "en"})
+        # Support English and Spanish (es = Spain, es-la = Latin America)
+        data = self._get(f"/manga/{manga_id}/feed", {"translatedLanguage[]": ["en", "es", "es-la"]})
         chapters = []
         for item in data["data"]:
             attr = item["attributes"]

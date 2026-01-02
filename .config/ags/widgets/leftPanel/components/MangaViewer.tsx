@@ -22,8 +22,13 @@ const [progressStatus, setProgressStatus] = createState<
 const [searchQuery, setSearchQuery] = createState<string>("");
 const [initialized, setInitialized] = createState(false);
 const [bottomIsRevealed, setBottomIsRevealed] = createState<boolean>(false);
+const [isLoadingPages, setIsLoadingPages] = createState<boolean>(false);
 
 const scriptPath = "./scripts/manga.py";
+
+// Limit error notifications to avoid spam
+let lastErrorTime = 0;
+const ERROR_THROTTLE_MS = 5000;
 
 const fetchPopular = async () => {
   setProgressStatus("loading");
@@ -92,7 +97,11 @@ const fetchPages = async (chapterId: string) => {
 };
 
 const loadMorePages = async () => {
+  // Prevent concurrent loading
+  if (isLoadingPages.get()) return;
+
   try {
+    setIsLoadingPages(true);
     const currentLoaded = loadedPages.get();
     const allPages = pages.get();
 
@@ -103,7 +112,11 @@ const loadMorePages = async () => {
 
     print(allPages.length, currentLoaded.length, nextPages.length);
 
-    if (nextPages.length === 0) return;
+    if (nextPages.length === 0) {
+      setIsLoadingPages(false);
+      return;
+    }
+
     const newLoaded = [];
     for (const page of nextPages) {
       const fetchedPage = await fetchPage(page.url);
@@ -113,7 +126,14 @@ const loadMorePages = async () => {
     }
     setLoadedPages([...currentLoaded, ...newLoaded]);
   } catch (err) {
-    notify({ summary: "Error", body: String(err) });
+    // Throttle error notifications
+    const now = Date.now();
+    if (now - lastErrorTime > ERROR_THROTTLE_MS) {
+      lastErrorTime = now;
+      notify({ summary: "Error", body: String(err) });
+    }
+  } finally {
+    setIsLoadingPages(false);
   }
 };
 
@@ -127,7 +147,12 @@ const fetchPage = async (pageUrl: string) => {
     setProgressStatus("success");
     return data;
   } catch (err) {
-    notify({ summary: "Error", body: String(err) });
+    // Throttle error notifications
+    const now = Date.now();
+    if (now - lastErrorTime > ERROR_THROTTLE_MS) {
+      lastErrorTime = now;
+      notify({ summary: "Error loading page", body: String(err) });
+    }
     setProgressStatus("error");
     return null;
   }
