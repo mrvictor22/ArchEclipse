@@ -71,18 +71,32 @@ This layered approach allows pulling upstream updates while preserving local cus
 
 ### Important: AGS 3.0 Compatibility
 
-AGS was upgraded to version 3.0.0, which requires explicit GTK version specification. All AGS startup commands MUST include `--gtk 3` flag:
+AGS was upgraded to version 3.0.0, which requires explicit GTK version specification and proper library loading order.
+
+**Required environment variables for AGS:**
 
 ```bash
-ags run --gtk 3 --log-file /tmp/ags.log
+LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland ags run --gtk 3 --log-file /tmp/ags.log
 ```
+
+**Why LD_PRELOAD is required:**
+- gtk4-layer-shell uses a shim to intercept libwayland calls
+- If libwayland loads before gtk4-layer-shell, the shim doesn't work
+- This causes `gtk_layer_is_supported()` to return `false` and bars won't appear
+- LD_PRELOAD forces gtk4-layer-shell to load first, ensuring proper layer shell support
+
+**Symptoms of missing LD_PRELOAD:**
+- Bars don't appear on any monitor
+- Log shows: `layer shell not supported`
+- Log shows: `GtkWindow is not a layer surface`
+- `gtk_layer_is_supported()` returns `false` even though Hyprland supports layer shell
 
 This applies to:
 - `configs/exec.conf` (startup)
 - `scripts/monitor-hotplug.sh` (automatic restart)
 - `scripts/multi-monitor-manager.sh` (manual restart)
 - `scripts/bar.sh` (bar management)
-- `configs/multi-monitor-keybinds.conf` (Super+Shift+B keybind)
+- `scripts/validate-bar.sh` (bar validation)
 
 ## Workspace State Preservation (KVM Support)
 

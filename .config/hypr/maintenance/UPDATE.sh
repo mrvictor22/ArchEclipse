@@ -123,6 +123,7 @@ ${BOLD}Options:${RESET}
     ${GREEN}--clean${RESET}     Clean system caches only
     ${GREEN}--services${RESET}  Verify Hyprland services only
     ${GREEN}--rebuild-ags${RESET} Check and rebuild AGS/libastal if needed
+    ${GREEN}--verify-layer-shell${RESET} Test gtk4-layer-shell functionality
     ${GREEN}--help, -h${RESET}  Show this help message
 
 ${BOLD}Examples:${RESET}
@@ -391,7 +392,8 @@ check_ags_rebuild_needed() {
 
             if [ $exit_code -eq 0 ]; then
                 log "Reconstrucción completada"
-                info "Reinicia AGS para aplicar los cambios: pkill ags && ags run --gtk 3"
+                info "Reinicia AGS para aplicar los cambios:"
+                info "  pkill gjs && LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland ags run --gtk 3"
                 UPDATES_PERFORMED+=1
             fi
         else
@@ -400,6 +402,70 @@ check_ags_rebuild_needed() {
         fi
     else
         log "libastal-4-git está actualizado, no requiere reconstrucción"
+    fi
+}
+
+#------------------------------------------------------------------------------
+# gtk4-layer-shell Functionality Check
+#------------------------------------------------------------------------------
+# Verifies that gtk4-layer-shell is working correctly by testing is_supported().
+# This catches issues where libwayland loads before gtk4-layer-shell's shim.
+
+verify_gtk4_layer_shell() {
+    header "Verificando gtk4-layer-shell"
+
+    if ! command_exists python3; then
+        warn "Python3 no está instalado, omitiendo verificación"
+        return 0
+    fi
+
+    if ! pacman -Q gtk4-layer-shell &>/dev/null; then
+        warn "gtk4-layer-shell no está instalado"
+        return 0
+    fi
+
+    subheader "Probando gtk4_layer_is_supported()..."
+
+    # Test WITHOUT LD_PRELOAD (should fail on affected systems)
+    local result_without=$(timeout 5 env GDK_BACKEND=wayland python3 -c '
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gtk4LayerShell
+Gtk.init()
+print("TRUE" if Gtk4LayerShell.is_supported() else "FALSE")
+' 2>/dev/null || echo "ERROR")
+
+    # Test WITH LD_PRELOAD (should always work)
+    local result_with=$(timeout 5 env LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland python3 -c '
+import gi
+gi.require_version("Gtk", "4.0")
+gi.require_version("Gtk4LayerShell", "1.0")
+from gi.repository import Gtk, Gtk4LayerShell
+Gtk.init()
+print("TRUE" if Gtk4LayerShell.is_supported() else "FALSE")
+' 2>/dev/null || echo "ERROR")
+
+    echo "  Sin LD_PRELOAD: $result_without"
+    echo "  Con LD_PRELOAD: $result_with"
+    echo ""
+
+    if [ "$result_with" = "TRUE" ]; then
+        if [ "$result_without" = "TRUE" ]; then
+            log "gtk4-layer-shell funciona correctamente (sin necesidad de LD_PRELOAD)"
+        else
+            warn "gtk4-layer-shell requiere LD_PRELOAD para funcionar"
+            info "Los scripts de AGS ya incluyen LD_PRELOAD, esto es normal."
+            info "Si las barras no aparecen, verifica que los scripts usen:"
+            info "  LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland ags run --gtk 3"
+        fi
+    else
+        error "gtk4-layer-shell NO funciona correctamente"
+        error "Posibles soluciones:"
+        error "  1. Reconstruir gtk4-layer-shell: yay -S --rebuild gtk4-layer-shell"
+        error "  2. Reconstruir libastal-4-git: yay -S --rebuild libastal-4-git"
+        error "  3. Reiniciar sesión de Hyprland"
+        UPDATES_FAILED+=1
     fi
 }
 
@@ -746,6 +812,9 @@ main() {
             --rebuild-ags)
                 SPECIFIC_MODE="rebuild-ags"
                 ;;
+            --verify-layer-shell)
+                SPECIFIC_MODE="verify-layer-shell"
+                ;;
             --help|-h)
                 show_help
                 ;;
@@ -804,18 +873,23 @@ main() {
             rebuild-ags)
                 check_ags_rebuild_needed
                 ;;
+            verify-layer-shell)
+                verify_gtk4_layer_shell
+                ;;
         esac
     elif [ "$QUICK_MODE" = true ]; then
         # Quick mode: AUR + flatpak + AGS rebuild check
         cleanup_package_managers
         update_aur_packages
         check_ags_rebuild_needed
+        verify_gtk4_layer_shell
         update_flatpak
     elif [ "$AUTO_MODE" = true ]; then
         # Full auto mode
         cleanup_package_managers
         update_aur_packages
         check_ags_rebuild_needed
+        verify_gtk4_layer_shell
         update_flatpak
         update_snap
         update_pip_packages
