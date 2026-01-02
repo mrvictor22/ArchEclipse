@@ -474,6 +474,25 @@ chatBot: {
 6. WallpaperSwitcher - FileChooser section
 7. Progress - loading bars commented
 8. UserPanel WIP section
+9. MangaViewer - needs architectural improvements (see below)
+
+### MangaViewer TODO
+
+The MangaViewer widget needs significant improvements:
+
+**Current Issues:**
+- Downloads all pages locally (consumes disk space and memory)
+- No cache size limit or automatic cleanup
+- Can cause system freeze due to memory consumption
+- Multiple concurrent downloads without proper throttling
+
+**Proposed Improvements:**
+1. Stream images directly instead of downloading to disk
+2. Implement LRU cache with configurable size limit
+3. Add automatic cleanup of old cached pages
+4. Lazy load with virtualized list (only render visible pages)
+5. Add download progress indicator
+6. Consider using a dedicated manga reader app integration instead
 
 ### Notes
 
