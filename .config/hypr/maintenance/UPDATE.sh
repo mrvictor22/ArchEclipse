@@ -122,6 +122,7 @@ ${BOLD}Options:${RESET}
     ${GREEN}--rice${RESET}      Run rice maintenance scripts only (wallpapers, wal, plugins)
     ${GREEN}--clean${RESET}     Clean system caches only
     ${GREEN}--services${RESET}  Verify Hyprland services only
+    ${GREEN}--rebuild-ags${RESET} Check and rebuild AGS/libastal if needed
     ${GREEN}--help, -h${RESET}  Show this help message
 
 ${BOLD}Examples:${RESET}
@@ -294,6 +295,111 @@ update_aur_packages() {
     if pacman -Q agsv1 &>/dev/null; then
         warn "Eliminando paquete obsoleto agsv1..."
         $aur_helper -Rns agsv1 --noconfirm 2>/dev/null || true
+    fi
+}
+
+#------------------------------------------------------------------------------
+# AGS/Libastal Rebuild Check
+#------------------------------------------------------------------------------
+# gtk4-layer-shell requires libastal-4-git to be rebuilt when gtk4 is updated.
+# This function detects if critical dependencies were updated and triggers
+# a rebuild of AGS-related AUR packages.
+
+check_ags_rebuild_needed() {
+    header "Verificando Reconstrucción de AGS"
+
+    local aur_helper=$(detect_aur_helper)
+    local rebuild_needed=false
+    local rebuild_packages=("libastal-4-git" "libastal-git" "aylurs-gtk-shell")
+
+    # Get build dates
+    local libastal4_build=$(pacman -Qi libastal-4-git 2>/dev/null | grep "Build Date" | cut -d: -f2- | xargs)
+    local gtk4_install=$(pacman -Qi gtk4 2>/dev/null | grep "Install Date" | cut -d: -f2- | xargs)
+    local gtk4_layer_install=$(pacman -Qi gtk4-layer-shell 2>/dev/null | grep "Install Date" | cut -d: -f2- | xargs)
+    local hyprland_install=$(pacman -Qi hyprland 2>/dev/null | grep "Install Date" | cut -d: -f2- | xargs)
+
+    if [ -z "$libastal4_build" ]; then
+        info "libastal-4-git no está instalado, omitiendo verificación"
+        return 0
+    fi
+
+    # Convert dates to timestamps for comparison
+    local libastal4_ts=$(date -d "$libastal4_build" +%s 2>/dev/null || echo 0)
+    local gtk4_ts=$(date -d "$gtk4_install" +%s 2>/dev/null || echo 0)
+    local gtk4_layer_ts=$(date -d "$gtk4_layer_install" +%s 2>/dev/null || echo 0)
+    local hyprland_ts=$(date -d "$hyprland_install" +%s 2>/dev/null || echo 0)
+
+    subheader "Fechas de instalación/compilación:"
+    echo "  libastal-4-git (build): $libastal4_build"
+    echo "  gtk4 (install):         $gtk4_install"
+    echo "  gtk4-layer-shell:       $gtk4_layer_install"
+    echo "  hyprland:               $hyprland_install"
+    echo ""
+
+    # Check if any critical package was installed AFTER libastal was built
+    if [ $gtk4_ts -gt $libastal4_ts ]; then
+        warn "gtk4 fue actualizado después de compilar libastal-4-git"
+        rebuild_needed=true
+    fi
+
+    if [ $gtk4_layer_ts -gt $libastal4_ts ]; then
+        warn "gtk4-layer-shell fue actualizado después de compilar libastal-4-git"
+        rebuild_needed=true
+    fi
+
+    if [ $hyprland_ts -gt $libastal4_ts ]; then
+        warn "hyprland fue actualizado después de compilar libastal-4-git"
+        rebuild_needed=true
+    fi
+
+    if [ "$rebuild_needed" = true ]; then
+        echo ""
+        warn "Se detectó que paquetes críticos fueron actualizados."
+        warn "Esto puede causar que gtk4-layer-shell no funcione correctamente."
+        warn "Es necesario reconstruir: ${rebuild_packages[*]}"
+        echo ""
+
+        local do_rebuild=false
+        if [ "$AUTO_MODE" = true ]; then
+            do_rebuild=true
+        else
+            if continue_prompt "¿Reconstruir paquetes AGS/libastal ahora?"; then
+                do_rebuild=true
+            fi
+        fi
+
+        if [ "$do_rebuild" = true ]; then
+            info "Reconstruyendo paquetes AUR..."
+            local exit_code=0
+
+            for pkg in "${rebuild_packages[@]}"; do
+                if pacman -Q "$pkg" &>/dev/null; then
+                    subheader "Reconstruyendo $pkg..."
+                    if [ "$AUTO_MODE" = true ]; then
+                        $aur_helper -S --rebuild --noconfirm "$pkg" || exit_code=$?
+                    else
+                        $aur_helper -S --rebuild "$pkg" || exit_code=$?
+                    fi
+
+                    if [ $exit_code -ne 0 ]; then
+                        handle_error $exit_code "Rebuild $pkg" "Ver output arriba"
+                    else
+                        log "$pkg reconstruido correctamente"
+                    fi
+                fi
+            done
+
+            if [ $exit_code -eq 0 ]; then
+                log "Reconstrucción completada"
+                info "Reinicia AGS para aplicar los cambios: pkill ags && ags run --gtk 3"
+                UPDATES_PERFORMED+=1
+            fi
+        else
+            warn "Reconstrucción omitida. gtk4-layer-shell puede no funcionar."
+            UPDATES_SKIPPED+=1
+        fi
+    else
+        log "libastal-4-git está actualizado, no requiere reconstrucción"
     fi
 }
 
@@ -523,6 +629,13 @@ interactive_mode() {
         UPDATES_SKIPPED+=1
     fi
 
+    # AGS rebuild check
+    if continue_prompt "¿Verificar si AGS/libastal necesita reconstrucción?"; then
+        check_ags_rebuild_needed
+    else
+        UPDATES_SKIPPED+=1
+    fi
+
     # Flatpak
     if command_exists flatpak; then
         if continue_prompt "¿Actualizar paquetes Flatpak?"; then
@@ -630,6 +743,9 @@ main() {
             --services)
                 SPECIFIC_MODE="services"
                 ;;
+            --rebuild-ags)
+                SPECIFIC_MODE="rebuild-ags"
+                ;;
             --help|-h)
                 show_help
                 ;;
@@ -685,16 +801,21 @@ main() {
             services)
                 verify_hyprland_services
                 ;;
+            rebuild-ags)
+                check_ags_rebuild_needed
+                ;;
         esac
     elif [ "$QUICK_MODE" = true ]; then
-        # Quick mode: AUR + flatpak
+        # Quick mode: AUR + flatpak + AGS rebuild check
         cleanup_package_managers
         update_aur_packages
+        check_ags_rebuild_needed
         update_flatpak
     elif [ "$AUTO_MODE" = true ]; then
         # Full auto mode
         cleanup_package_managers
         update_aur_packages
+        check_ags_rebuild_needed
         update_flatpak
         update_snap
         update_pip_packages
