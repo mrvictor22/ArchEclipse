@@ -476,6 +476,22 @@ chatBot: {
 8. UserPanel WIP section
 9. MangaViewer - needs architectural improvements (see below)
 
+### File Manager Selector TODO
+
+Add a self-service file manager selector in Settings panel:
+
+**Requirements:**
+1. Add dropdown in Settings to choose file manager (Nautilus, Dolphin, Thunar, Nemo, PCManFM)
+2. Auto-detect installed file managers
+3. Option to install missing file manager (via pacman/yay)
+4. Update `app.constants.ts` and `CustomScripts.tsx` dynamically
+5. Store preference in settings.json
+
+**Files to modify:**
+- `constants/app.constants.ts` - make file manager configurable
+- `widgets/leftPanel/components/SettingsWidget.tsx` - add selector UI
+- `widgets/leftPanel/components/CustomScripts.tsx` - use configured file manager
+
 ### MangaViewer TODO
 
 The MangaViewer widget needs significant improvements:
