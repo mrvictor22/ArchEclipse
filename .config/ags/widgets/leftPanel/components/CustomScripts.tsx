@@ -175,7 +175,7 @@ const customScripts = [
     icon: "󰉋",
     description: "Open file browser",
     script: () => {
-      execAsync(`bash -c "thunar"`).catch((err) =>
+      execAsync(`bash -c "nautilus"`).catch((err) =>
         notify({ summary: "Files", body: err })
       );
     },
