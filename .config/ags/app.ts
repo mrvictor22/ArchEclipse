@@ -33,8 +33,9 @@ const perMonitorDisplay = () => {
   print(`\t TOTAL MONITORS DETECTED: ${monitors.length}`);
 
   monitors.forEach((monitor, index) => {
-    const monitorName = getMonitorName(monitor.get_display(), monitor);
-    print(`\t MONITOR ${index}: ${monitorName}`);
+    try {
+      const monitorName = getMonitorName(monitor.get_display(), monitor);
+      print(`\t MONITOR ${index}: ${monitorName}`);
 
     // Only create NotificationPopups for the primary monitor (eDP-1) to avoid duplicates
     const isMainMonitor = monitorName === "eDP-1" || index === 0;
@@ -63,6 +64,9 @@ const perMonitorDisplay = () => {
     widgetInitializers.forEach(({ name, fn }) => {
       logTime(`\t\t ${name}`, fn);
     });
+    } catch (e) {
+      print(`\t ERROR on monitor ${index}: ${e}`);
+    }
   });
 };
 

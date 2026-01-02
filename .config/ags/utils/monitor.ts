@@ -18,6 +18,11 @@ export function getConnectorFromHyprland(model: string) {
 }
 
 export function getMonitorName(display: Gdk.Display, monitor: Gdk.Monitor) {
+  // GTK4 provides get_connector() directly - use it if available
+  const connector = monitor.get_connector();
+  if (connector) return connector;
+
+  // Fallback to matching via model (for older GTK versions)
   const model = monitor.get_model() || monitor.get_description();
   return getConnectorFromHyprland(model as any);
 }
