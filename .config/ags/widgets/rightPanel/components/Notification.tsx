@@ -32,16 +32,17 @@ function NotificationIcon(n: Notifd.Notification) {
   }
   const notificationIcon = n.image || n.app_icon || n.desktopEntry;
 
+  // Check for null FIRST before using string methods
+  if (!notificationIcon)
+    return <image class="icon" iconName={"dialog-information-symbolic"} />;
+
   if (notificationIcon.endsWith(".webp")) {
     const texture = textureFromFile(notificationIcon);
     return <Picture paintable={texture} />;
   }
 
-  if (!notificationIcon)
-    return <image class="icon" iconName={"dialog-information-symbolic"} />;
-
   return (
-    <Picture file={"/tmp/clipboard_image_20251229_112252.webp"} class="icon" /> //hardcoded for testing
+    <Picture file={notificationIcon} class="icon" />
   );
 }
 

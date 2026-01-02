@@ -109,13 +109,13 @@ const resetButton = () => {
 
 const BarLayoutSetting = () => {
   return (
-    <box spacing={5} orientation={Gtk.Orientation.VERTICAL}>
+    <box spacing={5} orientation={Gtk.Orientation.VERTICAL} hexpand>
       <label
         class={"subcategory-label"}
         label={"bar Layout"}
         halign={Gtk.Align.START}
       />
-      <box class="setting" spacing={10} hexpand>
+      <box class="setting" spacing={10} hexpand homogeneous>
         <For each={barLayout}>
           {(widget) => {
             return (
@@ -222,7 +222,8 @@ const Setting = (get: Accessor<AGSSetting>, set: any) => {
   const SliderWidget = () => {
     const infoLabel = (
       <label
-        hexpand={true}
+        widthRequest={50}
+        xalign={1}
         label={get((setting) =>
           String(
             setting.type === "int"
@@ -235,7 +236,7 @@ const Setting = (get: Accessor<AGSSetting>, set: any) => {
 
     const Slider = (
       <slider
-        widthRequest={leftPanelWidth((width) => width / 2)}
+        hexpand
         class="slider"
         drawValue={false}
         min={get.peek().min}
@@ -266,7 +267,7 @@ const Setting = (get: Accessor<AGSSetting>, set: any) => {
     );
 
     return (
-      <box hexpand={true} halign={Gtk.Align.END} spacing={5}>
+      <box hexpand spacing={5}>
         {Slider}
         {infoLabel}
       </box>
@@ -276,13 +277,15 @@ const Setting = (get: Accessor<AGSSetting>, set: any) => {
   const SwitchWidget = () => {
     const infoLabel = (
       <label
-        hexpand={true}
+        widthRequest={50}
+        xalign={1}
         label={get((setting) => (setting.value ? "On" : "Off"))}
       />
     );
 
     const Switch = (
       <switch
+        halign={Gtk.Align.END}
         active={get((setting) => setting.value)}
         onNotifyActive={(self) => {
           const active = self.active;
@@ -295,7 +298,8 @@ const Setting = (get: Accessor<AGSSetting>, set: any) => {
     );
 
     return (
-      <box hexpand={true} halign={Gtk.Align.END} spacing={5}>
+      <box hexpand spacing={5}>
+        <box hexpand />
         {Switch}
         {infoLabel}
       </box>
@@ -366,7 +370,7 @@ const createCategory = (key: string, value: NestedSettings) => {
     }
   });
   return (
-    <box class={"category"} orientation={Gtk.Orientation.VERTICAL} spacing={16}>
+    <box class={"category"} orientation={Gtk.Orientation.VERTICAL} spacing={16} hexpand>
       <label
         label={key.charAt(0).toUpperCase() + key.slice(1)}
         halign={Gtk.Align.START}
@@ -382,12 +386,13 @@ export default () => {
   );
 
   return (
-    <scrolledwindow vexpand>
-      <box orientation={Gtk.Orientation.VERTICAL} spacing={16} class="settings">
+    <scrolledwindow vexpand hexpand>
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={16} class="settings" hexpand>
         <box
           class={"category"}
           orientation={Gtk.Orientation.VERTICAL}
           spacing={16}
+          hexpand
         >
           <label label="AGS" halign={Gtk.Align.START} />
           <BarLayoutSetting />
@@ -401,6 +406,7 @@ export default () => {
           class={"category"}
           orientation={Gtk.Orientation.VERTICAL}
           spacing={16}
+          hexpand
         >
           <label label="Custom" halign={Gtk.Align.START} />
           {Setting(autoWorkspaceSwitching, setAutoWorkspaceSwitching)}

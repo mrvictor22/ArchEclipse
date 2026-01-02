@@ -62,7 +62,11 @@ const perMonitorDisplay = () => {
 
     // Launch each widget independently without waiting
     widgetInitializers.forEach(({ name, fn }) => {
-      logTime(`\t\t ${name}`, fn);
+      try {
+        logTime(`\t\t ${name}`, fn);
+      } catch (widgetError) {
+        print(`\t\t ERROR in widget ${name}: ${widgetError}`);
+      }
     });
     } catch (e) {
       print(`\t ERROR on monitor ${index}: ${e}`);

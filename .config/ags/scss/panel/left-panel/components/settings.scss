@@ -12,4 +12,16 @@
       background: $background-semi-transparent;
     }
   }
+
+  .setting {
+    .widget {
+      min-width: 80px;
+      padding: 0.5em 0.75em;
+    }
+  }
+
+  .subcategory-label {
+    font-weight: 600;
+    margin-bottom: 0.25em;
+  }
 }
