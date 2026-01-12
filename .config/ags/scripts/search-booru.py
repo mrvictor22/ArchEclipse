@@ -327,7 +327,10 @@ def main():
     else:
         data = provider.fetch_posts(tags, post_id, page, limit)
 
-    print(json.dumps(data) if data else "Failed to fetch data from API.")
+    if data:
+        print(json.dumps(data))
+    else:
+        print(json.dumps({"error": "Failed to fetch data from API.", "posts": []}))
 
 
 if __name__ == "__main__":
