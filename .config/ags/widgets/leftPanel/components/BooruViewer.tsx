@@ -27,6 +27,15 @@ const [fetchedTags, setFetchedTags] = createState<string[]>([]);
 
 const [selectedTab, setSelectedTab] = createState<string>("");
 
+// Helper: check if current tags are incompatible with Safebooru
+const hasSafebooruIncompatibleTags = (settings: any): boolean => {
+  if (settings.booru.api.value !== "safebooru") return false;
+  const incompatible = ["rating:explicit", "rating:questionable"];
+  return settings.booru.tags.some((tag: string) =>
+    incompatible.some((t) => tag === t)
+  );
+};
+
 const calculateCacheSize = async () =>
   execAsync(
     `bash -c "du -sb ${booruPath}/${
@@ -171,6 +180,24 @@ const fetchBookmarkImages = async () => {
     setProgressStatus("error");
   }
 };
+
+const SafebooruWarning = () => (
+  <revealer
+    revealChild={globalSettings((s) => hasSafebooruIncompatibleTags(s))}
+    transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}
+    transitionDuration={200}
+  >
+    <box class="safebooru-warning" spacing={8}>
+      <label label="" class="warning-icon" />
+      <label
+        hexpand
+        xalign={0}
+        wrap
+        label="Safebooru is SFW-only. Tags like rating:explicit won't return results."
+      />
+    </box>
+  </revealer>
+);
 
 const Tabs = () => (
   <box class="tab-list" spacing={5}>
@@ -714,6 +741,7 @@ export default () => {
       }}
     >
       <Tabs />
+      <SafebooruWarning />
       <box orientation={Gtk.Orientation.VERTICAL}>
         <Images />
         <Progress
