@@ -4,9 +4,11 @@ default_wallpapers="$HOME/.config/wallpapers/defaults"                       # a
 default_wallpapers_thumbnails="$HOME/.config/ags/assets/thumbnails/defaults" # thumbnails wallpapers directory
 custom_wallpapers="$HOME/.config/wallpapers/custom"                          # custom wallpapers directory
 custom_wallpapers_thumbnails="$HOME/.config/ags/assets/thumbnails/custom"    # thumbnails custom wallpapers directory
+discretion_wallpapers="$HOME/.config/wallpapers/discretion"                  # discretion/SFW wallpapers directory
+discretion_wallpapers_thumbnails="$HOME/.config/ags/assets/thumbnails/discretion" # thumbnails discretion wallpapers directory
 
 # Ensure thumbnail directories exist
-mkdir -p "$default_wallpapers_thumbnails" "$custom_wallpapers_thumbnails"
+mkdir -p "$default_wallpapers_thumbnails" "$custom_wallpapers_thumbnails" "$discretion_wallpapers_thumbnails"
 
 # Function to create and clean up thumbnails
 generate_thumbnails() {
@@ -36,8 +38,9 @@ generate_thumbnails() {
     done
 }
 
-# Process both directories
+# Process all directories
 generate_thumbnails "$default_wallpapers" "$default_wallpapers_thumbnails"
 generate_thumbnails "$custom_wallpapers" "$custom_wallpapers_thumbnails"
+generate_thumbnails "$discretion_wallpapers" "$discretion_wallpapers_thumbnails"
 
 echo "Thumbnails updated!"

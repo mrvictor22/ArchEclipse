@@ -69,4 +69,36 @@
   .no-wallpaper {
     background-color: $background;
   }
+
+  .discretion-mode {
+    font-size: 1.2em;
+    &:checked {
+      background-color: $green;
+      color: $background;
+    }
+  }
+
+  .categories {
+    button {
+      border-radius: 0px;
+      min-width: 60px;
+    }
+    button:first-child {
+      border-radius: 50px 0px 0px 50px;
+    }
+    button:last-child {
+      border-radius: 0px 50px 50px 0px;
+    }
+    .category-discretion:checked {
+      background-color: $green;
+      color: $background;
+    }
+  }
+
+  .random-all {
+    font-size: 1.2em;
+    &:hover {
+      color: $blue;
+    }
+  }
 }

@@ -80,17 +80,11 @@ download_wallpapers() {
         fi
     done
     
-    # Cleanup files not in the list
-    echo "Cleaning up files not in the list..."
-    for file in "$folder"/*; do
-        basename_file=$(basename "$file")
-        if [[ ! " ${expected_files[*]} " =~ " $basename_file " ]]; then
-            echo "Removing $basename_file"
-            rm "$file"
-        fi
-    done
-    
-    echo "Done."
+    # NOTE: Removed automatic cleanup to protect user-added wallpapers
+    # If you want to remove wallpapers not in the default list, run manually:
+    # rm ~/.config/wallpapers/defaults/<filename>
+
+    echo "Done. (User wallpapers are preserved)"
 }
 
 echo "Calculating total size of wallpapers..."

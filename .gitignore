@@ -51,6 +51,8 @@
 !.config/fastfetch/
 # wallpapers
 !.config/wallpapers/
+# Ignore discretion/SFW wallpapers (personal collection from Wallhaven API)
+.config/wallpapers/discretion/
 # lossless scaling config (frame generation)
 !.config/lsfg-vk/
 # include starship config

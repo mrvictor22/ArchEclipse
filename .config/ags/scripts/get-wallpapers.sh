@@ -4,6 +4,7 @@
 hyprpaper_config="$HOME/.config/hypr/hyprpaper/config"
 defaults="$HOME/.config/wallpapers/defaults"
 custom="$HOME/.config/wallpapers/custom"
+discretion="$HOME/.config/wallpapers/discretion"
 
 # Initialize an empty array for the wallpaper paths
 wallpaper_paths=()
@@ -35,6 +36,14 @@ elif [ "$1" == "--custom" ]; then
     for path in $custom/*; do
         wallpaper_paths+=("\"$path\"")
     done
+
+elif [ "$1" == "--discretion" ]; then
+    # Read the discretion folder and add all the wallpapers to the array
+    if [ -d "$discretion" ]; then
+        for path in $discretion/*; do
+            [ -f "$path" ] && wallpaper_paths+=("\"$path\"")
+        done
+    fi
 else
     echo "Invalid argument"
     exit 1
