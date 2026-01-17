@@ -107,12 +107,28 @@ const checkDiscretionMode = () => {
   }
 };
 
+// Refresh workspace thumbnails for all monitors
+const refreshAllWorkspaceThumbnails = () => {
+  try {
+    const monitors = JSON.parse(exec("hyprctl monitors -j"));
+    for (const monitor of monitors) {
+      const monitorName = monitor.name;
+      const wallpapers = getCurrentWorkspaceWallpapers(monitorName);
+      setMonitorWallpapers(monitorName, wallpapers);
+    }
+  } catch (err) {
+    print("Error refreshing workspace thumbnails: " + String(err));
+  }
+};
+
 const toggleDiscretionMode = async () => {
   setProgressStatus("loading");
   try {
     await execAsync("bash -c '$HOME/.config/hypr/scripts/discretion-mode.sh toggle'");
     const newState = checkDiscretionMode();
     setDiscretionMode(newState);
+    // Refresh workspace thumbnails after mode change
+    refreshAllWorkspaceThumbnails();
     setProgressStatus("success");
   } catch (err) {
     setProgressStatus("error");

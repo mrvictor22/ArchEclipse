@@ -162,6 +162,19 @@ backup_configs() {
         local backup_file="$BACKUP_DIR/$monitor-defaults.conf"
 
         if [[ -f "$config_file" ]]; then
+            # Check if config already contains discretion wallpapers (corrupted state)
+            if grep -q "/discretion/" "$config_file" 2>/dev/null; then
+                log "SKIP backup for $monitor: config already contains discretion wallpapers"
+                # If we have a valid backup (without discretion), keep it
+                if [[ -f "$backup_file" ]] && ! grep -q "/discretion/" "$backup_file" 2>/dev/null; then
+                    log "Keeping existing valid backup for $monitor"
+                    continue
+                fi
+                # No valid backup exists - we need to regenerate from defaults
+                log "WARNING: No valid backup for $monitor, will need manual restore"
+                continue
+            fi
+
             cp "$config_file" "$backup_file"
             log "Backed up: $monitor"
         fi
@@ -178,9 +191,19 @@ restore_configs() {
         local config_file="$CONFIG_DIR/$monitor/defaults.conf"
         local backup_file="$BACKUP_DIR/$monitor-defaults.conf"
 
+        # Check if backup exists and is valid (not corrupted with discretion wallpapers)
         if [[ -f "$backup_file" ]]; then
-            cp "$backup_file" "$config_file"
-            log "Restored: $monitor"
+            if grep -q "/discretion/" "$backup_file" 2>/dev/null; then
+                log "WARNING: Backup for $monitor is corrupted (contains discretion wallpapers)"
+                log "Regenerating from defaults directory..."
+                regenerate_original_config "$monitor"
+            else
+                cp "$backup_file" "$config_file"
+                log "Restored: $monitor"
+            fi
+        else
+            log "No backup found for $monitor, regenerating from defaults..."
+            regenerate_original_config "$monitor"
         fi
     done
 }
@@ -244,6 +267,41 @@ apply_wallpapers_to_current() {
             fi
         fi
     done
+}
+
+# Generate config with original (non-SFW) wallpapers from defaults directory
+regenerate_original_config() {
+    local monitor="$1"
+    local config_file="$CONFIG_DIR/$monitor/defaults.conf"
+    local defaults_dir="$WALLPAPER_DIR/defaults"
+
+    log "Regenerating original config for $monitor from defaults wallpapers..."
+
+    # Ensure config directory exists
+    mkdir -p "$CONFIG_DIR/$monitor"
+
+    # Get all default wallpapers shuffled
+    local -a shuffled_wallpapers
+    mapfile -t shuffled_wallpapers < <(find "$defaults_dir" -type f \( -iname "*.jpg" -o -iname "*.png" -o -iname "*.jpeg" -o -iname "*.webp" \) 2>/dev/null | shuf)
+
+    if [[ ${#shuffled_wallpapers[@]} -eq 0 ]]; then
+        error "No wallpapers found in $defaults_dir"
+        return 1
+    fi
+
+    # Generate config with unique wallpapers per workspace
+    > "$config_file"  # Clear file
+
+    for ws in $(seq 1 $NUM_WORKSPACES); do
+        local idx=$((ws - 1))
+        local wallpaper="${shuffled_wallpapers[$idx]:-${shuffled_wallpapers[0]}}"
+
+        if [[ -n "$wallpaper" ]]; then
+            echo "w-${ws}=${wallpaper}" >> "$config_file"
+        fi
+    done
+
+    log "Regenerated config for $monitor with ${#shuffled_wallpapers[@]} wallpapers available"
 }
 
 # =============================================================================
@@ -372,6 +430,33 @@ cmd_apply() {
     apply_wallpapers_to_current
 }
 
+cmd_reset() {
+    ensure_dirs
+
+    log "Resetting to original wallpapers (force regenerate)..."
+
+    local monitors
+    monitors=$(get_monitors)
+
+    for monitor in $monitors; do
+        regenerate_original_config "$monitor"
+    done
+
+    # Apply to current monitors
+    apply_wallpapers_to_current
+
+    # Clear corrupted backups
+    rm -f "$BACKUP_DIR"/*-defaults.conf
+    log "Cleared old backups"
+
+    set_state "off"
+
+    notify-send -u normal -t 3000 -i preferences-desktop-wallpaper \
+        "Modo Discreción" "Reset - Wallpapers originales restaurados"
+
+    log "Reset complete"
+}
+
 cmd_help() {
     cat << EOF
 Discretion Mode - Wallpaper manager for screen sharing
@@ -385,6 +470,7 @@ Commands:
     status      Show current mode and stats
     fetch [N]   Download N wallpapers from Wallhaven (default: 5)
     apply       Re-apply wallpapers for current workspaces
+    reset       Force regenerate original configs from defaults (use if corrupted)
     help        Show this help message
 
 Examples:
@@ -424,6 +510,9 @@ main() {
             ;;
         apply)
             cmd_apply
+            ;;
+        reset)
+            cmd_reset
             ;;
         help|--help|-h)
             cmd_help
