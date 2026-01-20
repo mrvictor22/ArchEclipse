@@ -18,6 +18,7 @@ import {
 } from "../../../variables";
 import { WidgetSelector } from "../../../interfaces/widgetSelector.interface";
 import { refreshCss } from "../../../utils/scss";
+import { PowerWidget } from "./PowerWidget";
 const hyprland = Hyprland.get_default();
 
 const hyprCustomDir: string = "$HOME/.config/hypr/configs/custom";
@@ -438,6 +439,7 @@ export default () => {
           )}
           <FileManagerSelector />
         </box>
+        <PowerWidget />
         {resetButton()}
       </box>
     </scrolledwindow>

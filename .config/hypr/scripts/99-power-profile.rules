@@ -1,0 +1,6 @@
+# Udev rules for automatic power profile switching
+# Install to /etc/udev/rules.d/99-power-profile.rules
+
+# When AC adapter is plugged in or unplugged
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="1", RUN+="/home/alphonse/.config/hypr/scripts/power-profile-manager.sh ac"
+SUBSYSTEM=="power_supply", ATTR{type}=="Mains", ATTR{online}=="0", RUN+="/home/alphonse/.config/hypr/scripts/power-profile-manager.sh battery"

@@ -1,0 +1,11 @@
+[Unit]
+Description=Power Profile Manager - Auto-apply power profile based on AC/battery
+After=multi-user.target
+
+[Service]
+Type=oneshot
+ExecStart=/home/alphonse/.config/hypr/scripts/power-profile-manager.sh auto
+RemainAfterExit=yes
+
+[Install]
+WantedBy=multi-user.target
