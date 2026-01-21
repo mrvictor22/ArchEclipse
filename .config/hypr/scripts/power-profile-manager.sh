@@ -12,6 +12,8 @@ AC_PROFILE="performance"      # Profile when on AC power
 BATTERY_PROFILE="balanced"    # Profile when on battery
 THERMAL_LIMIT_AC=95           # Thermal limit on AC (°C)
 THERMAL_LIMIT_BATTERY=85      # Thermal limit on battery (°C)
+GPU_PERF_AC="high"            # GPU performance on AC (auto, low, high)
+GPU_PERF_BATTERY="auto"       # GPU performance on battery
 
 # Log function
 log() {
@@ -77,6 +79,25 @@ set_thermal_limit() {
     fi
 }
 
+# Set GPU performance level
+set_gpu_performance() {
+    local level="$1"
+
+    # Find the correct GPU device
+    for gpu_file in /sys/class/drm/card*/device/power_dpm_force_performance_level; do
+        if [[ -f "$gpu_file" ]]; then
+            echo "$level" > "$gpu_file" 2>/dev/null
+            if [[ $? -eq 0 ]]; then
+                log "GPU performance set to $level ($gpu_file)"
+            else
+                log "WARNING: Failed to set GPU performance to $level"
+            fi
+            return
+        fi
+    done
+    log "WARNING: No GPU power control found"
+}
+
 # Apply profile based on AC status
 apply_profile() {
     local ac_status=$(get_ac_status)
@@ -85,10 +106,12 @@ apply_profile() {
         log "AC Power detected"
         set_profile "$AC_PROFILE"
         set_thermal_limit "$THERMAL_LIMIT_AC"
+        set_gpu_performance "$GPU_PERF_AC"
     else
         log "Battery Power detected"
         set_profile "$BATTERY_PROFILE"
         set_thermal_limit "$THERMAL_LIMIT_BATTERY"
+        set_gpu_performance "$GPU_PERF_BATTERY"
     fi
 }
 
