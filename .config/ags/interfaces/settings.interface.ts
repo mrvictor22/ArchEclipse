@@ -89,4 +89,8 @@ export interface Settings {
     };
   };
   fileManager: string;
+  keyStrokeVisualizer: {
+    visibility: AGSSetting;
+    anchor: AGSSetting;
+  };
 }

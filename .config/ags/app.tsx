@@ -12,6 +12,7 @@ import WallpaperSwitcher from "./widgets/WallpaperSwitcher";
 import AppLauncher from "./widgets/AppLauncher";
 import UserPanel from "./widgets/UserPanel";
 import NotificationPopups from "./widgets/NotificationPopups";
+import KeyStrokeVisualizer from "./widgets/KeyStrokeVisualizer";
 import { createBinding, For, This } from "ags";
 
 const perMonitorDisplay = () => {
@@ -47,8 +48,9 @@ const perMonitorDisplay = () => {
         return (
           <This this={app}>
             {widgetInitializers.map(({ name, fn }) =>
-              logTimeWidget(`\t\t ${name}`, fn)
+              logTimeWidget(`\t\t ${name}`, fn),
             )}
+            <KeyStrokeVisualizer />
           </This>
         );
       }}

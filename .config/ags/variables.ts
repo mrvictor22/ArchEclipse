@@ -49,6 +49,10 @@ function setGlobalSettings(value: Settings) {
 export { globalSettings, setGlobalSettings };
 
 export const focusedClient = createBinding(hyprland, "focusedClient");
+export const fullscreenClient = focusedClient((client) => {
+  if (!client) return false;
+  return client.fullscreen === 2 || client.get_fullscreen?.() === 2;
+});
 export const emptyWorkspace = focusedClient((client) => !client);
 export const focusedWorkspace = createBinding(hyprland, "focusedWorkspace");
 export const specialWorkspace = focusedClient((client) => {
