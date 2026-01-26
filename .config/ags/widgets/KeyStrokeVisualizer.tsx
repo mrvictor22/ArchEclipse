@@ -14,7 +14,7 @@ interface KeyStrokeWidget {
 
 export default () => {
   const maxKeystrokes = 5;
-  const hideDelay = 2000; // milliseconds of inactivity before hiding the window
+  const hideDelay = 3000; // milliseconds of inactivity before hiding the window
   const [keystrokes, setKeystrokes] = createState<KeyStrokeWidget[]>([]);
 
   // One persistent container

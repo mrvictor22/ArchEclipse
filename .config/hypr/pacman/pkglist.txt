@@ -137,3 +137,4 @@ git
 g++
 gcc
 libwebp-utils
+vlc
