@@ -54,7 +54,7 @@ export class NotificationWidget {
     if (this.n.app_icon)
       if (this.n.app_icon.startsWith("/")) {
         // check if app_icon is a path to an image
-        if (this.n.image.endsWith(".webp")) {
+        if (this.n.image && this.n.image.endsWith(".webp")) {
           const texture = this.textureFromFile(this.n.image);
           return <Picture paintable={texture} />;
         }
