@@ -47,19 +47,22 @@ export class NotificationWidget {
   }
 
   private getNotificationIcon() {
-    const notificationIcon =
-      this.n.image || this.n.app_icon || this.n.desktopEntry;
+    print("image", this.n.image);
+    print("app_icon", this.n.app_icon);
+    // if (this.n.image)
 
-    // Check for null/undefined BEFORE calling .endsWith()
-    if (!notificationIcon)
-      return <image class="icon" iconName={"dialog-information-symbolic"} />;
+    if (this.n.app_icon)
+      if (this.n.app_icon.startsWith("/")) {
+        // check if app_icon is a path to an image
+        if (this.n.image.endsWith(".webp")) {
+          const texture = this.textureFromFile(this.n.image);
+          return <Picture paintable={texture} />;
+        }
+        const texture = this.textureFromFile(this.n.app_icon);
+        if (texture) return <Picture paintable={texture} />;
+      } else return <image class="icon" iconName={this.n.app_icon} />;
 
-    if (notificationIcon.endsWith(".webp")) {
-      const texture = this.textureFromFile(notificationIcon);
-      return <Picture paintable={texture} />;
-    }
-
-    return <Picture file={notificationIcon} class="icon" />;
+    return <image class="icon" iconName={"dialog-information-symbolic"} />;
   }
 
   private copyNotificationContent() {
@@ -73,7 +76,7 @@ export class NotificationWidget {
     const content = this.n.body || this.n.app_name;
     if (!content) return;
     execAsync(`wl-copy "${content}"`).catch((err) =>
-      notify({ summary: "Error", body: err })
+      notify({ summary: "Error", body: err }),
     );
   }
 
@@ -118,7 +121,7 @@ export class NotificationWidget {
         wrap={true}
         wrapMode={Pango.WrapMode.WORD_CHAR}
         ellipsize={this.isEllipsized((ellipsized) =>
-          ellipsized ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE
+          ellipsized ? Pango.EllipsizeMode.END : Pango.EllipsizeMode.NONE,
         )}
         maxWidthChars={10}
         singleLineMode={this.isEllipsized}
@@ -189,7 +192,11 @@ export class NotificationWidget {
           {/* {this.n.appIcon && (
             <image class="app-icon" iconName={this.n.appIcon} />
           )} */}
-          <label wrap={true} class="app-name" label={this.n.app_name} />
+          <label
+            class="app-name"
+            label={this.n.app_name}
+            ellipsize={Pango.EllipsizeMode.END}
+          />
 
           {this.getCopyButton()}
         </box>

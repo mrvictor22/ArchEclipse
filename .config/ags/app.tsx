@@ -14,6 +14,8 @@ import UserPanel from "./widgets/UserPanel";
 import NotificationPopups from "./widgets/NotificationPopups";
 import KeyStrokeVisualizer from "./widgets/KeyStrokeVisualizer";
 import { createBinding, For, This } from "ags";
+import Notifd from "gi://AstalNotifd";
+const Notification = Notifd.get_default();
 
 const perMonitorDisplay = () => {
   const monitors = createBinding(app, "monitors");
@@ -63,5 +65,20 @@ app.start({
   main: () => {
     logTime("\t Compiling Binaries", () => compileBinaries());
     logTime("\t Initializing Per-Monitor Display", () => perMonitorDisplay());
+  },
+  requestHandler(argv: string[], response: (response: string) => void) {
+    const [cmd, arg, ...rest] = argv;
+    if (cmd == "delete-notification") {
+      const id = parseInt(arg);
+      const notification = Notification.notifications.find((n) => n.id === id);
+      if (notification) {
+        notification.dismiss();
+        response(`Notification ${id} dismissed.`);
+      } else {
+        response(`Notification ${id} not found.`);
+      }
+      return;
+    }
+    response("unknown command");
   },
 });

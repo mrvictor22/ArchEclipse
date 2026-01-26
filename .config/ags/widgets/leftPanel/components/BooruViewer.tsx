@@ -27,20 +27,11 @@ const [fetchedTags, setFetchedTags] = createState<string[]>([]);
 
 const [selectedTab, setSelectedTab] = createState<string>("");
 
-// Helper: check if current tags are incompatible with Safebooru
-const hasSafebooruIncompatibleTags = (settings: any): boolean => {
-  if (settings.booru.api.value !== "safebooru") return false;
-  const incompatible = ["rating:explicit", "rating:questionable"];
-  return settings.booru.tags.some((tag: string) =>
-    incompatible.some((t) => tag === t)
-  );
-};
-
 const calculateCacheSize = async () =>
   execAsync(
     `bash -c "du -sb ${booruPath}/${
       globalSettings.peek().booru.api.value
-    }/previews | cut -f1"`
+    }/previews | cut -f1"`,
   ).then((res) => {
     // Convert bytes to megabytes
     setCacheSize(`${Math.round(Number(res) / (1024 * 1024))}mb`);
@@ -50,7 +41,7 @@ const ensureRatingTagFirst = () => {
   let tags: string[] = globalSettings.peek().booru.tags;
   // Find existing rating tag
   const ratingTag = tags.find((tag) =>
-    tag.match(/[-]rating:explicit|rating:explicit/)
+    tag.match(/[-]rating:explicit|rating:explicit/),
   );
   // Remove any existing rating tag
   tags = tags.filter((tag) => !tag.match(/[-]rating:explicit|rating:explicit/));
@@ -64,12 +55,12 @@ const cleanUp = () => {
     execAsync(
       `bash -c "rm -rf ${booruPath}/${
         globalSettings.peek().booru.api.value
-      }/previews/*"`
+      }/previews/*"`,
     ),
     execAsync(
       `bash -c "rm -rf ${booruPath}/${
         globalSettings.peek().booru.api.value
-      }/images/*"`
+      }/images/*"`,
     ),
   ];
 
@@ -88,7 +79,7 @@ const fetchImages = async () => {
 
     const settings = globalSettings.peek();
     const escapedTags = settings.booru.tags.map((t) =>
-      t.replace(/'/g, "'\\''")
+      t.replace(/'/g, "'\\''"),
     );
 
     const res = await execAsync(`
@@ -100,16 +91,16 @@ const fetchImages = async () => {
     `);
 
     const jsonData = readJson(res);
-    if (!Array.isArray(jsonData)) {
-      print("BooruViewer: No results or invalid response");
-      return;
+    if (!jsonData || !Array.isArray(jsonData)) {
+      throw new Error("Invalid response from booru API");
     }
+
     const images: BooruImage[] = jsonData.map(
       (img: any) =>
         new BooruImage({
           ...img,
           api: settings.booru.api,
-        })
+        }),
     );
 
     await execAsync(`
@@ -120,7 +111,8 @@ const fetchImages = async () => {
 
         for img in ${images
           .map(
-            (i) => `"${i.id}|${i.extension}|${i.preview!.replace(/"/g, '\\"')}"`
+            (i) =>
+              `"${i.id}|${i.extension}|${i.preview!.replace(/"/g, '\\"')}"`,
           )
           .join(" ")}
         do
@@ -155,8 +147,8 @@ const fetchBookmarkImages = async () => {
             (i) =>
               `"${i.api.value}|${i.id}|${i.extension}|${i.preview!.replace(
                 /"/g,
-                '\\"'
-              )}"`
+                '\\"',
+              )}"`,
           )
           .join(" ")}
         do
@@ -180,24 +172,6 @@ const fetchBookmarkImages = async () => {
     setProgressStatus("error");
   }
 };
-
-const SafebooruWarning = () => (
-  <revealer
-    revealChild={globalSettings((s) => hasSafebooruIncompatibleTags(s))}
-    transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}
-    transitionDuration={200}
-  >
-    <box class="safebooru-warning" spacing={8}>
-      <label label="" class="warning-icon" />
-      <label
-        hexpand
-        xalign={0}
-        wrap
-        label="Safebooru is SFW-only. Tags like rating:explicit won't return results."
-      />
-    </box>
-  </revealer>
-);
 
 const Tabs = () => (
   <box class="tab-list" spacing={5}>
@@ -233,12 +207,17 @@ const Tabs = () => (
 const fetchTags = async (tag: string) => {
   const escapedTag = tag.replace(/'/g, "'\\'''");
   const res = await execAsync(
-    `python ./scripts/search-booru.py
-    --api ${globalSettings.peek().booru.api.value}
-    --tag '${escapedTag}'`
+    `python ./scripts/search-booru.py 
+    --api ${globalSettings.peek().booru.api.value} 
+    --tag '${escapedTag}'`,
   );
-  const tags = readJson(res);
-  setFetchedTags(Array.isArray(tags) ? tags : []);
+  const jsonData = readJson(res);
+  if (!jsonData || !Array.isArray(jsonData)) {
+    console.error("Invalid response from tag search");
+    setFetchedTags([]);
+    return;
+  }
+  setFetchedTags(jsonData);
 };
 
 const Images = () => {
@@ -261,10 +240,10 @@ const Images = () => {
 
   const imageColumns = createComputed(
     [images, globalSettings(({ booru }) => booru.columns)],
-    (imgs, cols) => masonry(imgs, cols)
+    (imgs, cols) => masonry(imgs, cols),
   );
   const columnWidth = globalSettings(
-    ({ leftPanel }) => leftPanel.width / imageColumns.peek().length - 10
+    ({ leftPanel }) => leftPanel.width / imageColumns.peek().length - 10,
   );
 
   return (
@@ -288,7 +267,7 @@ const Images = () => {
                   hexpand
                   widthRequest={columnWidth}
                   heightRequest={columnWidth(
-                    (w) => w * (image.height / image.width)
+                    (w) => w * (image.height / image.width),
                   )}
                   $={(self) => {
                     const gesture = new Gtk.GestureClick();
@@ -344,7 +323,7 @@ const PageDisplay = () => (
               class="first"
               label="1"
               onClicked={() => setGlobalSetting("booru.page", 1)}
-            />
+            />,
           );
           buttons.push(<label label={"..."}></label>);
         }
@@ -354,7 +333,7 @@ const PageDisplay = () => (
         // const endPage = Math.max(5, computed[0] + 2);
         let startPage = Math.max(
           1,
-          settings.booru.page - Math.floor(totalPagesToShow / 2)
+          settings.booru.page - Math.floor(totalPagesToShow / 2),
         );
         let endPage = startPage + totalPagesToShow - 1;
 
@@ -372,7 +351,7 @@ const PageDisplay = () => (
                   ? setGlobalSetting("booru.page", pageNum)
                   : fetchImages()
               }
-            />
+            />,
           );
         }
         return <box spacing={5}>{buttons}</box>;
@@ -407,7 +386,7 @@ const SliderSetting = ({
         <slider
           value={getValue}
           widthRequest={globalSettings(
-            (settings) => settings.leftPanel.width / 2
+            (settings) => settings.leftPanel.width / 2,
           )}
           class="slider"
           drawValue={false}
@@ -507,7 +486,7 @@ const TagDisplay = () => (
                   const newTags = globalSettings
                     .peek()
                     .booru.tags.filter(
-                      (t) => !t.match(/[-]rating:explicit|rating:explicit/)
+                      (t) => !t.match(/[-]rating:explicit|rating:explicit/),
                     );
 
                   newTags.unshift(newRatingTag);
@@ -656,7 +635,7 @@ const Bottom = () => {
           setBottomIsRevealed(!bottomIsRevealed.get());
         }}
         tooltipText={bottomIsRevealed((revealed) =>
-          revealed ? "KEY-DOWN" : "KEY-UP"
+          revealed ? "KEY-DOWN" : "KEY-UP",
         )}
       />
       <button
@@ -740,8 +719,6 @@ export default () => {
         });
       }}
     >
-      <Tabs />
-      <SafebooruWarning />
       <box orientation={Gtk.Orientation.VERTICAL}>
         <Images />
         <Progress
@@ -751,6 +728,7 @@ export default () => {
         />
       </box>
       <Bottom />
+      <Tabs />
     </box>
   );
 };
