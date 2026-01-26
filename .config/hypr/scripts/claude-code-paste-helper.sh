@@ -174,7 +174,7 @@ setup_keybind_interceptor() {
     # Add a Hyprland keybind specifically for Windsurf
     cat > "$HELPER_DIR/windsurf_paste.conf" << 'EOF'
 # Claude Code Paste Helper - Dynamic keybind for Windsurf
-windowrulev2 = tag +windsurf, class:^(windsurf|Windsurf)$
+windowrule = tag +windsurf, match:class ^(windsurf|Windsurf)$
 bind = CTRL, V, submap, paste_check
 submap = paste_check
 bind = , , exec, ~/.config/hypr/scripts/claude-code-paste-helper.sh paste-action

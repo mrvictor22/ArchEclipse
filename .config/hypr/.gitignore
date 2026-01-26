@@ -4,3 +4,5 @@ configs/custom/*
 theme/theme.conf
 hyprpaper/config/*
 !hyprpaper/config/defaults.conf
+
+backups/
