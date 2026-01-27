@@ -21,7 +21,7 @@ Este archivo documenta TODOS los archivos modificados en el fork que difieren de
 | `widgets/leftPanel/components/SettingsWidget.tsx` | `FileManagerSelector` component | Selector de file manager en Settings |
 | `widgets/rightPanel/components/Notification.tsx` | Null check antes de .endsWith() | Fix crash con notificaciones sin icono |
 | `widgets/Picture.tsx` | `null` en vez de `undefined` | GTK no acepta undefined para file |
-| `classes/BooruImage.tsx` | Array.isArray() check | Fix readJson null |
+| `classes/BooruImage.tsx` | Layout fix + Array.isArray() check | Actions debajo de imagen (no overlay) + Fix readJson null |
 | `widgets/leftPanel/components/BooruViewer.tsx` | Array.isArray() check | Fix readJson null |
 | `widgets/Player.tsx` | coverArt fallback | Fix null coverArt |
 
