@@ -162,13 +162,13 @@ export const defaultSettings: Settings = {
   },
   rightPanel: {
     exclusivity: true,
-    lock: false,
+    lock: true,
     width: 250,
     widgets: rightPanelWidgetSelectors,
   },
   leftPanel: {
     exclusivity: true,
-    lock: false,
+    lock: true,
     width: 400,
     widget: leftPanelWidgetSelectors[0],
   },

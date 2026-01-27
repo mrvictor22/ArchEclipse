@@ -10,7 +10,7 @@ Este archivo documenta TODOS los archivos modificados en el fork que difieren de
 | Archivo | Cambio | Razón |
 |---------|--------|-------|
 | `constants/app.constants.ts` | `getFileManagerCommand()` helper | File Manager Selector dinámico |
-| `constants/settings.constants.ts` | `fileManager: "nautilus"` | Default para selector |
+| `constants/settings.constants.ts` | `fileManager: "nautilus"`, `lock: true` | Default para selector + paneles con lock por defecto |
 | `interfaces/settings.interface.ts` | `fileManager: string` | Tipo para selector |
 | `scripts/search-booru.py` | Null safety en r.json() | Fix crashes cuando API falla |
 
