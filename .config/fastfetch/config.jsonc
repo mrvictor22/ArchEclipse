@@ -39,6 +39,11 @@
       "format": "{all}"
     },
     {
+      "type": "command",
+      "key": "{#separator}│  {#keys}󰃭 Install Age",
+      "text": "install_date=$(head -n1 /var/log/pacman.log 2>/dev/null | grep -oP '\\[\\K[0-9-]+' | head -1); if [ -n \"$install_date\" ]; then days=$(( ($(date +%s) - $(date -d \"$install_date\" +%s)) / 86400 )); years=$((days / 365)); months=$(((days % 365) / 30)); rem_days=$((days % 30)); if [ $years -gt 0 ]; then printf '%dy %dm %dd' $years $months $rem_days; elif [ $months -gt 0 ]; then printf '%dm %dd' $months $rem_days; else printf '%dd' $days; fi; fi"
+    },
+    {
       "type": "custom",
       "format": "{#1}│"
     },
