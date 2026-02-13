@@ -5,32 +5,23 @@ screenshot_dir="$HOME/Pictures/Screenshots"
 # create screenshot directory if it doesn't exist
 mkdir -p "$screenshot_dir"
 
-# check if file argument is passed as second argument
-if [[ "$2" ]]; then
-    file=$2
-    echo "File : $file"
-fi
-
-# notify and view screenshot
-
 if [[ "$1" == "--now" ]]; then
-    img="$screenshot_dir/screenshot_$timestamp.webp"
-    # Full output
-    grimblast --freeze save screen "$img"
-    
-    elif [[ "$1" == "--area" ]]; then
-    img="$screenshot_dir/screenshot_area_$timestamp.webp"
-    # Select region
-    grimblast --freeze save area "$img"
-    
+    img="$screenshot_dir/screenshot_${timestamp}.png"
+    hyprshot -m output -o "$screenshot_dir" -f "screenshot_${timestamp}.png"
+
+elif [[ "$1" == "--area" ]]; then
+    img="$screenshot_dir/screenshot_area_${timestamp}.png"
+    hyprshot -m region -o "$screenshot_dir" -f "screenshot_area_${timestamp}.png"
+
 else
-    
-    echo -e "Available Options : --now --area --all"
+    echo -e "Available Options : --now --area"
     exit 1
 fi
 
-# Convert to WebP (high compression, visually lossless)
-magick convert "$img" -define webp:method=6 -quality 90 "$img"
+# Create latest.png symlink for Claude Code compatibility
+if [ -f "$img" ]; then
+    ln -sf "$img" "$screenshot_dir/latest.png"
 
-# Send optimized image to clipboard
-wl-copy --type image/png < "$img"
+    # Send image to clipboard
+    wl-copy --type image/png < "$img"
+fi

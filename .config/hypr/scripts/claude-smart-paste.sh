@@ -61,7 +61,7 @@ get_latest_image() {
     fi
 
     # Find most recent screenshot
-    latest=$(ls -t "$HOME/Pictures/Screenshots/"*_hyprshot.png 2>/dev/null | head -1)
+    latest=$(ls -t "$HOME/Pictures/Screenshots/"screenshot*.png 2>/dev/null | head -1)
     if [ -n "$latest" ]; then
         echo "$latest"
         return
