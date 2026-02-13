@@ -22,6 +22,100 @@ import { timeout } from "ags/time";
 import { PowerWidget } from "./PowerWidget";
 const hyprland = Hyprland.get_default();
 
+// Bluetooth Toggle State
+const [bluetoothStatus, setBluetoothStatus] = createState<{
+  status: string;
+  blacklisted: boolean;
+  kworkers: number;
+}>({ status: "disabled", blacklisted: false, kworkers: 0 });
+
+const btScript = "$HOME/.config/hypr/scripts/bluetooth-toggle.sh";
+
+const refreshBluetoothStatus = async () => {
+  try {
+    const result = await execAsync(`bash -c "${btScript} status json"`);
+    const parsed = JSON.parse(result);
+    setBluetoothStatus(parsed);
+  } catch (e) {
+    // Script might not exist or bluetooth not available
+  }
+};
+
+const toggleBluetooth = async (permanent: boolean = false) => {
+  const cmd = permanent ? "toggle permanent" : "toggle";
+  try {
+    await execAsync(`bash -c "${btScript} ${cmd}"`);
+    // Wait a bit for changes to take effect
+    setTimeout(refreshBluetoothStatus, 1500);
+  } catch (e) {
+    notify({ summary: "Bluetooth Error", body: String(e) });
+  }
+};
+
+// Bluetooth Toggle Component
+const BluetoothToggle = () => {
+  return (
+    <box orientation={Gtk.Orientation.VERTICAL} spacing={5}>
+      <label
+        class={"subcategory-label"}
+        label={"Bluetooth (Realtek Fix)"}
+        halign={Gtk.Align.START}
+      />
+      <box class="setting" spacing={10} hexpand>
+        <box orientation={Gtk.Orientation.VERTICAL} hexpand spacing={2}>
+          <box spacing={10}>
+            <label halign={Gtk.Align.START} hexpand label="Estado" />
+            <switch
+              active={bluetoothStatus((s) => s.status === "enabled")}
+              onNotifyActive={(self) => {
+                toggleBluetooth(false);
+              }}
+            />
+            <label
+              label={bluetoothStatus((s) =>
+                s.status === "enabled" ? "Activo" : "Inactivo"
+              )}
+            />
+          </box>
+          <box spacing={10}>
+            <label halign={Gtk.Align.START} hexpand label="Blacklist Permanente" />
+            <switch
+              active={bluetoothStatus((s) => s.blacklisted)}
+              tooltipMarkup="<b>Blacklist</b>\nEvita que Bluetooth cargue en el próximo boot.\nÚtil para prevenir memory leaks de Realtek."
+              onNotifyActive={async (self) => {
+                if (self.active) {
+                  await execAsync(`bash -c "${btScript} disable permanent"`);
+                } else {
+                  await execAsync(`bash -c "${btScript} remove-blacklist"`);
+                }
+                setTimeout(refreshBluetoothStatus, 1000);
+              }}
+            />
+            <label
+              label={bluetoothStatus((s) => (s.blacklisted ? "Sí" : "No"))}
+            />
+          </box>
+          <box spacing={10}>
+            <label
+              halign={Gtk.Align.START}
+              hexpand
+              class="dim"
+              label={bluetoothStatus(
+                (s) => `kworkers BT activos: ${s.kworkers}`
+              )}
+            />
+            <button
+              label="⟳"
+              tooltipMarkup="Refrescar estado"
+              onClicked={refreshBluetoothStatus}
+            />
+          </box>
+        </box>
+      </box>
+    </box>
+  );
+};
+
 const hyprCustomDir: string = "$HOME/.config/hypr/configs/custom";
 
 // Add User to input group for key stroke visualizer
@@ -486,10 +580,11 @@ export default () => {
   return (
     <scrolledwindow
       vexpand
-      $={() =>
+      $={() => {
         // Initialize detection
-        detectFileManagers()
-      }
+        detectFileManagers();
+        refreshBluetoothStatus();
+      }}
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={16} class="settings">
         <box
@@ -569,6 +664,14 @@ export default () => {
             setting={globalSettings.peek().autoWorkspaceSwitching}
           />
           <FileManagerSelector />
+        </box>
+        <box
+          class={"category"}
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={16}
+        >
+          <label label="Hardware" halign={Gtk.Align.START} />
+          <BluetoothToggle />
         </box>
         <PowerWidget />
         {resetButton()}

@@ -1,5 +1,5 @@
 import { createState, createComputed, For, With } from "ags";
-import { execAsync } from "ags/process";
+import { exec, execAsync } from "ags/process";
 import { monitorFile } from "ags/file";
 import app from "ags/gtk4/app";
 import Gtk from "gi://Gtk?version=4.0";
@@ -26,19 +26,65 @@ const [targetType, setTargetType] = createState<string>("workspace");
 
 const [allWallpapers, setAllWallpapers] = createState<string[]>([]);
 
+// Wallpaper category filter
+type WallpaperCategory = "all" | "defaults" | "custom" | "discretion";
+const [wallpaperCategory, setWallpaperCategory] = createState<WallpaperCategory>("all");
+
+const categoryLabels: Record<WallpaperCategory, string> = {
+  all: "All",
+  defaults: "Defaults",
+  custom: "Custom",
+  discretion: "SFW",
+};
+
+// Discretion mode state
+const [discretionMode, setDiscretionMode] = createState<boolean>(false);
+
+const checkDiscretionMode = () => {
+  try {
+    const result = exec("bash -c '$HOME/.config/hypr/scripts/discretion-mode.sh status 2>/dev/null | head -1'");
+    return result.includes(": on");
+  } catch {
+    return false;
+  }
+};
+
+const toggleDiscretionMode = async () => {
+  setProgressStatus("loading");
+  try {
+    await execAsync("bash -c '$HOME/.config/hypr/scripts/discretion-mode.sh toggle'");
+    const newState = checkDiscretionMode();
+    setDiscretionMode(newState);
+    setProgressStatus("success");
+  } catch (err) {
+    setProgressStatus("error");
+    notify({ summary: "Error", body: String(err) });
+  }
+};
+
 const FetchWallpapers = async () => {
   try {
     await execAsync("bash ./scripts/wallpaper-to-thumbnail.sh");
 
-    const [defaultWalls, customWalls] = await Promise.all([
+    const [defaultWalls, customWalls, discretionWalls] = await Promise.all([
       execAsync("bash ./scripts/get-wallpapers.sh --defaults").then(JSON.parse),
       execAsync("bash ./scripts/get-wallpapers.sh --custom").then(JSON.parse),
+      execAsync("bash ./scripts/get-wallpapers.sh --discretion").then(JSON.parse).catch(() => []),
     ]);
 
-    if (wallpaperType.peek()) {
-      setAllWallpapers(customWalls);
-    } else {
-      setAllWallpapers([...defaultWalls, ...customWalls]);
+    const category = wallpaperCategory.peek();
+    switch (category) {
+      case "defaults":
+        setAllWallpapers(defaultWalls);
+        break;
+      case "custom":
+        setAllWallpapers(customWalls);
+        break;
+      case "discretion":
+        setAllWallpapers(discretionWalls);
+        break;
+      default:
+        setAllWallpapers([...defaultWalls, ...customWalls]);
     }
   } catch (err) {
     notify({ summary: "Error", body: String(err) });
@@ -69,7 +115,7 @@ const FetchCurrentWallpapers = (monitorName: string) => {
   }
 };
 
-const [wallpaperType, setWallpaperType] = createState<boolean>(false);
+// Legacy wallpaperType removed - replaced by wallpaperCategory
 
 export function toThumbnailPath(file: string) {
   return file.replace(
@@ -306,15 +352,38 @@ function Display() {
     />
   );
 
-  const customToggle = (
+  const categoryButtons = (
+    <box class="categories" halign={Gtk.Align.CENTER}>
+      {(["all", "defaults", "custom", "discretion"] as WallpaperCategory[]).map((cat) => (
+        <togglebutton
+          valign={Gtk.Align.CENTER}
+          class={`category-${cat}`}
+          label={categoryLabels[cat]}
+          active={wallpaperCategory((c) => c === cat)}
+          onToggled={({ active }) => {
+            if (active) {
+              setWallpaperCategory(cat);
+              FetchWallpapers();
+            }
+          }}
+        />
+      ))}
+    </box>
+  );
+
+  const discretionToggle = (
     <togglebutton
       valign={Gtk.Align.CENTER}
-      class="custom-wallpaper"
-      label={wallpaperType((type) => (type ? "Custom" : "All"))}
-      onToggled={({ active }) => {
-        setWallpaperType(active);
-        FetchWallpapers();
-      }}
+      class="discretion-mode"
+      label={discretionMode((mode) => (mode ? "󰈈" : "󰈈"))}
+      active={discretionMode()}
+      tooltipMarkup={discretionMode((mode) =>
+        mode
+          ? "<b>Discretion Mode ON</b>\nClick to show normal wallpapers"
+          : "<b>Discretion Mode OFF</b>\nClick to enable SFW wallpapers"
+      )}
+      onToggled={() => toggleDiscretionMode()}
+      $={() => setDiscretionMode(checkDiscretionMode())}
     />
   );
 
@@ -429,7 +498,8 @@ function Display() {
     <box class="actions" hexpand={true} halign={Gtk.Align.CENTER} spacing={10}>
       {targetButtons}
       {selectedWorkspaceLabel}
-      {customToggle}
+      {categoryButtons}
+      {discretionToggle}
       {randomButton}
       {resetButton}
       {addWallpaper}

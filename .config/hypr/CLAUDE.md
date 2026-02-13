@@ -170,6 +170,54 @@ systemctl --user status hyprland-lid-handler.service
 - `configs/monitors.conf`: Auto-generated
 - `.gitignore`: Protects local files
 
+## Known Hardware Issues
+
+### Realtek Bluetooth Bug (CRÍTICO)
+
+**Hardware afectado**: Realtek RTL8852BU (USB ID: `0bda:4853`)
+
+**Síntomas**:
+- Múltiples procesos `kworker/u48:X+bt` que se acumulan
+- Consumo masivo de RAM (puede agotar 35GB+)
+- Freeze total del sistema sin logs (hard freeze)
+- El kernel no puede escribir logs antes del crash
+
+**Causa**: Bug conocido en el driver `btusb` con chips Realtek que causa memory leak en los kworker threads de Bluetooth.
+
+**Script de gestión**: `scripts/bluetooth-toggle.sh`
+
+```bash
+# Ver estado
+~/.config/hypr/scripts/bluetooth-toggle.sh status
+
+# Toggle (activa/desactiva)
+~/.config/hypr/scripts/bluetooth-toggle.sh toggle
+
+# Desactivar permanentemente (blacklist)
+~/.config/hypr/scripts/bluetooth-toggle.sh disable permanent
+
+# Reactivar (quita blacklist + activa)
+~/.config/hypr/scripts/bluetooth-toggle.sh enable
+
+# Output JSON para AGS
+~/.config/hypr/scripts/bluetooth-toggle.sh status json
+```
+
+**Integración AGS**: Panel lateral izquierdo → Settings → Hardware → Bluetooth
+
+**Monitorear kworkers BT**:
+```bash
+ps aux | grep -c "kworker.*bt"  # Debería ser < 5 normalmente
+```
+
+**Referencias**:
+- [Framework Community - kworker 100% CPU](https://community.frame.work/t/tracking-kworker-stuck-at-near-100-cpu-usage-with-ubuntu-22-04/23053)
+- [GitHub - RTL8852BE Driver](https://github.com/HRex39/rtl8852be_bt)
+
+**Fecha descubierto**: 2026-02-02
+
+---
+
 ## Documentation (Extended)
 
 Detailed documentation available in `docs/`:
