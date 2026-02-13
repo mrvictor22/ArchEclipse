@@ -81,7 +81,7 @@ const BluetoothToggle = () => {
             <label halign={Gtk.Align.START} hexpand label="Blacklist Permanente" />
             <switch
               active={bluetoothStatus((s) => s.blacklisted)}
-              tooltipMarkup="<b>Blacklist</b>\nEvita que Bluetooth cargue en el próximo boot.\nÚtil para prevenir memory leaks de Realtek."
+              tooltipMarkup="<b>Blacklist</b>\nEvita que Bluetooth cargue en el pr&#xF3;ximo boot.\n&#xDA;til para prevenir memory leaks de Realtek."
               onNotifyActive={async (self) => {
                 if (self.active) {
                   await execAsync(`bash -c "${btScript} disable permanent"`);
@@ -92,7 +92,7 @@ const BluetoothToggle = () => {
               }}
             />
             <label
-              label={bluetoothStatus((s) => (s.blacklisted ? "Sí" : "No"))}
+              label={bluetoothStatus((s) => (s.blacklisted ? "S\u00ed" : "No"))}
             />
           </box>
           <box spacing={10}>
@@ -105,7 +105,7 @@ const BluetoothToggle = () => {
               )}
             />
             <button
-              label="⟳"
+              label="\u27F3"
               tooltipMarkup="Refrescar estado"
               onClicked={refreshBluetoothStatus}
             />
@@ -153,7 +153,7 @@ const fileManagerOptions = [
   { id: "dolphin", name: "Dolphin (KDE)", command: "dolphin" },
   { id: "nemo", name: "Nemo (Cinnamon)", command: "nemo" },
   { id: "pcmanfm", name: "PCManFM", command: "pcmanfm" },
-  { id: "ranger", name: "Ranger (Terminal)", command: "kitty ranger" },
+  { id: "ranger", name: "Ranger (Terminal)", command: "foot ranger" },
 ];
 
 // Detect installed file managers
@@ -269,7 +269,7 @@ const BarLayoutSetting = () => {
         label={"bar Layout"}
         halign={Gtk.Align.START}
       />
-      <box class="setting" spacing={10} hexpand>
+      <box class="setting" spacing={10}>
         <For each={globalSettings(({ bar }) => bar.layout)}>
           {(widget: WidgetSelector) => {
             return (
@@ -487,7 +487,17 @@ const Setting = ({
                   for (const key of keys) {
                     current = current[key];
                   }
-                  return current.value === choice.value;
+                  // compare current value with choice value (in case of array, compare arrays)
+                  return (
+                    current.value === choice.value ||
+                    (Array.isArray(current.value) &&
+                      Array.isArray(choice.value) &&
+                      current.value.length === choice.value.length &&
+                      current.value.every(
+                        (val: any, index: number) =>
+                          val === choice.value[index],
+                      ))
+                  );
                 })}
                 onToggled={({ active }) => {
                   if (active) {

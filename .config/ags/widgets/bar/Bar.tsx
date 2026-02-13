@@ -6,6 +6,7 @@ import Utilities from "./components/Utilities";
 import {
   emptyWorkspace,
   focusedClient,
+  fullscreenClient,
   globalMargin,
   globalSettings,
 } from "../../variables";
@@ -18,7 +19,13 @@ import { RightPanelVisibility } from "../rightPanel/RightPanel";
 import { LeftPanelVisibility } from "../leftPanel/LeftPanel";
 import app from "ags/gtk4/app";
 
-export default ({ monitor }: { monitor: Gdk.Monitor }) => {
+export default ({
+  monitor,
+  setup,
+}: {
+  monitor: Gdk.Monitor;
+  setup: (self: Gtk.Window) => void;
+}) => {
   const monitorName = getMonitorName(monitor)!;
 
   return (
@@ -42,20 +49,14 @@ export default ({ monitor }: { monitor: Gdk.Monitor }) => {
       marginRight={globalMargin}
       marginLeft={globalMargin}
       visible={createComputed(
-        [globalSettings, focusedClient],
-        ({ bar }, focusedClient) => {
-          if (focusedClient) {
-            const isFullscreen: boolean =
-              focusedClient.fullscreen === 2 ||
-              focusedClient.get_fullscreen?.() === 2;
-            const visibility: boolean = !isFullscreen && bar.lock;
-            return visibility;
-          } else {
-            return bar.lock;
-          }
-        }
+        [globalSettings, fullscreenClient],
+        ({ bar }, fullscreenClient) => {
+          const visibility: boolean = !fullscreenClient && bar.lock; // Hide when a client is fullscreen
+          return visibility;
+        },
       )}
       $={(self) => {
+        setup(self);
         (self as any).monitorName = monitorName;
         const motion = new Gtk.EventControllerMotion();
         motion.connect("leave", () => {
@@ -82,15 +83,15 @@ export default ({ monitor }: { monitor: Gdk.Monitor }) => {
                       layout.length === 1
                         ? ["center"]
                         : layout.length === 2
-                        ? ["start", "end"]
-                        : ["start", "center", "end"];
+                          ? ["start", "end"]
+                          : ["start", "center", "end"];
                     const type = types[key];
                     const halign =
                       type === "start"
                         ? Gtk.Align.START
                         : type === "center"
-                        ? Gtk.Align.CENTER
-                        : Gtk.Align.END;
+                          ? Gtk.Align.CENTER
+                          : Gtk.Align.END;
                     switch (widget.name) {
                       case "workspaces":
                         return <Workspaces halign={halign} $type={type} />;

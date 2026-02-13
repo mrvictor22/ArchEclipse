@@ -8,6 +8,7 @@ import { BooruImage } from "../classes/BooruImage";
 import { dateFormats } from "../constants/date.constants";
 import { phi, phi_min } from "../constants/phi.constants";
 import { Settings } from "../interfaces/settings.interface";
+import { Astal } from "ags/gtk4";
 
 export const defaultSettings: Settings = {
   dateFormat: dateFormats[0],
@@ -206,5 +207,8 @@ export const defaultSettings: Settings = {
       min: 0,
       max: 0,
     },
+  },
+  wallpaperSwitcher: {
+    category: "defaults/sfw",
   },
 };

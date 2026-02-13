@@ -47,10 +47,6 @@ export class NotificationWidget {
   }
 
   private getNotificationIcon() {
-    print("image", this.n.image);
-    print("app_icon", this.n.app_icon);
-    // if (this.n.image)
-
     if (this.n.app_icon)
       if (this.n.app_icon.startsWith("/")) {
         // check if app_icon is a path to an image
@@ -62,6 +58,12 @@ export class NotificationWidget {
         if (texture) return <Picture paintable={texture} />;
       } else return <image class="icon" iconName={this.n.app_icon} />;
 
+    if (this.n.desktopEntry)
+      return <image class="icon" iconName={this.n.desktopEntry} />;
+
+    if (this.n.urgency === Notifd.Urgency.CRITICAL) {
+      return <image class="icon" iconName={"dialog-warning-symbolic"} />;
+    }
     return <image class="icon" iconName={"dialog-information-symbolic"} />;
   }
 

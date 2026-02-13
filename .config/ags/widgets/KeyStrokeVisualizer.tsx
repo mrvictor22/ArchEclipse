@@ -12,9 +12,9 @@ interface KeyStrokeWidget {
   id: string;
 }
 
-export default () => {
+export default ({ setup }: { setup: (self: Gtk.Window) => void }) => {
   const maxKeystrokes = 5;
-  const hideDelay = 3000; // milliseconds of inactivity before hiding the window
+  const hideDelay = 2000; // milliseconds of inactivity before hiding the window
   const [keystrokes, setKeystrokes] = createState<KeyStrokeWidget[]>([]);
 
   // One persistent container
@@ -81,9 +81,10 @@ export default () => {
       )}
       resizable={false}
       margin={globalMargin}
-      $={() => {
+      $={(self) => {
+        setup(self);
         let Timeout: Timer | null = null;
-        subprocess(`bash -c "./scripts/ags-keystroke-listener.sh"`, (out) => {
+        subprocess(`./assets/binaries/keystroke-loop-ags`, (out) => {
           const key = out.trim();
           if (!key) return;
 

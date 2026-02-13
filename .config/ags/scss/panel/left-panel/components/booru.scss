@@ -1,4 +1,5 @@
 .booru {
+  padding: 5px;
   .images {
     .image-button {
       > button {
@@ -12,7 +13,6 @@
     .actions {
       @include module;
     }
-
     .bottom-bar {
       @include module;
       background: $background-semi-transparent;
@@ -54,24 +54,6 @@
           }
         }
       }
-    }
-  }
-
-  .safebooru-warning {
-    @include module;
-    background: rgba($orange, 0.15);
-    border: 1px solid rgba($orange, 0.4);
-    padding: 8px 12px;
-    margin: 5px 0;
-
-    .warning-icon {
-      color: $orange;
-      font-size: 1.1em;
-    }
-
-    label {
-      color: $foreground;
-      font-size: 0.9em;
     }
   }
 }

@@ -9,7 +9,7 @@ import { timeout, Timer } from "ags/time";
 import { NotificationWidget } from "./rightPanel/components/Notification";
 
 // see comment below in constructor
-const TIMEOUT_DELAY = 2500;
+const TIMEOUT_DELAY = 4000;
 
 // The purpose if this class is to replace Variable<Array<Widget>>
 // with a Map<number, NotificationWidget> type in order to track notification widgets
@@ -101,7 +101,13 @@ class NotificationMap {
   }
 }
 
-export default ({ monitor }: { monitor: Gdk.Monitor }) => {
+export default ({
+  monitor,
+  setup,
+}: {
+  monitor: Gdk.Monitor;
+  setup: (self: Gtk.Window) => void;
+}) => {
   const { TOP, RIGHT } = Astal.WindowAnchor;
   const notifications = new NotificationMap().get();
 
@@ -119,6 +125,9 @@ export default ({ monitor }: { monitor: Gdk.Monitor }) => {
       widthRequest={400}
       visible={notifications((notifs) => notifs.length > 0)}
       resizable={false}
+      $={(self) => {
+        setup(self);
+      }}
     >
       <box
         class={"notification-popups"}

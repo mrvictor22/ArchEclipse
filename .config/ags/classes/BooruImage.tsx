@@ -384,23 +384,17 @@ export class BooruImage {
       ...options,
     };
 
-    // State management
-    const [isDownloaded, setIsDownloaded] = createState<boolean>(
-      this.isDownloaded(),
-    );
-    const [isBookmarked, setIsBookmarked] = createState<boolean>(
-      this.isBookmarked(),
-    );
+    // Get current values (non-reactive)
+    const currentlyDownloaded = this.isDownloaded();
+    const currentlyBookmarked = this.isBookmarked();
 
     const imageRatio = this.getAspectRatio();
     const displayWidth = imageRatio >= 1 ? opts.width * imageRatio : opts.width;
-    // Ensure minimum height for action buttons (approx 120px for 2 rows of buttons + tags)
-    const minHeight = 350;
-    const calculatedHeight = imageRatio >= 1 ? opts.height : opts.height / imageRatio;
-    const displayHeight = Math.max(calculatedHeight, minHeight);
+    const displayHeight =
+      imageRatio >= 1 ? opts.height : opts.height / imageRatio;
 
     // Tags component
-    const Tags = () => (
+    const Tags = (
       <Gtk.FlowBox class="tags" rowSpacing={5} columnSpacing={5}>
         {this.getFormattedTags(opts.maxTags).map((tag) => (
           <button
@@ -423,7 +417,7 @@ export class BooruImage {
     );
 
     // Actions component
-    const Actions = () => (
+    const Actions = (
       <box class="actions" spacing={10} orientation={Gtk.Orientation.VERTICAL}>
         <box class="section">
           <button
@@ -434,12 +428,11 @@ export class BooruImage {
           />
           <togglebutton
             class="button"
-            label={isBookmarked((bookmarked) => (bookmarked ? "󰧌" : ""))}
+            label={currentlyBookmarked ? "󰧌" : ""}
             tooltip-text="Bookmark image"
-            active={isBookmarked}
+            active={currentlyBookmarked}
             onClicked={(self) => {
               this.toggleBookmark();
-              setIsBookmarked(self.active);
             }}
             hexpand
           />
@@ -448,56 +441,68 @@ export class BooruImage {
           <button
             label=""
             tooltip-text="Download image"
-            sensitive={isDownloaded((is) => !is)}
-            onClicked={() =>
+            sensitive={!currentlyDownloaded}
+            onClicked={(self) =>
               this.fetchImage()
-                .then(() => setIsDownloaded(true))
+                .then(() => {
+                  self.sensitive = false;
+                })
                 .catch(() => {})
             }
             hexpand
           />
           <button
             label=""
-            tooltipMarkup={isDownloaded((is) =>
-              is ? "Copy image" : "<b>Download</b> first to copy",
-            )}
-            sensitive={isDownloaded}
+            tooltipMarkup={
+              currentlyDownloaded
+                ? "Copy image"
+                : "<b>Download</b> first to copy"
+            }
+            sensitive={currentlyDownloaded}
             onClicked={() => this.copyToClipboard()}
             hexpand
           />
           <button
             label=""
-            tooltipMarkup={isDownloaded((is) =>
-              is ? "Set as current waifu" : "<b>Download</b> first to set",
-            )}
-            sensitive={isDownloaded}
+            tooltipMarkup={
+              currentlyDownloaded
+                ? "Set as current waifu"
+                : "<b>Download</b> first to set"
+            }
+            sensitive={currentlyDownloaded}
             onClicked={() => this.setAsCurrentWaifu()}
             hexpand
           />
           <button
             label=""
-            tooltipMarkup={isDownloaded((is) =>
-              is ? "Open in viewer" : "<b>Download</b> first to open",
-            )}
-            sensitive={isDownloaded}
+            tooltipMarkup={
+              currentlyDownloaded
+                ? "Open in viewer"
+                : "<b>Download</b> first to open"
+            }
+            sensitive={currentlyDownloaded}
             onClicked={() => this.openInViewer()}
             hexpand
           />
           <button
             label=""
-            tooltipMarkup={isDownloaded((is) =>
-              is ? "Pin to terminal" : "<b>Download</b> first to pin",
-            )}
-            sensitive={isDownloaded}
+            tooltipMarkup={
+              currentlyDownloaded
+                ? "Pin to terminal"
+                : "<b>Download</b> first to pin"
+            }
+            sensitive={currentlyDownloaded}
             onClicked={() => this.pinToTerminal()}
             hexpand
           />
           <button
             label="󰸉"
-            tooltipMarkup={isDownloaded((is) =>
-              is ? "Add to wallpapers" : "<b>Download</b> first to add",
-            )}
-            sensitive={isDownloaded}
+            tooltipMarkup={
+              currentlyDownloaded
+                ? "Add to wallpapers"
+                : "<b>Download</b> first to add"
+            }
+            sensitive={currentlyDownloaded}
             onClicked={() => this.addToWallpapers()}
             hexpand
           />
@@ -507,28 +512,31 @@ export class BooruImage {
 
     // Main dialog layout
     return (
-      <box
-        orientation={Gtk.Orientation.VERTICAL}
+      <overlay
+        widthRequest={displayWidth}
+        heightRequest={displayHeight}
         class="booru-image"
-        $={async () => {
-          setIsDownloaded(this.isDownloaded());
-        }}
       >
-        <overlay widthRequest={displayWidth} heightRequest={displayHeight}>
-          <Picture
-            file={isDownloaded((is) =>
-              is ? this.getImagePath() : this.getPreviewPath(),
-            )}
-            height={displayHeight}
-            width={displayWidth}
-            class="image"
-          />
-          <box $type="overlay" orientation={Gtk.Orientation.VERTICAL}>
-            <Tags />
-          </box>
-        </overlay>
-        <Actions />
-      </box>
+        <Gtk.Picture
+          file={Gio.File.new_for_path(
+            currentlyDownloaded ? this.getImagePath() : this.getPreviewPath(),
+          )}
+          heightRequest={displayHeight}
+          widthRequest={displayWidth}
+          class="image"
+          contentFit={Gtk.ContentFit.COVER}
+        />
+        <box
+          $type="overlay"
+          orientation={Gtk.Orientation.VERTICAL}
+          widthRequest={displayWidth}
+          heightRequest={displayHeight}
+        >
+          {Tags}
+          <box vexpand />
+          {Actions}
+        </box>
+      </overlay>
     );
   }
 

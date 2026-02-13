@@ -1,11 +1,12 @@
+import { Astal } from "ags/gtk4";
+import { Waifu } from "../classes/BooruImage";
 import { Api } from "./api.interface";
-import { Waifu } from "./waifu.interface";
 import { WidgetSelector } from "./widgetSelector.interface";
 
 export interface AGSSetting {
   name: string;
   value: any;
-  type: string;
+  type: "int" | "float" | "string" | "bool" | "select";
   min: number;
   max: number;
 }
@@ -92,5 +93,8 @@ export interface Settings {
   keyStrokeVisualizer: {
     visibility: AGSSetting;
     anchor: AGSSetting;
+  };
+  wallpaperSwitcher: {
+    category: string;
   };
 }
