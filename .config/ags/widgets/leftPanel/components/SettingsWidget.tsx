@@ -1,4 +1,3 @@
-import App from "ags/gtk4/app";
 import Gtk from "gi://Gtk?version=4.0";
 import Gdk from "gi://Gdk?version=4.0";
 import Astal from "gi://Astal?version=4.0";
@@ -8,7 +7,6 @@ import { createBinding, createState, createComputed, Accessor, For } from "ags";
 import { execAsync } from "ags/process";
 import { notify } from "../../../utils/notification";
 import { AGSSetting } from "../../../interfaces/settings.interface";
-import { hideWindow } from "../../../utils/window";
 import { barWidgetSelectors } from "../../../constants/widget.constants";
 import { defaultSettings } from "../../../constants/settings.constants";
 import {
@@ -593,7 +591,6 @@ export default () => {
       $={() => {
         // Initialize detection
         detectFileManagers();
-        refreshBluetoothStatus();
       }}
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={16} class="settings">

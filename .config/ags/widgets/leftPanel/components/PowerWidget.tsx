@@ -1,6 +1,7 @@
 import Gtk from "gi://Gtk?version=4.0";
-import { createState, For } from "ags";
+import { createState } from "ags";
 import { execAsync } from "ags/process";
+import { timeout } from "ags/time";
 import { notify } from "../../../utils/notification";
 
 // Platform profiles (Linux kernel ACPI)
@@ -105,9 +106,7 @@ const applyThermalLimit = async (tctlTemp: number) => {
   }
 };
 
-// Initialize
-checkPlatformProfile();
-refreshSystemInfo();
+// Initialize on first render (not at module load to avoid Gjs_App error)
 
 // Profile Selector Component
 const ProfileSelector = () => {
@@ -119,22 +118,20 @@ const ProfileSelector = () => {
         halign={Gtk.Align.START}
       />
       <box class="setting" spacing={10} hexpand>
-        <For each={() => platformProfiles}>
-          {(profile) => (
-            <togglebutton
-              hexpand
-              class="widget"
-              label={profile.id}
-              tooltipMarkup={`<b>${profile.name}</b> ${profile.icon}`}
-              active={currentProfile((p) => p === profile.id)}
-              onToggled={({ active }) => {
-                if (active) {
-                  setPlatformProfile(profile.id);
-                }
-              }}
-            />
-          )}
-        </For>
+        {platformProfiles.map((profile) => (
+          <togglebutton
+            hexpand
+            class="widget"
+            label={profile.id}
+            tooltipMarkup={`<b>${profile.name}</b> ${profile.icon}`}
+            active={currentProfile((p) => p === profile.id)}
+            onToggled={({ active }) => {
+              if (active && currentProfile.peek() !== profile.id) {
+                setPlatformProfile(profile.id);
+              }
+            }}
+          />
+        ))}
       </box>
     </box>
   );
@@ -250,6 +247,13 @@ export const PowerWidget = () => {
       class={"category"}
       orientation={Gtk.Orientation.VERTICAL}
       spacing={16}
+      $={() => {
+        // Delay init to avoid gnim reconciliation bug with <This this={app}> in app.tsx
+        timeout(2000, () => {
+          checkPlatformProfile();
+          refreshSystemInfo();
+        });
+      }}
     >
       <label label="Power" halign={Gtk.Align.START} />
       <ProfileSelector />
