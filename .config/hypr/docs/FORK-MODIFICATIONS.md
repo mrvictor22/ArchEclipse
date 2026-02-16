@@ -25,6 +25,14 @@ Este archivo documenta TODOS los archivos modificados en el fork que difieren de
 | `widgets/leftPanel/components/BooruViewer.tsx` | Array.isArray() check | Fix readJson null |
 | `widgets/Player.tsx` | coverArt fallback | Fix null coverArt |
 
+### Maintenance - Scripts Protegidos
+
+| Archivo | Cambio | Razón |
+|---------|--------|-------|
+| `maintenance/UPDATE.sh` | **Reescritura completa del fork** (~1079 líneas) | Soporte `--all`/`--quick`/`--help`, multi-gestor (pacman/yay/paru/flatpak/snap/pip), colores, contadores. **NO hace `git reset --hard`** (seguro para forks). Solo tocar si upstream agrega scripts/funcionalidad esencial para el rice. |
+
+> **CRÍTICO**: El UPDATE.sh de upstream hace `git reset --hard origin/$BRANCH` que **destruye todos los cambios del fork**. NUNCA reemplazar con la versión de upstream.
+
 ### Hyprland - Scripts (Únicos del fork)
 
 | Archivo | Descripción |
@@ -92,5 +100,6 @@ git cherry-pick <hash>
 
 ## Última actualización
 
-- Fecha: 2026-01-05
-- Último commit de upstream revisado: `d304fd97`
+- Fecha: 2026-02-15
+- Último commit de upstream revisado: merge `f222c00`
+- **UPDATE.sh restaurado** desde `f222c00^1` (perdido en merge del 2026-02-12)

@@ -115,6 +115,7 @@ Ver `docs/FORK-MODIFICATIONS.md` para lista completa. Principales:
 - `.config/ags/widgets/leftPanel/components/SettingsWidget.tsx` (File Manager Selector UI)
 - `.config/ags/scripts/search-booru.py` (null safety)
 - `configs/exec.conf` (LD_PRELOAD fix)
+- `maintenance/UPDATE.sh` (**CRÍTICO** - reescritura completa del fork, ~1079 líneas. El de upstream hace `git reset --hard` que destruye el fork. Solo tocar si Ayman agrega scripts/funcionalidad esencial para el rice.)
 
 **Nota**: El fix de `get_connector()` fue incorporado por Ayman en `utils/monitor.ts` (commit 1c8f1fb7)
 
