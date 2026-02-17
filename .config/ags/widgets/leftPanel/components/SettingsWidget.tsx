@@ -103,7 +103,7 @@ const BluetoothToggle = () => {
               )}
             />
             <button
-              label="\u27F3"
+              label="󰑐"
               tooltipMarkup="Refrescar estado"
               onClicked={refreshBluetoothStatus}
             />

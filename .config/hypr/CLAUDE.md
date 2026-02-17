@@ -115,6 +115,10 @@ Ver `docs/FORK-MODIFICATIONS.md` para lista completa. Principales:
 - `.config/ags/widgets/leftPanel/components/SettingsWidget.tsx` (File Manager Selector UI)
 - `.config/ags/scripts/search-booru.py` (null safety)
 - `configs/exec.conf` (LD_PRELOAD fix)
+- `.config/ags/widgets/leftPanel/components/PowerWidget.tsx` (fork: ACPI directo, NO AstalPowerProfiles)
+- `.config/ags/widgets/bar/components/Information.tsx` (fork: null safety fix)
+- `scripts/power-profile-manager.sh` (fork: power management)
+- `scripts/screenshot.sh` (fork: hyprshot+PNG, NO grimblast+WebP)
 - `maintenance/UPDATE.sh` (**CRÍTICO** - reescritura completa del fork, ~1079 líneas. El de upstream hace `git reset --hard` que destruye el fork. Solo tocar si Ayman agrega scripts/funcionalidad esencial para el rice.)
 
 **Nota**: El fix de `get_connector()` fue incorporado por Ayman en `utils/monitor.ts` (commit 1c8f1fb7)
@@ -163,13 +167,91 @@ systemctl --user status hyprland-lid-handler.service
 
 ### Dependencies
 
-`jq`, `hyprctl`, `wl-paste`, `ags` (v3.0+), `hyperpaper`, `notify-send`
+`jq`, `hyprctl`, `wl-paste`, `ags` (v3.0+), `hyperpaper`, `notify-send`, `hyprshot`, `ryzenadj`, `zen-cpufreq` (auto-cpufreq), `foot`
 
 ### Files to Preserve When Syncing
 
 - `configs/custom/*`: User customizations
 - `configs/monitors.conf`: Auto-generated
 - `.gitignore`: Protects local files
+
+## Power Management System
+
+### Arquitectura (3 capas complementarias)
+
+| Capa | Herramienta | Rol | Estado |
+|------|------------|-----|--------|
+| **Daemon dinámico** | `zen-cpufreq` (auto-cpufreq 3.0.0) | Ajusta governor/turbo/frecuencia en tiempo real según carga | Servicio: `auto-cpufreq.service` |
+| **Script del fork** | `power-profile-manager.sh` | Configura perfil ACPI, ryzenadj y GPU al boot/cambio AC | Servicio: `power-profile.service` |
+| **Widget AGS** | `PowerWidget.tsx` | UI para cambio manual de perfil ACPI + ryzenadj | Panel izquierdo → Settings → Power |
+
+### zen-cpufreq (auto-cpufreq)
+
+**Instalación**: `/opt/zen-cpufreq/venv/bin/auto-cpufreq` (wrapper: `/usr/local/bin/zen-cpufreq`)
+
+**Servicio systemd**: `/etc/systemd/system/auto-cpufreq.service`
+
+```bash
+# Estado
+systemctl status auto-cpufreq.service
+
+# Monitorear en vivo
+zen-cpufreq --monitor
+
+# Stats del daemon
+zen-cpufreq --stats
+```
+
+**IMPORTANTE**: `power-profiles-daemon` está **maskeado** porque conflicta con auto-cpufreq. **NO desenmascararla**. Esto significa que `AstalPowerProfiles` de AGS **no funciona** en este sistema - el PowerWidget usa ACPI directo en su lugar.
+
+### power-profile-manager.sh (fork)
+
+**Script**: `scripts/power-profile-manager.sh`
+**Servicio**: `/etc/systemd/system/power-profile.service` (oneshot al boot)
+
+```bash
+# Ver estado actual
+~/.config/hypr/scripts/power-profile-manager.sh status
+
+# Cambiar perfil manualmente
+~/.config/hypr/scripts/power-profile-manager.sh performance|balanced|low-power
+```
+
+**Perfiles ACPI disponibles**: `performance`, `balanced`, `low-power` (leídos de `/sys/firmware/acpi/platform_profile_choices`)
+
+**Configuración** (en el script):
+- AC: `performance` + thermal 95°C + GPU high
+- Battery: `balanced` + thermal 85°C + GPU auto
+
+### PowerWidget (AGS)
+
+**Archivo**: `widgets/leftPanel/components/PowerWidget.tsx`
+
+- Usa ACPI directo (`/sys/firmware/acpi/platform_profile`) - **NO** `AstalPowerProfiles`
+- Cambio de perfil vía `pkexec` (polkit auth)
+- Thermal limit vía `pkexec ryzenadj --tctl-temp=N`
+- State local sincronizado con lectura real del sistema
+
+### Archivos del sistema relacionados
+
+| Archivo | Propósito |
+|---------|-----------|
+| `/sys/firmware/acpi/platform_profile` | Perfil ACPI actual (read/write con root) |
+| `/sys/firmware/acpi/platform_profile_choices` | Perfiles disponibles |
+| `/etc/systemd/system/auto-cpufreq.service` | Servicio zen-cpufreq (rutas: `/opt/zen-cpufreq/`) |
+| `/etc/systemd/system/power-profile.service` | Servicio custom del fork |
+| `scripts/power-profile-manager.sh` | Script del fork |
+| `scripts/power-profile.service` | Template del servicio (para reinstalación) |
+| `scripts/99-power-profile.rules` | udev rules para cambio AC/batería |
+
+### Dependencias
+
+- `ryzenadj` - Control térmico AMD (instalado en `/usr/bin/ryzenadj`)
+- `polkit` + `hyprpolkitagent` - Auth para cambios de perfil desde AGS
+
+**Fecha documentado**: 2026-02-16
+
+---
 
 ## Known Hardware Issues
 

@@ -126,7 +126,7 @@ function ClientTitle({
               label={focusedClient((client) => {
                 return client ? createBinding(client, "title") : "No Title";
               })()}
-              tooltipMarkup={focusedClient((c) => c.class)}
+              tooltipMarkup={focusedClient((c) => c?.class ?? "")}
             />
           )
         }
