@@ -261,9 +261,17 @@ handle_lid_event() {
 
 # Get workspace ID where btop is running
 get_btop_workspace() {
-    # btop runs in kitty terminal, so we look for title containing "btop"
-    local btop_workspace=$(hyprctl clients -j | jq -r '.[] | select(.title | type == "string" and contains("btop")) | .workspace.id' | head -1)
-    echo "$btop_workspace"
+    # btop runs in foot terminal - foot doesn't show child process in title,
+    # so we detect by PID: find btop process, get its parent (foot), match in hyprctl clients
+    local btop_pid=$(pgrep -x btop | head -1)
+    if [ -z "$btop_pid" ]; then
+        echo ""
+        return
+    fi
+    local parent_pid=$(ps -o ppid= -p "$btop_pid" | tr -d ' ')
+    local workspace=$(hyprctl clients -j | jq -r --arg pid "$parent_pid" \
+        '.[] | select(.pid == ($pid | tonumber)) | .workspace.id' | head -1)
+    echo "$workspace"
 }
 
 # Redistribute workspaces across available monitors

@@ -245,11 +245,12 @@ void expand_path(const char* input, char* output, size_t output_size) {
  * Get wallpaper path for specific workspace
  * Reads from monitor-specific config file
  * Format: w-{workspace_id}={wallpaper_path}
+ * Falls back to w-default= if workspace-specific entry not found
  */
 bool get_wallpaper_for_workspace(const char* monitor, int workspace_id, char* wallpaper, size_t size) {
     char config_path[MAX_PATH_LEN];
     snprintf(config_path, sizeof(config_path), "%s/hyprpaper/config/%s/defaults.conf", hypr_dir, monitor);
-    
+
     FILE* fp = fopen(config_path, "r");
     if (!fp) {
         char error_msg[512];
@@ -257,15 +258,15 @@ bool get_wallpaper_for_workspace(const char* monitor, int workspace_id, char* wa
         notify_error("get_wallpaper_for_workspace", error_msg);
         return false;
     }
-    
+
     char line[MAX_LINE_LEN];
     char ws_key[32];
     snprintf(ws_key, sizeof(ws_key), "w-%d=", workspace_id);
-    
+
     bool found = false;
     while (fgets(line, sizeof(line), fp)) {
         line[strcspn(line, "\n")] = 0;
-        
+
         if (strncmp(line, ws_key, strlen(ws_key)) == 0) {
             strncpy(wallpaper, line + strlen(ws_key), size - 1);
             wallpaper[size - 1] = '\0';
@@ -273,7 +274,26 @@ bool get_wallpaper_for_workspace(const char* monitor, int workspace_id, char* wa
             break;
         }
     }
-    
+
+    /* Fallback: try w-default= if workspace-specific entry not found */
+    if (!found) {
+        rewind(fp);
+        const char* default_key = "w-default=";
+        size_t default_key_len = strlen(default_key);
+        while (fgets(line, sizeof(line), fp)) {
+            line[strcspn(line, "\n")] = 0;
+            if (strncmp(line, default_key, default_key_len) == 0) {
+                const char* value = line + default_key_len;
+                if (strlen(value) > 0) {
+                    strncpy(wallpaper, value, size - 1);
+                    wallpaper[size - 1] = '\0';
+                    found = true;
+                }
+                break;
+            }
+        }
+    }
+
     fclose(fp);
     return found;
 }
@@ -473,9 +493,17 @@ void change_wallpaper() {
         
         char wallpaper[MAX_PATH_LEN];
         if (!get_wallpaper_for_workspace(monitor, workspace_id, wallpaper, sizeof(wallpaper))) {
-            char error_msg[512];
-            snprintf(error_msg, sizeof(error_msg), "No wallpaper config for '%s' workspace %d", monitor, workspace_id);
-            notify_error("change_wallpaper", error_msg);
+            /* No specific or default wallpaper - log quietly without notify-send */
+            FILE* log = fopen(LOG_FILE, "a");
+            if (log) {
+                time_t now = time(NULL);
+                struct tm* tm_info = localtime(&now);
+                char timestamp[64];
+                strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", tm_info);
+                fprintf(log, "[%s] change_wallpaper: No wallpaper config for '%s' workspace %d (no default)\n",
+                        timestamp, monitor, workspace_id);
+                fclose(log);
+            }
             continue;
         }
         
