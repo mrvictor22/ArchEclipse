@@ -39,7 +39,7 @@ Este archivo documenta TODOS los archivos modificados en el fork que difieren de
 |---------|-------------|
 | `scripts/monitor-hotplug.sh` | Detección automática de monitores |
 | `scripts/lid-handler.sh` | Manejo de tapa del laptop |
-| `scripts/multi-monitor-manager.sh` | Gestión central de monitores |
+| `scripts/multi-monitor-manager.sh` | Gestión central de monitores. `get_btop_workspace()` detecta por PID (foot no muestra proceso hijo en título) |
 | `scripts/workspace-state-manager.sh` | Preservación de estado (KVM) |
 | `scripts/start-clipboard-monitor.sh` | Lanzador singleton clipboard |
 | `scripts/clipboard-monitor.sh` | Notificaciones de clipboard |
@@ -50,7 +50,15 @@ Este archivo documenta TODOS los archivos modificados en el fork que difieren de
 | Archivo | Cambio | Razón |
 |---------|--------|-------|
 | `configs/exec.conf` | LD_PRELOAD para AGS | Fix gtk4-layer-shell |
-| `configs/multi-monitor-keybinds.conf` | Keybinds para monitores | Único del fork |
+| `configs/multi-monitor-keybinds.conf` | Keybinds para monitores (foot) | Único del fork. Migrado kitty→foot (f1d24e1) |
+
+### Hyprland - Wallpaper Daemon (Único del fork)
+
+| Archivo | Cambio | Razón |
+|---------|--------|-------|
+| `scripts-c/hyprpaper-loop.c` | Fallback `w-default=` + silenciar notify-send para workspaces sin config | Workspaces 11+ causaban spam de notificaciones de error |
+| `hyprpaper/config/defaults.conf` | Entrada `w-default=` (template) | Soporte para fallback wallpaper |
+| `hyprpaper/config/{monitor}/defaults.conf` | Entrada `w-default=` con wallpaper de w-1 | Configs locales (no tracked) |
 
 ### Documentación (Única del fork)
 
@@ -100,6 +108,6 @@ git cherry-pick <hash>
 
 ## Última actualización
 
-- Fecha: 2026-02-15
+- Fecha: 2026-02-18
 - Último commit de upstream revisado: merge `f222c00`
-- **UPDATE.sh restaurado** desde `f222c00^1` (perdido en merge del 2026-02-12)
+- `f1d24e1`: fix btop detection (PID), wallpaper daemon w-default fallback, kitty→foot keybinds
