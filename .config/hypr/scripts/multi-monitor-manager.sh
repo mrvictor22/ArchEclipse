@@ -279,16 +279,15 @@ handle_lid_event() {
         fi
         
     elif ! is_lid_closed; then
-        log "Lid opened, re-enabling internal monitor"
-        
-        # Re-enable internal monitor
-        hyprctl keyword monitor "$internal_monitor,preferred,0x0,1"
-        
-        # Optionally redistribute workspaces
+        log "Lid opened, regenerating monitor config (eDP-1 + externals with correct offsets)"
+
+        # Regenerate full config: eDP-1 at 0x0, externals offset correctly
+        generate_monitor_config
+        hyprctl reload
+
+        # Wait for config to apply, then redistribute
+        sleep 1
         redistribute_workspaces
-        
-        # Restart AGS to update bars
-        restart_ags
     fi
 }
 
