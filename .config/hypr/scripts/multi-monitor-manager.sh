@@ -10,6 +10,14 @@ MONITORS_CONFIG="$HYPR_CONFIG_DIR/configs/monitors.conf"
 CUSTOM_MONITORS_CONFIG="$HYPR_CONFIG_DIR/configs/custom/monitors.conf"
 LOGIND_CONFIG="/etc/systemd/logind.conf"
 
+# --- Lid behavior settings ---
+# Internal monitor name fallback (used when monitor is disabled and not detected dynamically)
+INTERNAL_MONITOR_FALLBACK="eDP-1"
+
+# Set to true to require AC power for lid-close workspace migration.
+# Set to false (default) to always migrate workspaces to external monitor on lid close.
+REQUIRE_AC_FOR_LID_ACTION=false
+
 # Colors for output
 RED='\033[0;31m'
 GREEN='\033[0;32m'
@@ -57,8 +65,15 @@ get_monitors_info() {
 }
 
 # Get internal monitor name (usually eDP-1 for laptops)
+# Falls back to INTERNAL_MONITOR_FALLBACK when monitor is disabled and not listed
 get_internal_monitor() {
-    hyprctl monitors -j | jq -r '.[] | select(.name | startswith("eDP")) | .name' | head -1
+    local detected
+    detected=$(hyprctl monitors -j | jq -r '.[] | select(.name | startswith("eDP")) | .name' | head -1)
+    if [ -n "$detected" ]; then
+        echo "$detected"
+    else
+        echo "$INTERNAL_MONITOR_FALLBACK"
+    fi
 }
 
 # Get external monitors
@@ -150,16 +165,27 @@ generate_monitor_config() {
     config_content+="# Generated: $(date)\n\n"
     
     if [ "$device_type" = "laptop" ]; then
+        local lid_closed=false
+        is_lid_closed && lid_closed=true
+
         if [ -n "$internal_monitor" ]; then
-            config_content+="# Internal laptop display\n"
-            config_content+="monitor = $internal_monitor, preferred, 0x0, 1\n\n"
+            if [ "$lid_closed" = true ] && [ ${#external_monitors[@]} -gt 0 ]; then
+                config_content+="# Internal laptop display (lid closed - disabled)\n"
+                config_content+="monitor = $internal_monitor, disable\n\n"
+            else
+                config_content+="# Internal laptop display\n"
+                config_content+="monitor = $internal_monitor, preferred, 0x0, 1\n\n"
+            fi
         fi
-        
+
         # Configure external monitors
-        local x_offset=1920  # Default offset, will be adjusted based on internal monitor resolution
-        if [ -n "$internal_monitor" ]; then
+        # When lid is closed, external starts at 0x0; otherwise offset by internal width
+        local x_offset=0
+        if [ "$lid_closed" = false ] && [ -n "$internal_monitor" ]; then
             local internal_width=$(hyprctl monitors -j | jq -r ".[] | select(.name == \"$internal_monitor\") | .width")
-            x_offset=$internal_width
+            if [ -n "$internal_width" ] && [ "$internal_width" != "null" ]; then
+                x_offset=$internal_width
+            fi
         fi
         
         for monitor in "${external_monitors[@]}"; do
@@ -218,14 +244,21 @@ handle_lid_event() {
     
     local internal_monitor=$(get_internal_monitor)
     local external_monitors=($(get_external_monitors))
-    
-    if [ -z "$internal_monitor" ]; then
-        warn "No internal monitor detected"
-        return 1
+
+    log "Lid event: internal=$internal_monitor, externals=${#external_monitors[@]}, lid_closed=$(is_lid_closed && echo yes || echo no), ac=$(is_ac_connected && echo yes || echo no)"
+
+    # Build lid-close condition: external monitor required, AC optional
+    local lid_close_condition=false
+    if is_lid_closed && [ ${#external_monitors[@]} -gt 0 ]; then
+        if [ "$REQUIRE_AC_FOR_LID_ACTION" = true ]; then
+            is_ac_connected && lid_close_condition=true
+        else
+            lid_close_condition=true
+        fi
     fi
-    
-    if is_lid_closed && is_ac_connected && [ ${#external_monitors[@]} -gt 0 ]; then
-        log "Lid closed with AC power and external monitor detected"
+
+    if [ "$lid_close_condition" = true ]; then
+        log "Lid closed with external monitor detected (AC required: $REQUIRE_AC_FOR_LID_ACTION)"
         log "Disabling internal monitor and moving workspaces to external monitor"
         
         # Disable internal monitor

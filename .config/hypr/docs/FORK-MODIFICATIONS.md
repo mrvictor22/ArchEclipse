@@ -38,8 +38,9 @@ Este archivo documenta TODOS los archivos modificados en el fork que difieren de
 | Archivo | Descripción |
 |---------|-------------|
 | `scripts/monitor-hotplug.sh` | Detección automática de monitores |
-| `scripts/lid-handler.sh` | Manejo de tapa del laptop |
-| `scripts/multi-monitor-manager.sh` | Gestión central de monitores. `get_btop_workspace()` detecta por PID (foot no muestra proceso hijo en título) |
+| `scripts/lid-handler.sh` | Manejo de tapa del laptop. `acpi_listen_works()` verifica acpid antes de usar, fallback polling 2s. Evalúa estado al arrancar (no solo cambios). |
+| `scripts/multi-monitor-manager.sh` | Gestión central de monitores. `get_btop_workspace()` detecta por PID. `generate_monitor_config()` respeta lid state (disable eDP + offset 0x0). `REQUIRE_AC_FOR_LID_ACTION` configurable. `INTERNAL_MONITOR_FALLBACK` para re-enable post-disable. |
+| `scripts/setup-lid-handler.sh` | Setup script (sudo) para logind override + acpid. **NO reinicia logind** (mata sesión Hyprland). |
 | `scripts/workspace-state-manager.sh` | Preservación de estado (KVM) |
 | `scripts/start-clipboard-monitor.sh` | Lanzador singleton clipboard |
 | `scripts/clipboard-monitor.sh` | Notificaciones de clipboard |
@@ -108,6 +109,7 @@ git cherry-pick <hash>
 
 ## Última actualización
 
-- Fecha: 2026-02-18
+- Fecha: 2026-02-26
 - Último commit de upstream revisado: merge `f222c00`
 - `f1d24e1`: fix btop detection (PID), wallpaper daemon w-default fallback, kitty→foot keybinds
+- Lid handler overhaul: logind override, acpi_listen validation, lid-aware monitor config, hotplug/lid conflict resolution

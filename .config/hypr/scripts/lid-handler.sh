@@ -36,13 +36,21 @@ get_lid_state() {
     fi
 }
 
+# Check if acpi_listen actually works (needs acpid running)
+acpi_listen_works() {
+    command -v acpi_listen &>/dev/null || return 1
+    # Test with 1s timeout - if it exits immediately, acpid isn't running
+    timeout 1 acpi_listen &>/dev/null
+    # timeout returns 124 if it had to kill the process (meaning it was still running = working)
+    [ $? -eq 124 ]
+}
+
 # Monitor lid events using acpi_listen (preferred) or polling (fallback)
 monitor_lid_events() {
     log "Starting lid event monitoring"
 
-    # Try acpi_listen first (more efficient)
-    if command -v acpi_listen &>/dev/null; then
-        log "Using acpi_listen for lid events"
+    if acpi_listen_works; then
+        log "Using acpi_listen for lid events (acpid running)"
         acpi_listen | while read -r event; do
             case "$event" in
                 *"button/lid"*)
@@ -52,8 +60,11 @@ monitor_lid_events() {
             esac
         done
     else
-        # Fallback to polling /proc/acpi/button/lid
-        log "acpi_listen not available, using polling fallback"
+        if command -v acpi_listen &>/dev/null; then
+            log "acpi_listen found but acpid not running, using polling fallback"
+        else
+            log "acpi_listen not available, using polling fallback"
+        fi
         local last_state=$(get_lid_state)
         log "Initial lid state: $last_state"
 
@@ -72,6 +83,9 @@ monitor_lid_events() {
 
 # Check if running as systemd service or standalone
 if [ "$1" = "monitor" ]; then
+    # Handle current state on startup (e.g. service restarted with lid already closed)
+    log "Checking initial lid state on startup..."
+    handle_lid
     monitor_lid_events
 else
     handle_lid
