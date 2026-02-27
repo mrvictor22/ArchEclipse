@@ -299,6 +299,10 @@ handle_lid_event() {
             restart_ags
         fi
         
+    elif is_lid_closed && [ ${#external_monitors[@]} -eq 0 ]; then
+        log "Lid closed with no external monitor — suspending system"
+        systemctl suspend
+
     elif ! is_lid_closed; then
         log "Lid opened, regenerating monitor config (eDP-1 + externals with correct offsets)"
 
