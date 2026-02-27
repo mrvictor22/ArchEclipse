@@ -30,6 +30,27 @@ log() {
     echo -e "${GREEN}[$(date '+%Y-%m-%d %H:%M:%S')]${NC} $1"
 }
 
+# Ensure Hyprland environment is available (needed when running as systemd service)
+ensure_hyprland_env() {
+    if [ -z "$HYPRLAND_INSTANCE_SIGNATURE" ]; then
+        local hypr_dir="${XDG_RUNTIME_DIR:-/run/user/$(id -u)}/hypr"
+        if [ -d "$hypr_dir" ]; then
+            local sig=$(ls -1 "$hypr_dir" 2>/dev/null | head -1)
+            if [ -n "$sig" ] && [ -S "$hypr_dir/$sig/.socket.sock" ]; then
+                export HYPRLAND_INSTANCE_SIGNATURE="$sig"
+                log "Auto-detected HYPRLAND_INSTANCE_SIGNATURE=$sig"
+            fi
+        fi
+    fi
+
+    if [ -z "$WAYLAND_DISPLAY" ]; then
+        export WAYLAND_DISPLAY="wayland-1"
+    fi
+}
+
+# Auto-detect env before any hyprctl calls
+ensure_hyprland_env
+
 warn() {
     echo -e "${YELLOW}[WARNING]${NC} $1"
 }
