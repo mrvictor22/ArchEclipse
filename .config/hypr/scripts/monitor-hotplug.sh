@@ -36,35 +36,43 @@ get_monitor_state() {
 # Restart AGS safely
 restart_ags() {
     log "Restarting AGS due to monitor configuration change"
-    
-    # Kill existing AGS and related processes more aggressively
-    pkill -9 -f "ags" 2>/dev/null || true
-    pkill -9 -f "astal" 2>/dev/null || true
-    
-    # Also kill any stale gjs processes from AGS
-    pgrep -f "gjs.*ags" | xargs -r kill -9 2>/dev/null || true
-    
-    # Wait for cleanup
-    sleep 2
-    
+
+    # Kill existing AGS and related processes
+    pkill -x "ags" 2>/dev/null || true
+    pkill -f "astal" 2>/dev/null || true
+    sleep 1
+
+    # Kill stale gjs processes
+    killall gjs 2>/dev/null || true
+    sleep 0.5
+
     # Verify processes are dead
     if pgrep -x "ags" > /dev/null; then
         log "Warning: AGS processes still running, forcing kill"
         pkill -9 "ags" 2>/dev/null || true
-        sleep 1
+        sleep 0.5
     fi
-    
-    # Restart AGS (GDK_BACKEND=wayland required for gtk4-layer-shell multi-monitor)
-    log "Starting AGS"
-    killall gjs 2>/dev/null || true
-    LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
-    
-    # Give it a moment to start
+
+    # Clean up previous scope if it exists
+    systemctl --user stop ags-bar.scope 2>/dev/null || true
+    systemctl --user reset-failed ags-bar.scope 2>/dev/null || true
+
+    # Start AGS detached from service cgroup
+    log "Starting AGS (detached from service cgroup)"
+    if command -v systemd-run &>/dev/null; then
+        systemd-run --user --scope --unit=ags-bar \
+            env LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland \
+            ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
+    else
+        setsid env LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland \
+            ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
+    fi
+    disown 2>/dev/null
+
     sleep 1
-    
-    # Verify AGS started
+
     if pgrep -x "ags" > /dev/null; then
-        log "AGS restarted successfully (PID: $(pgrep -x ags))"
+        log "AGS restarted successfully (PID: $(pgrep -x ags), detached)"
     else
         log "ERROR: AGS failed to start"
     fi
@@ -204,6 +212,34 @@ monitor_changes() {
             log "Monitor configuration changed:"
             log "  Previous: $previous_state"
             log "  Current:  $current_state"
+
+            # Detect if this change was caused by a lid event (only eDP appeared/disappeared)
+            local prev_externals=$(echo "$previous_state" | tr ',' '\n' | grep -v "eDP" | sort | tr '\n' ',')
+            local curr_externals=$(echo "$current_state" | tr ',' '\n' | grep -v "eDP" | sort | tr '\n' ',')
+            local prev_has_edp=$(echo "$previous_state" | grep -c "eDP" || true)
+            local curr_has_edp=$(echo "$current_state" | grep -c "eDP" || true)
+
+            if [ "$prev_externals" = "$curr_externals" ] && [ "$prev_has_edp" != "$curr_has_edp" ]; then
+                # Only eDP changed — check if lid state matches
+                local lid_closed=false
+                if [ -f "/proc/acpi/button/lid/LID0/state" ]; then
+                    grep -q "closed" /proc/acpi/button/lid/LID0/state && lid_closed=true
+                elif [ -f "/proc/acpi/button/lid/LID/state" ]; then
+                    grep -q "closed" /proc/acpi/button/lid/LID/state && lid_closed=true
+                fi
+
+                local edp_disappeared=false
+                [ "$prev_has_edp" -gt "$curr_has_edp" ] && edp_disappeared=true
+
+                if { [ "$lid_closed" = true ] && [ "$edp_disappeared" = true ]; } || \
+                   { [ "$lid_closed" = false ] && [ "$edp_disappeared" = false ]; }; then
+                    log "Change is lid-caused (lid_closed=$lid_closed, eDP_gone=$edp_disappeared), updating state only"
+                    echo "$current_state" > "$STATE_FILE"
+                    periodic_counter=0
+                    sleep 2
+                    continue
+                fi
+            fi
 
             # Convert states to profile names
             local old_profile=$(state_to_profile "$previous_state")

@@ -9,6 +9,7 @@ HYPR_CONFIG_DIR="$HOME/.config/hypr"
 MONITORS_CONFIG="$HYPR_CONFIG_DIR/configs/monitors.conf"
 CUSTOM_MONITORS_CONFIG="$HYPR_CONFIG_DIR/configs/custom/monitors.conf"
 LOGIND_CONFIG="/etc/systemd/logind.conf"
+LOCKFILE="/tmp/hyprland-monitor-manager.lock"
 
 # --- Lid behavior settings ---
 # Internal monitor name fallback (used when monitor is disabled and not detected dynamically)
@@ -154,21 +155,32 @@ EOF
     fi
 }
 
-# Restart AGS to apply multi-monitor configuration
+# Restart AGS to apply multi-monitor configuration (detached from service cgroup)
 restart_ags() {
     log "Restarting AGS for multi-monitor support..."
-    
-    # Kill existing AGS instances more safely
+
+    # Kill existing AGS instances
     pkill -x "ags" 2>/dev/null || true
-    
-    # Wait a moment for cleanup
     sleep 1
-    
-    # Restart AGS (GDK_BACKEND=wayland required for gtk4-layer-shell multi-monitor)
     killall gjs 2>/dev/null || true
-    LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland ags run --gtk 3 --log-file /tmp/ags.log &
-    
-    log "AGS restarted successfully"
+    sleep 0.5
+
+    # Clean up previous scope if it exists
+    systemctl --user stop ags-bar.scope 2>/dev/null || true
+    systemctl --user reset-failed ags-bar.scope 2>/dev/null || true
+
+    # Start AGS in its own scope (detached from any service cgroup)
+    if command -v systemd-run &>/dev/null; then
+        systemd-run --user --scope --unit=ags-bar \
+            env LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland \
+            ags run --gtk 3 --log-file /tmp/ags.log &
+    else
+        setsid env LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland \
+            ags run --gtk 3 --log-file /tmp/ags.log &
+    fi
+    disown 2>/dev/null
+
+    log "AGS restarted successfully (detached)"
 }
 
 # Generate monitor configuration based on detected setup
@@ -250,9 +262,6 @@ generate_monitor_config() {
     echo -e "$config_content" > "$MONITORS_CONFIG"
     
     log "Monitor configuration generated and saved to $MONITORS_CONFIG"
-    
-    # Restart AGS to apply multi-monitor bars
-    restart_ags
 }
 
 # Handle lid events for laptops
@@ -280,25 +289,28 @@ handle_lid_event() {
 
     if [ "$lid_close_condition" = true ]; then
         log "Lid closed with external monitor detected (AC required: $REQUIRE_AC_FOR_LID_ACTION)"
-        log "Disabling internal monitor and moving workspaces to external monitor"
-        
-        # Disable internal monitor
-        hyprctl keyword monitor "$internal_monitor,disable"
-        
+        log "Generating persistent config with eDP-1 disabled"
+
+        # Generate config with eDP-1 disabled (generate_monitor_config checks is_lid_closed)
+        generate_monitor_config
+        hyprctl reload
+
+        # Wait for config to apply
+        sleep 1
+
         # Move all workspaces to the first external monitor
         local primary_external="${external_monitors[0]}"
         if [ -n "$primary_external" ]; then
             for workspace in $(hyprctl workspaces -j | jq -r '.[].id'); do
                 hyprctl dispatch moveworkspacetomonitor "$workspace" "$primary_external"
             done
-            
+
             # Focus the external monitor
             hyprctl dispatch focusmonitor "$primary_external"
-            
-            # Restart AGS to update bars
-            restart_ags
         fi
-        
+
+        restart_ags
+
     elif is_lid_closed && [ ${#external_monitors[@]} -eq 0 ]; then
         log "Lid closed with no external monitor — suspending system"
         systemctl suspend
@@ -313,6 +325,7 @@ handle_lid_event() {
         # Wait for config to apply, then redistribute
         sleep 1
         redistribute_workspaces
+        restart_ags
     fi
 }
 
@@ -368,9 +381,6 @@ redistribute_workspaces() {
 
     # Focus the external monitor (where most work happens)
     hyprctl dispatch focusmonitor "$primary_external"
-
-    # Restart AGS after workspace redistribution
-    restart_ags
 }
 
 # Interactive monitor configuration
@@ -536,8 +546,13 @@ show_current_config() {
     hyprctl workspaces -j | jq -r '.[] | "  Workspace \(.id): Monitor \(.monitor)"'
 }
 
-# Main function
-main() {
+# Main function (wrapped in flock for mutual exclusion with hotplug/lid handler)
+(
+    if ! flock -w 30 200; then
+        error "Could not acquire lock after 30s, another instance is running"
+        exit 1
+    fi
+
     case "${1:-}" in
         "auto")
             generate_monitor_config
@@ -561,7 +576,4 @@ main() {
             interactive_config
             ;;
     esac
-}
-
-# Run main function with all arguments
-main "$@"
+) 200>"$LOCKFILE"
