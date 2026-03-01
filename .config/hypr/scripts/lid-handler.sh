@@ -107,6 +107,14 @@ monitor_lid_events() {
         local last_state=$(get_lid_state)
         log "Initial lid state: $last_state"
 
+        # ACPI may report stale "open" state briefly at boot.
+        # If polling starts with lid closed, re-run handle_lid to correct
+        # any wrong config from the initial check.
+        if [ "$last_state" = "closed" ]; then
+            log "Lid closed at poll start, re-verifying lid-close was handled"
+            handle_lid
+        fi
+
         while true; do
             sleep 2
             local current_state=$(get_lid_state)

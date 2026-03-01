@@ -58,14 +58,15 @@ restart_ags() {
     systemctl --user reset-failed ags-bar.scope 2>/dev/null || true
 
     # Start AGS detached from service cgroup
+    # 200>&- closes any inherited flock fd so AGS doesn't hold the lock
     log "Starting AGS (detached from service cgroup)"
     if command -v systemd-run &>/dev/null; then
         systemd-run --user --scope --unit=ags-bar \
             env LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland \
-            ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
+            ags run --gtk 3 --log-file /tmp/ags.log 200>&- >> "$LOG_FILE" 2>&1 &
     else
         setsid env LD_PRELOAD=/usr/lib/libgtk4-layer-shell.so GDK_BACKEND=wayland \
-            ags run --gtk 3 --log-file /tmp/ags.log >> "$LOG_FILE" 2>&1 &
+            ags run --gtk 3 --log-file /tmp/ags.log 200>&- >> "$LOG_FILE" 2>&1 &
     fi
     disown 2>/dev/null
 
