@@ -85,6 +85,64 @@ command_exists() {
     command -v "$1" >/dev/null 2>&1
 }
 
+is_lid_closed() {
+    if [ -f "/proc/acpi/button/lid/LID0/state" ]; then
+        grep -q "closed" /proc/acpi/button/lid/LID0/state
+    elif [ -f "/proc/acpi/button/lid/LID/state" ]; then
+        grep -q "closed" /proc/acpi/button/lid/LID/state
+    else
+        return 1
+    fi
+}
+
+SUDO_KEEPALIVE_PID=""
+
+setup_sudo_for_lid_closed() {
+    if is_lid_closed; then
+        warn "Tapa del laptop cerrada — lector de huella no disponible"
+        info "Se usará autenticación por contraseña para sudo"
+        echo ""
+
+        local max_attempts=3
+        local attempt=0
+
+        while [ $attempt -lt $max_attempts ]; do
+            attempt=$((attempt + 1))
+            read -sp "[sudo] Contraseña: " SUDO_PASS
+            echo ""
+
+            # DBUS_SYSTEM_BUS_ADDRESS=/dev/null makes pam_fprintd.so fail instantly
+            # (can't connect to fprintd daemon) so PAM falls through to pam_unix.so
+            # PAM modules run before sudo's env_reset, so they see this variable
+            if printf '%s\n' "$SUDO_PASS" | \
+                env DBUS_SYSTEM_BUS_ADDRESS=/dev/null sudo -S -v 2>/dev/null; then
+                log "Autenticación sudo exitosa"
+                unset SUDO_PASS
+
+                # Keep sudo credentials alive during entire script
+                (while true; do sudo -n -v 2>/dev/null; sleep 50; done) &
+                SUDO_KEEPALIVE_PID=$!
+                return 0
+            fi
+
+            if [ $attempt -lt $max_attempts ]; then
+                warn "Contraseña incorrecta, intenta de nuevo ($attempt/$max_attempts)"
+            fi
+        done
+
+        error "Máximo de intentos alcanzado ($max_attempts)"
+        unset SUDO_PASS
+        exit 1
+    fi
+}
+
+cleanup_sudo_keepalive() {
+    if [ -n "$SUDO_KEEPALIVE_PID" ]; then
+        kill "$SUDO_KEEPALIVE_PID" 2>/dev/null
+        wait "$SUDO_KEEPALIVE_PID" 2>/dev/null
+    fi
+}
+
 # Handle errors - show message and ask user if they want to continue
 handle_error() {
     local exit_code=$1
@@ -1005,6 +1063,10 @@ main() {
 
     info "Fecha: $(date '+%Y-%m-%d %H:%M:%S')"
     echo ""
+
+    # If lid is closed, authenticate sudo via password (fingerprint reader unavailable)
+    setup_sudo_for_lid_closed
+    trap cleanup_sudo_keepalive EXIT
 
     # Source essentials for utility functions
     if [ -f "$MAINTENANCE_DIR/ESSENTIALS.sh" ]; then
