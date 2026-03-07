@@ -2,6 +2,7 @@ import { WidgetSelector } from "../interfaces/widgetSelector.interface";
 import BooruViewer from "../widgets/leftPanel/components/BooruViewer";
 import ChatBot from "../widgets/leftPanel/components/ChatBot";
 import CustomScripts from "../widgets/leftPanel/components/CustomScripts";
+import Donations from "../widgets/leftPanel/components/Donations";
 import MediaWidget from "../widgets/MediaWidget";
 import Waifu from "../widgets/rightPanel/components/Waifu";
 
@@ -9,14 +10,15 @@ import Workspaces from "../widgets/bar/components/Workspaces";
 import Information from "../widgets/bar/components/Information";
 import Utilities from "../widgets/bar/components/Utilities";
 import ScriptTimer from "../widgets/rightPanel/components/ScriptTimer";
-import Gtk from "gi://Gtk?version=4.0";
 import { Accessor } from "ags";
-import CryptoWidget from "../widgets/rightPanel/components/CryptoWidget";
+import CryptoWidget from "../widgets/rightPanel/components/CryptoViewer";
 import MangaViewer from "../widgets/leftPanel/components/MangaViewer";
 import SettingsWidget from "../widgets/leftPanel/components/SettingsWidget";
 import Calendar from "../widgets/rightPanel/components/Calendar";
 import NotificationHistory from "../widgets/rightPanel/components/NotificationHistory";
 import KeyBinds from "../widgets/leftPanel/components/KeyBinds";
+import SystemResources from "../widgets/rightPanel/components/SystemResources";
+import { Gtk } from "ags/gtk4";
 
 export const barWidgetSelectors: WidgetSelector[] = [
   {
@@ -93,6 +95,13 @@ export const rightPanelWidgetSelectors: WidgetSelector[] = [
       Calendar({ className }),
     enabled: true,
   },
+  {
+    name: "SystemResources",
+    icon: "󰍛",
+    widget: ({ className }: { className?: string | Accessor<string> }) =>
+      SystemResources({ className }),
+    enabled: true,
+  },
 ];
 
 export const leftPanelWidgetSelectors: WidgetSelector[] = [
@@ -131,5 +140,11 @@ export const leftPanelWidgetSelectors: WidgetSelector[] = [
     icon: "",
     widget: () => KeyBinds(),
     enabled: false,
+  },
+  {
+    name: "Donations",
+    icon: "",
+    widget: () => Donations(),
+    enabled: true,
   },
 ];

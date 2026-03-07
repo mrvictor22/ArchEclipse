@@ -11,6 +11,10 @@
     .icon {
       border-radius: 0px;
       padding: $SCALE $SCALE - 10;
+
+      &:not(:checked) {
+        background-color: transparent;
+      }
     }
 
     .widget-actions,
@@ -35,6 +39,24 @@
       background: $background;
       padding: 5px;
       border-radius: 10px;
+
+      button {
+        animation: go-up 0.3s ease-out;
+        &:not(:checked) {
+          background-color: transparent;
+        }
+      }
+
+      @keyframes go-up {
+        from {
+          transform: translateY(10px);
+          opacity: 0;
+        }
+        to {
+          transform: translateY(0);
+          opacity: 1;
+        }
+      }
     }
   }
 }

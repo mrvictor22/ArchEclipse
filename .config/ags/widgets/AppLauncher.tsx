@@ -2,7 +2,7 @@ import { createState, createBinding, Accessor } from "ags";
 import { execAsync } from "ags/process";
 import Apps from "gi://AstalApps";
 
-import { readJson, readJSONFile } from "../utils/json";
+import { readJson, readJSONFile, writeJSONFile } from "../utils/json";
 import { arithmetic, containsOperator } from "../utils/arithmetic";
 import {
   containsProtocolOrTLD,
@@ -10,9 +10,8 @@ import {
   getDomainFromURL,
 } from "../utils/url";
 import app from "ags/gtk4/app";
-import Gtk from "gi://Gtk?version=4.0";
+import { Astal, Gtk } from "ags/gtk4";
 
-import Astal from "gi://Astal?version=4.0";
 import { notify } from "../utils/notification";
 import {
   emptyWorkspace,
@@ -30,101 +29,95 @@ import { LauncherApp } from "../interfaces/app.interface";
 import { customApps } from "../constants/app.constants";
 import { quickApps } from "../constants/app.constants";
 import { For } from "gnim";
-import Gdk from "gi://Gdk?version=4.0";
+import { Gdk } from "ags/gtk4";
 import { convert, isConversionQuery } from "../utils/convert";
-import Pango from "gi://Pango?version=1.0";
+import Pango from "gi://Pango";
+import GLib from "gi://GLib";
 const hyprland = Hyprland.get_default();
 
 const MAX_ITEMS = 10;
+const MAX_HISTORY_ENTRIES = 10;
+const LAUNCHER_HISTORY_PATH = `${GLib.get_home_dir()}/.config/ags/cache/launcher/history.json`;
 
 const [Results, setResults] = createState<LauncherApp[]>([]);
+
+const [history, setHistory] = createState<string[]>([]);
+
+const normalizeHistory = (entries: unknown): string[] => {
+  if (!Array.isArray(entries)) return [];
+
+  const normalized: string[] = [];
+  for (const entry of entries) {
+    if (typeof entry !== "string") continue;
+    const appName = entry.trim();
+    if (!appName || normalized.includes(appName)) continue;
+
+    normalized.push(appName);
+    if (normalized.length >= MAX_HISTORY_ENTRIES) break;
+  }
+
+  return normalized;
+};
+
+const getInstalledAppByName = (appName: string): Apps.Application | null => {
+  return (
+    apps
+      .fuzzy_query(appName)
+      .find((candidate: Apps.Application) => candidate.name === appName) || null
+  );
+};
+
+const persistHistory = (nextHistory: string[]) => {
+  writeJSONFile(LAUNCHER_HISTORY_PATH, nextHistory);
+};
+
+const touchHistory = (appName: string) => {
+  const nextHistory = normalizeHistory([
+    appName,
+    ...history.peek().filter((name) => name !== appName),
+  ]);
+
+  setHistory(nextHistory);
+  persistHistory(nextHistory);
+};
+
+const launchAndRecord = (application: Apps.Application) => {
+  application.launch();
+  touchHistory(application.name);
+};
 
 let parentWindowRef: Gtk.Window | null = null;
 
 const QuickApps = () => {
-  const apps = (
-    <Gtk.Revealer
-      transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}
-      transitionDuration={globalTransition}
-      revealChild={Results((results) => results.length === 0)}
-    >
-      <scrolledwindow heightRequest={quickApps.length * 40}>
-        <box
-          class="results quick-apps"
-          spacing={5}
-          orientation={Gtk.Orientation.VERTICAL}
-        >
-          {quickApps.map((app, index) => (
-            <Gtk.Button
-              hexpand
-              class="quick-app"
-              onClicked={() => {
-                app.app_launch();
-                if (parentWindowRef) {
-                  parentWindowRef.hide();
-                }
-              }}
-            >
-              <box spacing={5}>
-                <label widthRequest={24} label={app.app_icon} />
-                <label label={app.app_name} />
-              </box>
-            </Gtk.Button>
-          ))}
-        </box>
-      </scrolledwindow>
-    </Gtk.Revealer>
-  );
-
   return (
-    <box class="quick-launcher" spacing={5}>
-      {apps}
-    </box>
+    <scrolledwindow vexpand>
+      <box
+        class="quick-apps results"
+        spacing={5}
+        orientation={Gtk.Orientation.VERTICAL}
+        valign={Gtk.Align.START}
+      >
+        {quickApps.map((app, index) => (
+          <Gtk.Button
+            hexpand
+            class="quick-app"
+            onClicked={() => {
+              app.app_launch();
+              if (parentWindowRef) {
+                parentWindowRef.hide();
+              }
+            }}
+          >
+            <box spacing={5}>
+              <label widthRequest={24} label={app.app_icon} />
+              <label label={app.app_name} />
+            </box>
+          </Gtk.Button>
+        ))}
+      </box>
+    </scrolledwindow>
   );
 };
-
-const helpCommands = {
-  "Press <Escape>": "to reset input",
-  "... ...": "open with argument",
-  "translate .. > ..": "translate into (en,fr,es,de,pt,ru,ar...)",
-  "... .com OR https://...": "open link",
-  "..*/+-..": "arithmetics",
-  "emoji ...": "search emojis",
-  "100c to f / 10kg in lb": "unit conversion (temp/weight/length/volume/speed)",
-};
-
-const Help = () => (
-  <menubutton class="help" tooltipText="Help" halign={Gtk.Align.END}>
-    <label label="" />
-    <popover
-      $={(self) => {
-        self.connect("notify::visible", () => {
-          if (self.visible) self.add_css_class("popover-open");
-          else if (self.get_child()) self.remove_css_class("popover-open");
-        });
-      }}
-    >
-      <box class="help-popover" spacing={5}>
-        <box orientation={Gtk.Orientation.VERTICAL} spacing={5}>
-          {Object.entries(helpCommands).map(([command, description]) => (
-            <box spacing={10}>
-              <label
-                label={command}
-                class="command"
-                // ellipsize={Gtk.EllipsizeMode.END}
-              />
-              <label
-                label={description}
-                class="description"
-                // ellipsize={Gtk.EllipsizeMode.END}
-              />
-            </box>
-          ))}
-        </box>
-      </box>
-    </popover>
-  </menubutton>
-);
 
 let debounceTimer: any;
 let args: string[];
@@ -135,7 +128,7 @@ const Entry = () => (
     hexpand={true}
     placeholderText="Search for an app, emoji, translate, url, or do some math..."
     $={(self) => (entryWidget = self)}
-    onChanged={async (self: any) => {
+    onChanged={(self: any) => {
       const text = self.get_text();
       if (debounceTimer) {
         clearTimeout(debounceTimer);
@@ -175,7 +168,7 @@ const Entry = () => (
               ? text.split(">")[1].trim()
               : "en";
             const translation = await execAsync(
-              `bash ./scripts/translate.sh '${text
+              `bash ${GLib.get_home_dir()}/.config/ags/scripts/translate.sh '${text
                 .split(">")[0]
                 .replace("translate", "")
                 .trim()}' '${language}'`,
@@ -188,7 +181,9 @@ const Entry = () => (
             ]);
           } // Handle emojis
           else if (args[0].includes("emoji")) {
-            const emojis: [] = readJSONFile("./assets/emojis/emojis.json");
+            const emojis: [] = readJSONFile(
+              `${GLib.get_home_dir()}/.config/ags/assets/emojis/emojis.json`,
+            );
             const filteredEmojis = emojis.filter(
               (emoji: { app_tags: string; app_name: string }) =>
                 emoji.app_tags
@@ -243,13 +238,7 @@ const Entry = () => (
                   app_description: app.description,
                   app_type: "app",
                   app_arg: args.join(" "),
-                  app_launch: () =>
-                    !args.join("")
-                      ? app.launch()
-                      : hyprland.message_async(
-                          `dispatch exec ${app.executable} ${args.join(" ")}`,
-                          () => {},
-                        ),
+                  app_launch: () => launchAndRecord(app),
                 })),
             );
             if (Results.get().length === 0) {
@@ -296,15 +285,62 @@ const launchApp = (app: LauncherApp) => {
   EmptyEntry();
 };
 
-const ResultsDisplay = () => {
+const Help = () => {
+  const helpCommands = {
+    "... ...": "open with argument",
+    "translate .. > ..": "translate into (en,fr,es,de,pt,ru,ar...)",
+    "... .com OR https://...": "open link",
+    "..*/+-..": "arithmetics",
+    "emoji ...": "search emojis",
+    "100c to f / 10kg in lb":
+      "unit conversion (temp/weight/length/volume/speed)",
+  };
+  return (
+    <box
+      visible={Results((results) => results.length <= 0)}
+      class={"help"}
+      orientation={Gtk.Orientation.VERTICAL}
+      spacing={10}
+    >
+      {Object.entries(helpCommands).map(([command, description]) => (
+        <box spacing={10}>
+          <label label={command} class="command" hexpand wrap xalign={0} />
+          <label
+            label={description}
+            class="description"
+            hexpand
+            wrap
+            xalign={1}
+          />
+        </box>
+      ))}
+    </box>
+  );
+};
+
+const AppButton = ({
+  element,
+  className,
+}: {
+  element: LauncherApp;
+  className?: string;
+}) => {
   const buttonContent = (element: LauncherApp) => (
-    <box spacing={10} hexpand>
+    <box
+      spacing={10}
+      hexpand
+      tooltipMarkup={`${element.app_name}\n<b>${element.app_description}</b>`}
+    >
       {/* ICON SLOT — always present */}
 
       <image visible={element.app_type === "app"} iconName={element.app_icon} />
 
       {/* MAIN LABEL — expands */}
-      <label xalign={0} label={element.app_name} />
+      <label
+        xalign={0}
+        label={element.app_name}
+        ellipsize={Pango.EllipsizeMode.END}
+      />
 
       {/* ARGUMENT — fixed alignment */}
       <label
@@ -314,37 +350,28 @@ const ResultsDisplay = () => {
         label={element.app_arg || ""}
       />
 
-      <label
-        class="description"
-        xalign={1}
-        ellipsize={Pango.EllipsizeMode.END}
-        label={element.app_description || ""}
-      />
+      {/* <label
+          class="description"
+          xalign={1}
+          ellipsize={Pango.EllipsizeMode.END}
+          label={element.app_description || ""}
+        /> */}
     </box>
   );
+  return (
+    <Gtk.Button
+      hexpand={true}
+      class={className}
+      onClicked={() => {
+        launchApp(element);
+      }}
+    >
+      {buttonContent(element)}
+    </Gtk.Button>
+  );
+};
 
-  const AppButton = ({
-    element,
-    className,
-  }: {
-    element: LauncherApp;
-    className?: string;
-  }) => {
-    return (
-      <Gtk.Button
-        hexpand={true}
-        class={className}
-        onClicked={() => {
-          launchApp(element);
-        }}
-      >
-        {buttonContent(element)}
-      </Gtk.Button>
-    );
-  };
-
-  // if (Results.length === 0) return <box />;
-
+const ResultsDisplay = () => {
   const rows = (
     <box
       visible={Results((results) => results.length > 0)}
@@ -356,28 +383,76 @@ const ResultsDisplay = () => {
         {(result, i) => (
           <AppButton
             element={result}
-            className={i.get() === 0 ? "checked" : ""}
+            className={i.peek() === 0 ? "checked" : ""}
           />
         )}
       </For>
     </box>
   );
-
-  const maxHeight = 500;
   return (
-    <revealer
-      revealChild={Results((results) => results.length > 0)}
-      transitionType={Gtk.RevealerTransitionType.SLIDE_DOWN}
-      transitionDuration={globalTransition}
-    >
-      <scrolledwindow
-        heightRequest={Results((results) =>
-          results.length * 45 > maxHeight ? maxHeight : results.length * 45,
-        )}
-      >
+    <scrolledwindow hexpand vexpand>
+      <box orientation={Gtk.Orientation.VERTICAL}>
+        <Help />
         {rows}
-      </scrolledwindow>
-    </revealer>
+      </box>
+    </scrolledwindow>
+  );
+};
+
+const History = () => {
+  return (
+    <scrolledwindow vexpand>
+      <box
+        valign={Gtk.Align.START}
+        class={"history"}
+        orientation={Gtk.Orientation.VERTICAL}
+        spacing={5}
+        $={(self) => {
+          execAsync(
+            `mkdir -p ${GLib.get_home_dir()}/.config/ags/cache/launcher`,
+          ).then(() => {
+            const loadedHistory = normalizeHistory(
+              readJSONFile(LAUNCHER_HISTORY_PATH, []),
+            );
+
+            const validHistory = loadedHistory.filter(
+              (appName) => getInstalledAppByName(appName) !== null,
+            );
+
+            setHistory(validHistory);
+
+            if (validHistory.length !== loadedHistory.length) {
+              persistHistory(validHistory);
+            }
+          });
+        }}
+      >
+        <label
+          visible={history((h) => h.length == 0)}
+          label={"Empty History"}
+        ></label>
+        <For each={history}>
+          {(appName) => {
+            const _app = getInstalledAppByName(appName);
+
+            if (_app) {
+              const app: LauncherApp = {
+                app_name: _app.name,
+                app_icon: _app.iconName,
+                app_description: _app.description,
+                app_type: "app",
+                app_launch: () => {
+                  launchAndRecord(_app);
+                },
+              };
+              return <AppButton element={app} />;
+            } else {
+              return <box />; // or some placeholder for missing app
+            }
+          }}
+        </For>
+      </box>
+    </scrolledwindow>
   );
 };
 
@@ -393,7 +468,7 @@ export default ({
     name={`app-launcher-${getMonitorName(monitor)}`}
     namespace="app-launcher"
     application={app}
-    exclusivity={Astal.Exclusivity.EXCLUSIVE}
+    exclusivity={Astal.Exclusivity.IGNORE}
     keymode={Astal.Keymode.EXCLUSIVE}
     layer={Astal.Layer.TOP}
     margin={globalMargin} // top right bottom left
@@ -419,18 +494,20 @@ export default ({
         }
       }}
     />
-    <box
-      orientation={Gtk.Orientation.VERTICAL}
-      class="app-launcher"
-      spacing={10}
-    >
-      <box class={"input"} spacing={5}>
+    <box class="app-launcher" spacing={10}>
+      <box
+        class={"main"}
+        hexpand
+        orientation={Gtk.Orientation.VERTICAL}
+        spacing={10}
+      >
+        <ResultsDisplay />
         <Entry />
-        <Help />
       </box>
-
-      <QuickApps />
-      <ResultsDisplay />
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={10}>
+        <QuickApps />
+        <History />
+      </box>
     </box>
   </Astal.Window>
 );

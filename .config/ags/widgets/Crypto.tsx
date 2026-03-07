@@ -1,7 +1,7 @@
 import { Accessor, createBinding, createState, With } from "ags";
 import { createPoll } from "ags/time";
-import Gtk from "gi://Gtk?version=4.0";
-import GLib from "gi://GLib?version=2.0";
+import { Gtk } from "ags/gtk4";
+import GLib from "gi://GLib";
 import { Eventbox } from "./Custom/Eventbox";
 import { Progress } from "./Progress";
 import Pango from "gi://Pango";
@@ -98,7 +98,12 @@ function Crypto({
   const cryptoPoll = createPoll(
     { price: 0, prices: [] },
     POLL_INTERVAL,
-    ["python", "./scripts/crypto.py", symbol, timeframe],
+    [
+      "python",
+      `${GLib.get_home_dir()}/.config/ags/scripts/crypto.py`,
+      symbol,
+      timeframe,
+    ],
     (out) => {
       try {
         const parsed = JSON.parse(out);
@@ -140,66 +145,54 @@ function Crypto({
 
   // Create the widget
   return (
-    <Eventbox
-      onClick={() => {
-        // Open a crypto-related page when clicked
-        GLib.spawn_command_line_async(
-          `xdg-open https://www.coingecko.com/en/coins/${symbol}`,
-        );
-      }}
-      onHover={() => {
-        // Optional: Show tooltip or additional info on hover
-      }}
+    <box
+      class={colorClass((c) => `crypto ${c}`)}
+      spacing={4}
+      orientation={orientation}
     >
-      <box
-        class={colorClass((c) => `crypto ${c}`)}
-        spacing={4}
-        orientation={orientation}
-      >
-        {/* Hidden label to ensure cryptoPoll runs */}
+      {/* Hidden label to ensure cryptoPoll runs */}
 
-        <label visible={false} label={cryptoPoll(() => "")} />
+      <label visible={false} label={cryptoPoll(() => "")} />
 
-        <With value={getCurrentPrice}>
-          {(price) =>
-            price === 0 ? (
-              <Progress
-                status={progressStatus}
-                custom_class="crypto-loading"
-                transitionType={Gtk.RevealerTransitionType.NONE}
-              />
-            ) : (
-              <box spacing={2}>
-                {showPrice && (
-                  <box spacing={2}>
-                    <label class="crypto-symbol" label={symbol.toUpperCase()} />
+      <With value={getCurrentPrice}>
+        {(price) =>
+          price === 0 ? (
+            <Progress
+              status={progressStatus}
+              custom_class="crypto-loading"
+              transitionType={Gtk.RevealerTransitionType.NONE}
+            />
+          ) : (
+            <box spacing={2}>
+              {showPrice && (
+                <box spacing={2}>
+                  <label class="crypto-symbol" label={symbol.toUpperCase()} />
 
-                    <label
-                      class="crypto-price"
-                      label={formattedPrice}
-                      ellipsize={Pango.EllipsizeMode.END}
-                    />
-                    {/* <label
+                  <label
+                    class="crypto-price"
+                    label={formattedPrice}
+                    ellipsize={Pango.EllipsizeMode.END}
+                  />
+                  {/* <label
                     class={colorClass((c) => `crypto-change ${c}`)}
                     label={formattedChange}
                   /> */}
-                  </box>
-                )}
+                </box>
+              )}
 
-                {showGraph && (
-                  <label
-                    class={colorClass((c) => `crypto-graph mono ${c}`)}
-                    label={graph}
-                    xalign={0}
-                    hexpand={false}
-                  />
-                )}
-              </box>
-            )
-          }
-        </With>
-      </box>
-    </Eventbox>
+              {showGraph && (
+                <label
+                  class={colorClass((c) => `crypto-graph mono ${c}`)}
+                  label={graph}
+                  xalign={0}
+                  hexpand={false}
+                />
+              )}
+            </box>
+          )
+        }
+      </With>
+    </box>
   );
 }
 

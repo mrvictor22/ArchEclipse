@@ -1,4 +1,4 @@
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import { BooruImage } from "../../../classes/BooruImage";
 import { execAsync } from "ags/process";
 import { readJson } from "../../../utils/json";
@@ -11,7 +11,7 @@ import { notify } from "../../../utils/notification";
 import { createState, createComputed, For, With, Accessor } from "ags";
 import { booruApis } from "../../../constants/api.constants";
 import Picture from "../../Picture";
-import Gdk from "gi://Gdk?version=4.0";
+import { Gdk } from "ags/gtk4";
 import Gio from "gi://Gio?version=2.0";
 import { Progress } from "../../Progress";
 import { connectPopoverEvents } from "../../../utils/window";

@@ -1,13 +1,14 @@
 import { createPoll } from "ags/time";
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import { With } from "gnim";
 import { formatKiloBytes } from "../../../../utils/bytes";
 import { createSubprocess } from "ags/process";
+import GLib from "gi://GLib";
 
 export default () => {
   const bandwidth = createSubprocess(
     [0, 0, 0, 0],
-    ["./assets/binaries/bandwidth-loop-ags"],
+    [`/tmp/ags/bandwidth-loop-ags`],
     (out, prev) => {
       try {
         const parsed = JSON.parse(out);

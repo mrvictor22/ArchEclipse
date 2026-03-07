@@ -1,4 +1,4 @@
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import { focusedWorkspace, specialWorkspace } from "../../../variables";
 
 import Hyprland from "gi://AstalHyprland";
@@ -419,6 +419,25 @@ function WallpaperSwitcher() {
   );
 }
 
+function AppLauncher() {
+  return (
+    <button
+      // class="app-launcher"
+      label=""
+      onClicked={(self) => {
+        const window = app.get_window(
+          `app-launcher-${(self.get_root() as any).monitorName}`,
+        );
+        if (window)
+          window.is_visible()
+            ? (window.visible = false)
+            : (window.visible = true);
+      }}
+      tooltipMarkup={`App Launcher\n<b>SUPER</b>`}
+    />
+  );
+}
+
 function UserPanel() {
   return (
     <button
@@ -442,6 +461,7 @@ const Actions = () => {
   return (
     <box class="actions">
       <UserPanel />
+      <AppLauncher />
       <WallpaperSwitcher />
     </box>
   );

@@ -3,15 +3,16 @@ import { autoCreateSettings, settingsPath } from "./utils/settings";
 import Hyprland from "gi://AstalHyprland";
 const hyprland = Hyprland.get_default();
 
-import { createBinding, createState } from "ags";
+import { Accessor, createBinding, createState } from "ags";
 import { createPoll } from "ags/time";
 import GLib from "gi://GLib";
 import { writeJSONFile } from "./utils/json";
 import { Settings } from "./interfaces/settings.interface";
 import { phi, phi_min } from "./constants/phi.constants";
 import { defaultSettings } from "./constants/settings.constants";
-import { exec, execAsync } from "ags/process";
+import { createSubprocess, exec, execAsync } from "ags/process";
 import { notify } from "./utils/notification";
+import { SystemResourcesInterface } from "./interfaces/systemResources.interface";
 
 export const NOTIFICATION_DELAY = phi * 3000;
 
@@ -56,7 +57,7 @@ export const fullscreenClient = focusedClient((client) => {
 export const emptyWorkspace = focusedClient((client) => !client);
 export const focusedWorkspace = createBinding(hyprland, "focusedWorkspace");
 export const specialWorkspace = focusedClient((client) => {
-  return client?.workspace?.id < 0 ?? false;
+  return client && client.workspace ? client.workspace.id < 0 : false;
 });
 
 export const globalMargin = emptyWorkspace((empty) => (empty ? 20 : 5));
@@ -64,22 +65,16 @@ export const globalTransition = 300;
 
 export const date_less = createPoll(
   "",
-  5000,
+  30000,
   () => GLib.DateTime.new_now_local().format(globalSettings.peek().dateFormat)!,
 );
 export const date_more = createPoll(
   "",
-  5000,
+  30000,
   () => GLib.DateTime.new_now_local().format(" %A ·%e %b %Y ")!,
 );
 
-const [globalTheme, _setGlobalTheme] = createState<boolean>(
-  exec([
-    "bash",
-    "-c",
-    "$HOME/.config/hypr/theme/scripts/system-theme.sh get",
-  ]).includes("light"),
-);
+const [globalTheme, _setGlobalTheme] = createState<boolean>(false);
 function setGlobalTheme(value: boolean) {
   execAsync([
     "bash",
@@ -91,4 +86,24 @@ function setGlobalTheme(value: boolean) {
     _setGlobalTheme(value);
   });
 }
+
+execAsync([
+  "bash",
+  "-c",
+  "$HOME/.config/hypr/theme/scripts/system-theme.sh get",
+]).then((output) => {
+  _setGlobalTheme(output.includes("light"));
+});
 export { globalTheme, setGlobalTheme };
+
+export const systemResourcesData: Accessor<SystemResourcesInterface | null> =
+  createSubprocess(null, `/tmp/ags/system-resources-loop-ags`, (out) => {
+    try {
+      const parsed: SystemResourcesInterface = JSON.parse(out);
+      console.table(parsed);
+
+      return parsed;
+    } catch (e) {
+      return null;
+    }
+  });

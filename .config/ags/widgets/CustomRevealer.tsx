@@ -1,4 +1,4 @@
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import { globalTransition } from "../variables";
 import { Eventbox } from "./Custom/Eventbox";
 import { Accessor } from "ags";
@@ -12,6 +12,7 @@ export default ({
   on_primary_click = () => {},
   tooltipText = "",
   transitionType = Gtk.RevealerTransitionType.SWING_LEFT,
+  $,
 }: {
   trigger: any;
   child: any;
@@ -23,12 +24,20 @@ export default ({
   transitionType?:
     | Gtk.RevealerTransitionType
     | Accessor<Gtk.RevealerTransitionType>;
+  $?: (self: Gtk.Revealer) => void;
 }) => {
   const revealer = (
     <revealer
       revealChild={revealChild}
       transitionDuration={globalTransition}
       transitionType={transitionType}
+      $={(self) => {
+        if ($) $(self);
+        self.connect(`notify::volume`, () => {
+          print("Volume changed, revealing slider");
+          self.reveal_child = true;
+        });
+      }}
       child={child}
     />
   );

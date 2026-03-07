@@ -15,12 +15,14 @@ import Wp from "gi://AstalWp";
 import Notifd from "gi://AstalNotifd";
 const notifd = Notifd.get_default();
 
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import {
   globalSettings,
   globalTheme,
+  globalTransition,
   setGlobalSetting,
   setGlobalTheme,
+  systemResourcesData,
 } from "../../../variables";
 import { notify } from "../../../utils/notification";
 import { For } from "ags";
@@ -28,9 +30,11 @@ import AstalTray from "gi://AstalTray";
 import AstalBattery from "gi://AstalBattery";
 import AstalPowerProfiles from "gi://AstalPowerProfiles";
 import CircularProgress from "../../CircularProgress";
-import { createPoll } from "ags/time";
+import { timeout, Timer } from "ags/time";
+import SystemResources from "../../rightPanel/components/SystemResources";
 
 import Hyprland from "gi://AstalHyprland";
+import GLib from "gi://GLib";
 const hyprland = Hyprland.get_default();
 
 function BrightnessWidget() {
@@ -96,7 +100,8 @@ function Battery() {
       tooltipMarkup={createComputed(() => {
         const profile = powerprofiles.active_profile;
         return `Battery: ${percent.peek()} \nProfile: ${profile}`;
-      })}>
+      })}
+    >
       <box spacing={5} class="battery">
         <image iconName={createBinding(battery, "iconName")} />
         <label label={percent} />
@@ -107,7 +112,8 @@ function Battery() {
             if (self.visible) self.add_css_class("popover-open");
             else if (self.get_child()) self.remove_css_class("popover-open");
           });
-        }}>
+        }}
+      >
         <box orientation={Gtk.Orientation.VERTICAL}>
           {powerprofiles.get_profiles().map(({ profile }) => (
             <button onClicked={() => setProfile(profile)}>
@@ -141,21 +147,80 @@ function Volume() {
     <label label={volume((v: number) => `${Math.round(v * 100)}%`)} />
   );
 
+  const trigger = (
+    <box class="trigger" spacing={5} children={[icon, percentage]} />
+  );
+
+  let hideTimeout: any = null;
+  let isHovering = false;
+  let isFirstTrigger = true;
+
+  const revealer = (
+    <revealer
+      revealChild={false}
+      transitionDuration={globalTransition}
+      transitionType={Gtk.RevealerTransitionType.SWING_LEFT}
+      $={(self) => {
+        speaker.connect(`notify::volume`, () => {
+          // Skip the first trigger
+          if (isFirstTrigger) {
+            isFirstTrigger = false;
+            return;
+          }
+
+          if (hideTimeout) {
+            clearTimeout(hideTimeout);
+          }
+
+          // Set new timeout to hide after 2 seconds of no volume changes
+          hideTimeout = setTimeout(() => {
+            if (!isHovering) {
+              self.reveal_child = false;
+            }
+          }, 2000);
+        });
+      }}
+    >
+      {slider}
+    </revealer>
+  );
   return (
-    <CustomRevealer
+    <box
       tooltipText={volume(
         (v) => `Volume: ${Math.round(v * 100)}%\nClick to open Volume Mixer`,
       )}
-      trigger={
-        <box class="trigger" spacing={5} children={[icon, percentage]} />
-      }
-      child={slider}
-      on_primary_click={() => {
-        execAsync(`pavucontrol`).catch((err) =>
-          notify({ summary: "pavu", body: err }),
-        );
-      }}
-    />
+      class={"custom-revealer"}
+    >
+      <Gtk.EventControllerMotion
+        onEnter={() => {
+          isHovering = true;
+          if (hideTimeout) {
+            clearTimeout(hideTimeout);
+          }
+          (revealer as Gtk.Revealer).reveal_child = true;
+        }}
+        onLeave={() => {
+          isHovering = false;
+          if (hideTimeout) {
+            clearTimeout(hideTimeout);
+          }
+          hideTimeout = setTimeout(() => {
+            (revealer as Gtk.Revealer).reveal_child = false;
+          }, 2000);
+        }}
+      ></Gtk.EventControllerMotion>
+      <Gtk.GestureClick
+        onPressed={() => {
+          execAsync(`pavucontrol`).catch((err) =>
+            notify({ summary: "pavu", body: err }),
+          );
+        }}
+      />
+      <box class={"content"}>
+        {trigger}
+        {revealer}
+      </box>
+    </box>
   );
 }
 
@@ -184,7 +249,8 @@ function Tray() {
             <menubutton
               class="tray-icon"
               $={(self) => init(self, item)}
-              tooltipText={item.tooltip_text}>
+              tooltipText={item.tooltip_text}
+            >
               <image pixelSize={11} gicon={createBinding(item, "gicon")} />
             </menubutton>
           )}
@@ -196,7 +262,8 @@ function Tray() {
             hidden && (
               <menubutton
                 class="tray-icon tray-overflow"
-                tooltipText="More icons">
+                tooltipText="More icons"
+              >
                 <image pixelSize={11} iconName="view-more-symbolic" />
                 <popover
                   $={(self) => {
@@ -205,17 +272,20 @@ function Tray() {
                       else if (self.get_child())
                         self.remove_css_class("popover-open");
                     });
-                  }}>
+                  }}
+                >
                   <box
                     class="tray-popover"
                     orientation={Gtk.Orientation.VERTICAL}
-                    spacing={5}>
+                    spacing={5}
+                  >
                     <For each={hiddenItems}>
                       {(item) => (
                         <menubutton
                           class="tray-icon"
                           $={(self) => init(self, item)}
-                          tooltipText={item.tooltip_text}>
+                          tooltipText={item.tooltip_text}
+                        >
                           <box spacing={8}>
                             <image
                               pixelSize={11}
@@ -299,54 +369,97 @@ function DndToggle() {
       class={hasPing((ping) => (ping ? "dnd-toggle active" : "dnd-toggle"))}
       tooltipMarkup={globalSettings(({ notifications }) =>
         notifications.dnd ? "Disable Do Not Disturb" : "Enable Do Not Disturb",
-      )}>
+      )}
+    >
       <label
         label={globalSettings(({ notifications }) =>
           notifications.dnd ? "" : "",
-        )}></label>
+        )}
+      ></label>
     </togglebutton>
   );
 }
 
 function ResourceMonitor() {
-  const systemResource = createSubprocess(
-    [0, 0, 0],
-    "./assets/binaries/system-resources-loop-ags",
-    (out) => {
-      try {
-        return JSON.parse(out);
-      } catch (e) {
-        return [0, 0, 0];
-      }
-    },
-  );
   return (
-    <box class="resource-monitor">
+    <box
+      class="resource-monitor"
+      $={(self) => {
+        const popover = new Gtk.Popover({
+          has_arrow: true,
+          position: Gtk.PositionType.BOTTOM,
+          autohide: false,
+        });
+
+        popover.set_child(
+          SystemResources({
+            className: "resource-monitor-popover",
+            orientation: Gtk.Orientation.HORIZONTAL,
+          }) as unknown as Gtk.Widget,
+        );
+        popover.set_parent(self);
+
+        let hideTimeout: Timer;
+
+        const monitorMotion = new Gtk.EventControllerMotion();
+        monitorMotion.connect("enter", () => {
+          if (hideTimeout) {
+            hideTimeout.cancel();
+          }
+          popover.show();
+        });
+
+        monitorMotion.connect("leave", () => {
+          hideTimeout = timeout(80, () => {
+            popover.hide();
+            hideTimeout.cancel();
+          });
+        });
+
+        self.add_controller(monitorMotion);
+
+        const popoverMotion = new Gtk.EventControllerMotion();
+        popoverMotion.connect("enter", () => {
+          if (hideTimeout) {
+            hideTimeout.cancel();
+          }
+        });
+
+        popoverMotion.connect("leave", () => {
+          popover.hide();
+        });
+
+        popover.add_controller(popoverMotion);
+      }}
+    >
       <Gtk.GestureClick
         onPressed={() => {
           hyprland.dispatch("workspace", "5");
         }}
       />
-      <With value={systemResource}>
+      <With value={systemResourcesData}>
         {(res) => (
           <box spacing={10}>
             <CircularProgress
-              visible={res[0] != 0}
-              tooltipText={`CPU Usage ${res[0]}%`}
-              value={res[0] / 100}
+              visible={res?.cpuLoad !== undefined}
+              tooltipText={`CPU Usage ${res?.cpuLoad}%`}
+              value={res?.cpuLoad ? res?.cpuLoad / 100 : 0}
               className="cpu-monitor"
+              icon=""
             />
             <CircularProgress
-              visible={res[1] != 0}
-              tooltipText={`RAM Usage ${res[1]}%`}
-              value={res[1] / 100}
+              visible={res?.ramUsedGB !== undefined}
+              tooltipText={`RAM Usage ${res?.ramUsedGB}%`}
+              value={res?.ramUsedGB ? res?.ramUsedGB / 100 : 0}
               className="ram-monitor"
+              icon=""
             />
             <CircularProgress
-              visible={res[2] != 0}
-              tooltipText={`GPU Usage ${res[2]}%`}
-              value={res[2] / 100}
+              visible={res?.gpuLoad !== undefined}
+              tooltipText={`GPU Usage ${res?.gpuLoad}%`}
+              value={res?.gpuLoad ? res?.gpuLoad / 100 : 0}
               className="gpu-monitor"
+              icon="󱤟"
             />
           </box>
         )}

@@ -1,7 +1,5 @@
 // Define the theme variables
 
-$BOX-SHADOW: 0px 5px 10px rgba(0, 0, 0, 0.4);
-
 @mixin module {
   background: $background-transparent;
   color: $foreground;
@@ -40,7 +38,7 @@ $BOX-SHADOW: 0px 5px 10px rgba(0, 0, 0, 0.4);
   border: none;
   min-width: 25px;
 
-  background: $background-semi-transparent;
+  background: $background-transparent;
 
   &:hover {
     background: $background;
@@ -110,10 +108,10 @@ filechooserbutton * {
 
 entry {
   all: unset;
-  padding: $SCALE / $phi;
+  padding: $SCALE;
   border-radius: 10px;
   color: $foreground;
-  background: $background-semi-transparent;
+  background: $background-transparent;
   border: unset;
   &:focus {
     box-shadow: unset;
@@ -230,13 +228,13 @@ popover {
       transform: rotate(0deg);
     }
     25% {
-      transform: rotate(10deg);
+      transform: rotate(5deg);
     }
     50% {
       transform: rotate(0deg);
     }
     75% {
-      transform: rotate(-10deg);
+      transform: rotate(-5deg);
     }
     100% {
       transform: rotate(0deg);
@@ -257,7 +255,8 @@ flowbox > flowboxchild:first-child {
 
 .circular-progress {
   color: $secondary;
-  &:hover {
-    transform: scale(1.2);
+  .circular-progress-icon {
+    color: $foreground;
+    font-size: 0.9em;
   }
 }

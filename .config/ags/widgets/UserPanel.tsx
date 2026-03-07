@@ -1,52 +1,40 @@
 import { execAsync, exec } from "ags/process";
 import { createPoll } from "ags/time";
-import MediaWidget from "./MediaWidget";
 
 import App from "ags/gtk4/app";
-import Gtk from "gi://Gtk?version=4.0";
-import Gdk from "gi://Gdk?version=4.0";
-import Astal from "gi://Astal?version=4.0";
+import { Gtk } from "ags/gtk4";
+import { Gdk } from "ags/gtk4";
+import { Astal } from "ags/gtk4";
 
 import Hyprland from "gi://AstalHyprland";
 import { date_less, date_more } from "../variables";
 import { hideWindow } from "../utils/window";
 import Picture from "./Picture";
-import NotificationHistory from "./rightPanel/components/NotificationHistory";
 import Gio from "gi://Gio";
 import { notify } from "../utils/notification";
 import GLib from "gi://GLib";
 import { getMonitorName } from "../utils/monitor";
+import MediaWidget from "./MediaWidget";
+import Pango from "gi://Pango";
 const hyprland = Hyprland.get_default();
 
-const pfpPath = exec(`bash -c "echo $HOME/.face.icon"`);
-const username = exec(`whoami`);
-const desktopEnv = exec(`bash -c "echo $XDG_CURRENT_DESKTOP"`);
+// $HOME/.face.icon, if the file doesn't exist, it will return the default user picture path "./assets/userpanel/archeclipse_default_pfp.jpg"
+const homePfpPath = GLib.getenv("HOME") + "/.face.icon";
+const pfpPath = Gio.File.new_for_path(homePfpPath).query_exists(null)
+  ? homePfpPath
+  : `${GLib.get_home_dir()}/.config/ags/assets/userpanel/archeclipse_default_pfp.jpg`;
+
+const username = GLib.get_user_name();
+const desktopEnv = GLib.getenv("XDG_CURRENT_DESKTOP") || "Unknown DE";
+
 const uptime = createPoll("", 600000, "uptime -p"); // every 10 minutes
 
 const UserPanel = () => {
-  const Profile = () => {
-    const UserName = (
-      <box halign={Gtk.Align.CENTER} class="user-name">
-        <label label="I'm " />
-        <label class="secondary" label={username} />
-      </box>
-    );
-    const DesktopEnv = (
-      <box class="desktop-env" halign={Gtk.Align.CENTER}>
-        <label label="On " />
-        <label class="secondary" label={desktopEnv} />
-      </box>
-    );
-
-    const Uptime = (
-      <box halign={Gtk.Align.CENTER} class="up-time">
-        <label class="uptime" label={uptime} />
-      </box>
-    );
-
-    const ProfilePicture = (
+  const Center = () => {
+    const pfp = (
       <button
         class="profile-picture"
+        tooltipMarkup={"Click to set up profile picture"}
         onClicked={async (self) => {
           // setProgressStatus("loading");
           const dialog = new Gtk.FileDialog({
@@ -109,104 +97,131 @@ const UserPanel = () => {
           }
         }}
       >
-        <Picture file={pfpPath} width={200} height={200} />
+        <Picture file={pfpPath} />
       </button>
-
-      // </box>
+    );
+    const UserName = (
+      <box halign={Gtk.Align.CENTER} class="user-name">
+        <label label="I'm " />
+        <label class="secondary" label={username} />
+      </box>
+    );
+    const DesktopEnv = (
+      <box class="desktop-env" halign={Gtk.Align.CENTER}>
+        <label label="On " />
+        <label class="secondary" label={desktopEnv} />
+      </box>
     );
 
-    return (
-      <box
-        class="section profile"
-        orientation={Gtk.Orientation.VERTICAL}
-        spacing={5}
+    const Uptime = (
+      <box halign={Gtk.Align.CENTER} class="up-time">
+        <label
+          class="uptime"
+          label={uptime}
+          wrap={true}
+          wrapMode={Pango.WrapMode.WORD_CHAR}
+        />
+      </box>
+    );
+
+    const topRevealer = (
+      <revealer
+        transition-duration={500}
+        transition-type={Gtk.RevealerTransitionType.SLIDE_DOWN}
+        visible={true}
       >
-        {ProfilePicture}
-        {UserName}
-        {DesktopEnv}
-        {Uptime}
+        <MediaWidget />
+      </revealer>
+    ) as Gtk.Revealer;
+
+    const bottomRevealer = (
+      <revealer
+        transition-duration={500}
+        transition-type={Gtk.RevealerTransitionType.SLIDE_DOWN}
+        visible={true}
+      >
+        <box class={"info"} orientation={Gtk.Orientation.VERTICAL} spacing={5}>
+          {UserName}
+          {DesktopEnv}
+          {Uptime}
+        </box>
+      </revealer>
+    ) as Gtk.Revealer;
+
+    return (
+      <box class={"center"} orientation={Gtk.Orientation.VERTICAL}>
+        <Gtk.EventControllerMotion
+          onEnter={() => {
+            topRevealer.revealChild = true;
+            bottomRevealer.revealChild = true;
+          }}
+          onLeave={() => {
+            topRevealer.revealChild = false;
+            bottomRevealer.revealChild = false;
+          }}
+        />
+        {/* {topRevealer} */}
+        {pfp}
+        {bottomRevealer}
       </box>
     );
   };
 
-  const Actions = () => {
-    const Logout = () => (
-      <button
-        hexpand={true}
-        class="logout"
-        label="󰍃"
-        onClicked={() => {
-          hyprland.message_async("dispatch exit", () => {});
-        }}
-        tooltipText={"logout from Hyprland"}
-      />
-    );
+  const Logout = () => (
+    <button
+      hexpand={true}
+      class="logout system-action"
+      label="󰍃"
+      onClicked={() => {
+        hyprland.message_async("dispatch exit", () => {});
+      }}
+      tooltipText={"logout from Hyprland"}
+      heightRequest={350}
+      widthRequest={350}
+    />
+  );
 
-    const Shutdown = () => (
-      <button
-        hexpand={true}
-        class="shutdown"
-        label=""
-        onClicked={() => {
-          execAsync(`shutdown now`);
-        }}
-        tooltipText={"shutdown immediately"}
-      />
-    );
+  const Shutdown = () => (
+    <button
+      hexpand={true}
+      class="shutdown system-action"
+      label=""
+      onClicked={() => {
+        execAsync(`shutdown now`);
+      }}
+      tooltipText={"shutdown immediately"}
+      heightRequest={350}
+      widthRequest={350}
+    />
+  );
 
-    const Restart = () => (
-      <button
-        hexpand={true}
-        class="restart"
-        label="󰜉"
-        onClicked={() => {
-          execAsync(`reboot`);
-        }}
-        tooltipText={"restart immediately"}
-      />
-    );
+  const Reboot = () => (
+    <button
+      hexpand={true}
+      class="reboot system-action"
+      label="󰜉"
+      onClicked={() => {
+        execAsync(`reboot`);
+      }}
+      tooltipText={"reboot immediately"}
+      heightRequest={350}
+      widthRequest={350}
+    />
+  );
 
-    const Sleep = () => (
-      <button
-        hexpand={true}
-        class="sleep"
-        label="󰤄"
-        onClicked={(self) => {
-          hideWindow(`user-panel-${(self.get_root() as any).monitorName}`);
-          execAsync(`bash -c "$HOME/.config/hypr/scripts/hyprlock.sh suspend"`);
-        }}
-        tooltipText={"put system to sleep"}
-      />
-    );
-
-    return (
-      <box
-        class="section system-actions"
-        orientation={Gtk.Orientation.VERTICAL}
-        spacing={10}
-      >
-        <box class="action" spacing={10}>
-          <Shutdown />
-          <Restart />
-        </box>
-        <box class="action" spacing={10}>
-          <Sleep />
-          <Logout />
-        </box>
-      </box>
-    );
-  };
-
-  const right = (
-    <box
-      halign={Gtk.Align.CENTER}
-      class="bottom"
-      orientation={Gtk.Orientation.VERTICAL}
-      spacing={10}
-    >
-      <Profile />
-      <Actions />
-    </box>
+  const Sleep = () => (
+    <button
+      hexpand={true}
+      class="sleep system-action"
+      label="󰤄"
+      onClicked={(self) => {
+        hideWindow(`user-panel-${(self.get_root() as any).monitorName}`);
+        execAsync(`bash -c "$HOME/.config/hypr/scripts/hyprlock.sh suspend"`);
+      }}
+      tooltipText={"put system to sleep"}
+      heightRequest={350}
+      widthRequest={350}
+    />
   );
 
   const Date = (
@@ -230,26 +245,56 @@ const UserPanel = () => {
     </box>
   );
 
-  const middle = (
-    <box
-      class="middle"
-      orientation={Gtk.Orientation.VERTICAL}
-      hexpand={true}
-      vexpand={true}
-      spacing={10}
-    >
-      <NotificationHistory className="section" />
-      {Date}
-    </box>
-  );
+  const display = () => {
+    return (
+      <overlay>
+        <box
+          class="display"
+          halign={Gtk.Align.CENTER}
+          valign={Gtk.Align.CENTER}
+          hexpand={true}
+          vexpand={true}
+          $={(container) => {
+            // Create a 2x2 Grid with action buttons only
+            const grid = new Gtk.Grid({
+              halign: Gtk.Align.CENTER,
+              valign: Gtk.Align.CENTER,
+              rowSpacing: 10,
+              columnSpacing: 10,
+            });
+            grid.add_css_class("user-grid");
 
-  return (
-    <box class="main" spacing={10}>
-      <MediaWidget className="section" />
-      {middle}
-      {right}
-    </box>
-  );
+            // Top-left: Logout
+            const logoutBtn = Logout() as Gtk.Widget;
+            grid.attach(logoutBtn, 0, 0, 1, 1);
+
+            // Top-right: Shutdown
+            const shutdownBtn = Shutdown() as Gtk.Widget;
+            grid.attach(shutdownBtn, 1, 0, 1, 1);
+
+            // Bottom-left: Sleep
+            const sleepBtn = Sleep() as Gtk.Widget;
+            grid.attach(sleepBtn, 0, 1, 1, 1);
+
+            // Bottom-right: Reboot
+            const rebootBtn = Reboot() as Gtk.Widget;
+            grid.attach(rebootBtn, 1, 1, 1, 1);
+
+            container.append(grid);
+          }}
+        />
+        <box
+          $type="overlay"
+          halign={Gtk.Align.CENTER}
+          valign={Gtk.Align.CENTER}
+        >
+          <Center />
+        </box>
+      </overlay>
+    );
+  };
+
+  return display();
 };
 
 export default ({
@@ -270,6 +315,13 @@ export default ({
       layer={Astal.Layer.OVERLAY}
       visible={false}
       keymode={Astal.Keymode.ON_DEMAND}
+      exclusivity={Astal.Exclusivity.IGNORE}
+      anchor={
+        Astal.WindowAnchor.TOP |
+        Astal.WindowAnchor.RIGHT |
+        Astal.WindowAnchor.LEFT |
+        Astal.WindowAnchor.BOTTOM
+      }
       $={(self) => {
         setup(self);
         (self as any).monitorName = monitorName;

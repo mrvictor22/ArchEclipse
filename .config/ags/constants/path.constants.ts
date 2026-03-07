@@ -1,3 +1,5 @@
-export const booruPath: string = "./assets/booru";
+import GLib from "gi://GLib";
 
-export const gifsPath: string = "./assets/gifs";
+export const booruPath: string = `${GLib.get_home_dir()}/.config/ags/cache/booru`;
+
+export const gifsPath: string = `${GLib.get_home_dir()}/.config/ags/cache/gifs`;

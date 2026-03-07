@@ -1,6 +1,6 @@
 import AstalMpris from "gi://AstalMpris?version=0.1";
 import { getDominantColor, getImageRatio } from "../utils/image";
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import {
   createBinding,
   createState,

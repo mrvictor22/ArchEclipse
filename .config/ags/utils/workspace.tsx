@@ -8,6 +8,7 @@ import { Accessor, createBinding, createState, With } from "gnim";
 import { timeout } from "ags/time";
 import { phi } from "../constants/phi.constants";
 import GObject from "ags/gobject";
+import Pango from "gi://Pango";
 
 const apps = new AstalApps.Apps();
 const hyprland = Hyprland.get_default();
@@ -129,6 +130,13 @@ const renderNode = (node: Node): Gtk.Widget => {
         <image $type="overlay" iconName={icon} hexpand vexpand />
         <label
           $type="overlay"
+          label={createBinding(node.client, "title")}
+          class={"title"}
+          valign={Gtk.Align.END}
+          ellipsize={Pango.EllipsizeMode.END}
+        />
+        <label
+          $type="overlay"
           class={"move"}
           label={"󰆾"}
           valign={Gtk.Align.START}
@@ -168,12 +176,12 @@ function screenshotClient(client: Hyprland.Client): Accessor<string> {
   const currentTitle = client.title;
   const cachedTitle = titleCache.get(client.pid);
 
-  // Only take screenshot if title has changed or no screenshot exists
-  if (cachedTitle === currentTitle) {
-    // Title hasn't changed, use existing screenshot
-    setScreenshot(screenshotPath);
-    return screenshot;
-  }
+  // // Only take screenshot if title has changed or no screenshot exists
+  // if (cachedTitle === currentTitle) {
+  //   // Title hasn't changed, use existing screenshot
+  //   setScreenshot(screenshotPath);
+  //   return screenshot;
+  // }
 
   timeout(300, () => {
     if (client.workspace.id == hyprland.focusedWorkspace.id) {

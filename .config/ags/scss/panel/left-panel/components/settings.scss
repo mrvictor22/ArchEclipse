@@ -10,8 +10,19 @@
       font-size: 1.5em;
     }
 
+    .sub-category {
+      @include module;
+    }
+
     &:hover {
       background: $background-semi-transparent;
+    }
+
+    entry {
+      border-bottom: 1px solid transparent;
+      &.unsaved {
+        border-bottom: 1px solid $secondary;
+      }
     }
   }
 }

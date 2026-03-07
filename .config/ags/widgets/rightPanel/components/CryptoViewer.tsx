@@ -10,6 +10,7 @@ import { notify } from "../../../utils/notification";
 import { readJSONFile, writeJSONFile } from "../../../utils/json";
 import { Eventbox } from "../../Custom/Eventbox";
 import Crypto from "../../Crypto";
+import GLib from "gi://GLib";
 
 // Interfaces
 interface CryptoEntry {
@@ -31,8 +32,13 @@ const [editingEntry, setEditingEntry] = createState<CryptoEntry | null>(null);
 // Storage functions
 const saveEntriesToFile = async (entries: CryptoEntry[]) => {
   try {
-    await execAsync(`mkdir -p ./assets/crypto`);
-    writeJSONFile("./assets/crypto/entries.json", entries);
+    await execAsync(
+      `mkdir -p  ${GLib.get_home_dir()}/.config/ags/cache/crypto`,
+    );
+    writeJSONFile(
+      `${GLib.get_home_dir()}/.config/ags/cache/crypto/entries.json`,
+      entries,
+    );
   } catch (error) {
     console.error("Failed to save crypto entries:", error);
   }
@@ -40,7 +46,9 @@ const saveEntriesToFile = async (entries: CryptoEntry[]) => {
 
 const loadEntriesFromFile = async (): Promise<CryptoEntry[]> => {
   try {
-    const result = readJSONFile("./assets/crypto/entries.json");
+    const result = readJSONFile(
+      `${GLib.get_home_dir()}/.config/ags/cache/crypto/entries.json`,
+    );
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Failed to load crypto entries:", error);
@@ -63,13 +71,13 @@ const CryptoForm = ({
 }) => {
   const [symbolEntry, setSymbolEntry] = createState(entry?.symbol || "btc");
   const [selectedTimeframe, setSelectedTimeframe] = createState(
-    entry?.timeframe || "7d"
+    entry?.timeframe || "7d",
   );
   const [showPriceToggle, setShowPriceToggle] = createState(
-    entry?.showPrice ?? true
+    entry?.showPrice ?? true,
   );
   const [showGraphToggle, setShowGraphToggle] = createState(
-    entry?.showGraph ?? true
+    entry?.showGraph ?? true,
   );
 
   const saveEntry = () => {
@@ -138,7 +146,7 @@ const CryptoForm = ({
       <box orientation={Gtk.Orientation.VERTICAL} spacing={4}>
         <label class="form-label" label="Timeframe" halign={Gtk.Align.START} />
         <scrolledwindow hexpand vscrollbarPolicy={Gtk.PolicyType.NEVER}>
-          <box class="timeframes" spacing={4} valign={Gtk.Align.START}>
+          <box class="timeframes" spacing={4}>
             {timeframes.map((tf) => (
               <togglebutton
                 class="timeframe"

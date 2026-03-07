@@ -1,4 +1,4 @@
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import { createState } from "ags";
 import { execAsync } from "ags/process";
 import { timeout } from "ags/time";

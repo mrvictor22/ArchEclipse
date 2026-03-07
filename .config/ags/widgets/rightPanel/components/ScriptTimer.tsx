@@ -1,10 +1,11 @@
-import Gtk from "gi://Gtk?version=4.0";
+import { Gtk } from "ags/gtk4";
 import { Accessor, createState, For, With } from "ags";
 import { execAsync } from "ags/process";
 import { globalTransition } from "../../../variables";
 import { notify } from "../../../utils/notification";
 import { readJSONFile, writeJSONFile } from "../../../utils/json";
 import { Eventbox } from "../../Custom/Eventbox";
+import GLib from "gi://GLib";
 
 // Interfaces
 interface ScriptTask {
@@ -37,8 +38,13 @@ const [editingTask, setEditingTask] = createState<ScriptTask | null>(null);
 // Storage functions
 const saveTasksToFile = async (tasks: ScriptTask[]) => {
   try {
-    await execAsync(`mkdir -p ./assets/script-timer`);
-    writeJSONFile("./assets/script-timer/tasks.json", tasks);
+    await execAsync(
+      `mkdir -p  ${GLib.get_home_dir()}/.config/ags/cache/script-timer`,
+    );
+    writeJSONFile(
+      `${GLib.get_home_dir()}/.config/ags/cache/script-timer/tasks.json`,
+      tasks,
+    );
   } catch (error) {
     console.error("Failed to save tasks:", error);
   }
@@ -46,7 +52,9 @@ const saveTasksToFile = async (tasks: ScriptTask[]) => {
 
 const loadTasksFromFile = async (): Promise<ScriptTask[]> => {
   try {
-    const result = readJSONFile("./assets/script-timer/tasks.json");
+    const result = readJSONFile(
+      `${GLib.get_home_dir()}/.config/ags/cache/script-timer/tasks.json`,
+    );
     return Array.isArray(result) ? result : [];
   } catch (error) {
     console.error("Failed to load tasks:", error);
@@ -130,7 +138,7 @@ const TaskForm = ({
 
   const updateSuggestions = (input: string) => {
     const hasMatch = predefinedCommands.some((cmd) =>
-      cmd.label.toLowerCase().includes(input.toLowerCase())
+      cmd.label.toLowerCase().includes(input.toLowerCase()),
     );
     setShowSuggestions(input.trim().length > 0 && hasMatch);
   };
@@ -221,7 +229,7 @@ const TaskForm = ({
               .filter((cmd) =>
                 cmd.label
                   .toLowerCase()
-                  .includes(commandEntry.get().toLowerCase())
+                  .includes(commandEntry.get().toLowerCase()),
               )
               .map((cmd) => (
                 <button

@@ -2,14 +2,16 @@ import { readFile, writeFile } from "ags/file";
 import { notify } from "./notification";
 import { exec } from "ags/process";
 
-export function readJSONFile(filePath: string): any {
+export function readJSONFile<T = any>(
+  filePath: string,
+  fallback: T = {} as T,
+): T {
   try {
     const data = readFile(filePath);
-    if (data == "" || !data.trim()) return {};
-    return JSON.parse(data);
+    if (data == "" || !data.trim()) return fallback;
+    return JSON.parse(data) as T;
   } catch (e) {
-    // File doesn't exist or can't be read, return empty object
-    return {};
+    return fallback;
   }
 }
 
@@ -49,10 +51,13 @@ export function readJson(string: string) {
   }
 }
 export function writeJSONFile(filePath: string, data: any) {
-  // Ensure directory exists before writing
-  exec(`mkdir -p ${filePath.split("/").slice(0, -1).join("/")}`);
+  const parentDir = filePath.split("/").slice(0, -1).join("/");
+  const temporaryPath = `${filePath}.tmp`;
+
   try {
-    writeFile(filePath, JSON.stringify(data, null, 4));
+    exec(`mkdir -p "${parentDir}"`);
+    writeFile(temporaryPath, JSON.stringify(data, null, 4));
+    exec(`mv "${temporaryPath}" "${filePath}"`);
   } catch (e) {
     notify({ summary: "Error", body: String(e) });
   }
