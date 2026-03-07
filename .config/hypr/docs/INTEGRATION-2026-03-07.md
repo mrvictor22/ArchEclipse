@@ -128,7 +128,7 @@ Los archivos AGS (.config/ags/) estan en otro repositorio/directorio, no en este
 3. ~~**booru.py vs search-booru.py**~~: RESUELTO — migrado a booru.py (commit f36f70d0). Upstream incorpora null safety superior.
 4. ~~**keybinds.conf**~~: RESUELTO — SUPER CTRL SHIFT+A eliminado (bind muerto, --all no existe). SUPER ALT+S conservado (settings panel funcional). Commit 1550f350.
 5. ~~**PRESENTATION.sh + maintenance menores**~~: RESUELTO — 7 maintenance scripts actualizados (figlet+lolcat branding). PRESENTATION.sh skipped (solo usada por INSTALL/UPDATE protegidos). Commit 1c78cba3.
-6. **WALLPAPERS.sh**: 178 lineas de cambios significativos. Analizar en detalle?
+6. ~~**WALLPAPERS.sh**~~: RESUELTO — integrado con menu SFW/NSFW interactivo, tabla de tamaños, UI coloreada. Cleanup automatico DESACTIVADO para proteger wallpapers custom. Commit 836a244e.
 
 ---
 
