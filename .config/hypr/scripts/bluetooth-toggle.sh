@@ -20,7 +20,7 @@ get_status() {
     local bt_service=$(systemctl is-active bluetooth 2>/dev/null)
     local bt_module=$(lsmod | grep -q btusb && echo "loaded" || echo "unloaded")
     local bt_blacklisted=$([ -f "$BLACKLIST_FILE" ] && echo "true" || echo "false")
-    local kworker_count=$(ps aux 2>/dev/null | grep -c "kworker.*bt" || echo "0")
+    local kworker_count=$(ps aux 2>/dev/null | grep -c "kworker.*+bt$" || echo "0")
 
     # Estado general
     local status="disabled"
@@ -101,7 +101,7 @@ disable_bluetooth() {
     fi
 
     # Verificar kworkers restantes
-    local remaining=$(ps aux 2>/dev/null | grep -c "kworker.*bt")
+    local remaining=$(ps aux 2>/dev/null | grep -c "kworker.*+bt$")
     if [ "$remaining" -gt 2 ]; then
         echo -e "${YELLOW}Nota: Quedan $remaining kworkers BT. Se limpiarán gradualmente.${NC}"
     fi

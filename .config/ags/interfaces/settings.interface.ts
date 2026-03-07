@@ -97,4 +97,9 @@ export interface Settings {
   wallpaperSwitcher: {
     category: string;
   };
+  apiKeys: {
+    openrouter: {
+      key: AGSSetting;
+    };
+  };
 }
