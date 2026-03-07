@@ -15,8 +15,6 @@ import NotificationPopups from "./widgets/NotificationPopups";
 import { createBinding, For, onCleanup, This } from "ags";
 import Notifd from "gi://AstalNotifd";
 import KeyStrokeVisualizer from "./widgets/KeyStrokeVisualizer";
-import { leftPanelWidgetSelectors } from "./constants/widget.constants";
-import { setGlobalSetting } from "./variables";
 const Notification = Notifd.get_default();
 
 const perMonitorDisplay = () => {
@@ -148,15 +146,6 @@ app.start({
       } else {
         response(`Notification ${id} not found.`);
       }
-      return;
-    } else if (cmd == "donations") {
-      const monitor = arg;
-      const leftPanel = app.get_window(`left-panel-${monitor}`);
-      if (leftPanel) {
-        leftPanel.show();
-        setGlobalSetting("leftPanel.widget", leftPanelWidgetSelectors[6]);
-      }
-      response("Donations widget opened.");
       return;
     }
     response("unknown command");

@@ -626,7 +626,7 @@ const sendMessage = async (message: Message): Promise<void> => {
   // Get and sanitize API key
   const apiKey = globalSettings
     .peek()
-    .apiKeys.openrouter.key.value.replace(/\n/g, "")
+    .apiKeys?.openrouter?.key?.value?.replace(/\n/g, "") ?? ""
     .trim();
 
   // Validate API key before making request
@@ -1000,7 +1000,7 @@ const Info = (): JSX.Element => (
     />
     <box
       visible={globalSettings(
-        ({ apiKeys }) => apiKeys.openrouter.key.value.trim() == "",
+        ({ apiKeys }) => !apiKeys?.openrouter?.key?.value?.trim(),
       )}
       orientation={Gtk.Orientation.VERTICAL}
       spacing={5}
