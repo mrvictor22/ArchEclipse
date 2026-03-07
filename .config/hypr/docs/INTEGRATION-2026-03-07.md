@@ -119,3 +119,44 @@ Los archivos AGS (.config/ags/) estan en otro repositorio/directorio, no en este
 3. **Clipboard monitor**: Upstream simplifica mucho, pierde funcionalidad del fork.
 4. **Screenshot**: Upstream volvio a grimblast+WebP. Fork mantiene hyprshot+PNG.
 5. **exec.conf**: Upstream elimina TODA la infraestructura multi-monitor del fork.
+
+---
+
+## Preguntas Pendientes (retomar despues del refactor AGS)
+
+2. **Nuevos widgets AGS**: Quieres traer SystemResources y/o Donations al fork? (YA SE TRAJERON con la integracion AGS)
+3. **booru.py vs search-booru.py**: Upstream reemplazo search-booru.py por booru.py. Evaluar si el nuevo incorpora null safety.
+4. **keybinds.conf**: Quitar tambien SUPER ALT+S (settings panel) y SUPER CTRL SHIFT+A (screenshot --all)?
+5. **PRESENTATION.sh + maintenance menores**: Scripts cosmeticos (figlet branding). Traerlos?
+6. **WALLPAPERS.sh**: 178 lineas de cambios significativos. Analizar en detalle?
+
+---
+
+## Progreso de Integracion
+
+### Commit 1: Hyprland configs SAFE (completado)
+- general.conf, window_rules.conf, keybinds.conf, reload.sh, .gitignore, pkglist.txt
+
+### Commit 2: AGS GTK4 Import Refactor (completado - 69ea92aa)
+- 86 archivos AGS modificados/agregados
+- 76 non-protected files actualizados directo de upstream
+- 12 archivos protegidos: imports actualizados, customizaciones preservadas
+  - Picture.tsx: null fallback preservado
+  - Player.tsx: coverArt fallback preservado
+  - Notification.tsx: webp null check preservado
+  - BooruViewer.tsx: Array.isArray checks preservados
+  - SettingsWidget.tsx: FileManagerSelector + BluetoothToggle preservados
+  - Information.tsx: null safety preservado
+  - BooruImage.tsx: layout fix preservado
+  - PowerWidget.tsx: fork-only (upstream lo elimino), import actualizado
+  - CryptoWidget.tsx: fork-only, import actualizado
+  - settings.constants.ts, settings.interface.ts: fileManager preservado
+- Nuevos widgets de upstream: Donations, SystemResources, CryptoViewer
+- Nuevos scripts: booru.py, chatbot.py
+- Fork retiene: PowerWidget.tsx, search-booru.py (upstream los elimino)
+- Codigo muerto identificado: rightPanel/components/Crypto.tsx (reemplazado por CryptoViewer)
+
+### Pendiente: Limpieza y decisiones
+- Eliminar MigrationDocsGtk4.md (documentacion de migracion obsoleta)
+- Evaluar eliminar rightPanel/components/Crypto.tsx (codigo muerto)
+- Evaluar providers.data.ts, ags-keystroke-listener.sh, get-system-resources.c
