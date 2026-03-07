@@ -12,7 +12,7 @@ Este archivo documenta TODOS los archivos modificados en el fork que difieren de
 | `constants/app.constants.ts` | `getFileManagerCommand()` helper | File Manager Selector dinámico |
 | `constants/settings.constants.ts` | `fileManager: "nautilus"`, `lock: true` | Default para selector + paneles con lock por defecto |
 | `interfaces/settings.interface.ts` | `fileManager: string` | Tipo para selector |
-| `scripts/search-booru.py` | Null safety en r.json() | Fix crashes cuando API falla |
+| ~~`scripts/search-booru.py`~~ | ELIMINADO — migrado a upstream `booru.py` (f36f70d0) | booru.py tiene null safety superior |
 
 ### AGS - Widgets
 

@@ -125,7 +125,7 @@ Los archivos AGS (.config/ags/) estan en otro repositorio/directorio, no en este
 ## Preguntas Pendientes (retomar despues del refactor AGS)
 
 2. **Nuevos widgets AGS**: Quieres traer SystemResources y/o Donations al fork? (YA SE TRAJERON con la integracion AGS)
-3. **booru.py vs search-booru.py**: Upstream reemplazo search-booru.py por booru.py. Evaluar si el nuevo incorpora null safety.
+3. ~~**booru.py vs search-booru.py**~~: RESUELTO — migrado a booru.py (commit f36f70d0). Upstream incorpora null safety superior.
 4. **keybinds.conf**: Quitar tambien SUPER ALT+S (settings panel) y SUPER CTRL SHIFT+A (screenshot --all)?
 5. **PRESENTATION.sh + maintenance menores**: Scripts cosmeticos (figlet branding). Traerlos?
 6. **WALLPAPERS.sh**: 178 lineas de cambios significativos. Analizar en detalle?
@@ -153,7 +153,8 @@ Los archivos AGS (.config/ags/) estan en otro repositorio/directorio, no en este
   - settings.constants.ts, settings.interface.ts: fileManager preservado
 - Nuevos widgets de upstream: Donations, SystemResources, CryptoViewer
 - Nuevos scripts: booru.py, chatbot.py
-- Fork retiene: PowerWidget.tsx, search-booru.py (upstream los elimino)
+- Fork retiene: PowerWidget.tsx (upstream lo elimino)
+- search-booru.py eliminado, migrado a booru.py de upstream (f36f70d0)
 - Codigo muerto identificado: rightPanel/components/Crypto.tsx (reemplazado por CryptoViewer)
 
 ### Pendiente: Limpieza y decisiones
