@@ -1,3 +1,9 @@
+#!/bin/bash
+
+figlet "PLUGINS" -f slant | lolcat
+
+sudo -v
+
 hyprpm update
 
 hyprpm add https://github.com/hyprwm/hyprland-plugins
