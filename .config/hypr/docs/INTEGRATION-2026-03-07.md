@@ -157,7 +157,22 @@ Los archivos AGS (.config/ags/) estan en otro repositorio/directorio, no en este
 - search-booru.py eliminado, migrado a booru.py de upstream (f36f70d0)
 - Codigo muerto identificado: rightPanel/components/Crypto.tsx (reemplazado por CryptoViewer)
 
-### Pendiente: Limpieza y decisiones
-- Eliminar MigrationDocsGtk4.md (documentacion de migracion obsoleta)
-- Evaluar eliminar rightPanel/components/Crypto.tsx (codigo muerto)
-- Evaluar providers.data.ts, ags-keystroke-listener.sh, get-system-resources.c
+### Commit 7: Limpieza de codigo muerto (completado - be518667)
+- Eliminado: MigrationDocsGtk4.md (migracion completada)
+- Eliminado: rightPanel/components/Crypto.tsx (reemplazado por CryptoViewer.tsx)
+- Eliminado: providers.data.ts (cero imports)
+- Eliminado: ags-keystroke-listener.sh (cero referencias)
+- Eliminado: get-system-resources.c (reemplazado por system-resources-loop-ags.c)
+
+### Verificacion final de integridad del fork
+Todas las features del fork verificadas intactas:
+- LD_PRELOAD + --gtk 3 en exec.conf y bar.sh
+- hyprshot+PNG en screenshot.sh (no grimblast)
+- clipboard-monitor.sh singleton
+- w-default fallback en hyprpaper defaults.conf
+- Multi-monitor: manager, hotplug, lid-handler, workspace-state
+- PowerWidget.tsx (ACPI directo), BluetoothToggle, FileManagerSelector
+- Null safety: Picture.tsx, Player.tsx, Notification.tsx, BooruViewer.tsx
+- fileManager: string en interface + nautilus default
+- power-profile-manager.sh + bluetooth-toggle.sh
+- Cero contaminacion: sin ags bundle, sin grimblast, sin git reset --hard
