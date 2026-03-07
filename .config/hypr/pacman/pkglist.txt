@@ -14,7 +14,6 @@ git
 p7zip
 wl-clipboard
 lsd
-tgpt-git
 cron
 
 # ____                 _                                  _   
@@ -131,6 +130,7 @@ kvantum
 kvantum-theme-whitesur-git
 qt5ct
 qt6ct
+lolcat
 
 
 ### Extra
@@ -142,4 +142,3 @@ git
 g++
 gcc
 libwebp-utils
-vlc
