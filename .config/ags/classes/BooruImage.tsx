@@ -337,8 +337,8 @@ export class BooruImage {
       const { readJson } = await import("../utils/json");
 
       const res = await execAsync(
-        `python ./scripts/search-booru.py 
-    --api ${api.value} 
+        `python ./scripts/booru.py
+    --api ${api.value}
     --id ${id}`,
       );
 

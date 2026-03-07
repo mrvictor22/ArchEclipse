@@ -94,7 +94,7 @@ const fetchImages = async () => {
     );
 
     const res = await execAsync(`
-      python ./scripts/search-booru.py \
+      python ./scripts/booru.py \
         --api ${settings.booru.api.value} \
         --tags '${escapedTags.join(",")}' \
         --limit ${settings.booru.limit} \
@@ -218,8 +218,8 @@ const Tabs = () => (
 const fetchTags = async (tag: string) => {
   const escapedTag = tag.replace(/'/g, "'\\'''");
   const res = await execAsync(
-    `python ./scripts/search-booru.py 
-    --api ${globalSettings.peek().booru.api.value} 
+    `python ./scripts/booru.py
+    --api ${globalSettings.peek().booru.api.value}
     --tag '${escapedTag}'`,
   );
   const jsonData = readJson(res);
