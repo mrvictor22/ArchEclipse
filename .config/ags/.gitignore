@@ -6,3 +6,11 @@ node_modules
 cache
 
 logs
+
+assets/binaries
+assets/booru
+assets/chatbot
+assets/manga
+assets/script-timer
+assets/settings
+assets/thumbnails
