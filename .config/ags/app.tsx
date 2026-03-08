@@ -15,6 +15,7 @@ import NotificationPopups from "./widgets/NotificationPopups";
 import { createBinding, For, onCleanup, This } from "ags";
 import Notifd from "gi://AstalNotifd";
 import KeyStrokeVisualizer from "./widgets/KeyStrokeVisualizer";
+import { Gtk } from "ags/gtk4";
 const Notification = Notifd.get_default();
 
 const perMonitorDisplay = () => {
@@ -137,6 +138,7 @@ app.start({
   },
   requestHandler(argv: string[], response: (response: string) => void) {
     const [cmd, arg, ...rest] = argv;
+    const monitor = arg;
     if (cmd == "delete-notification") {
       const id = parseInt(arg);
       const notification = Notification.notifications.find((n) => n.id === id);
@@ -146,6 +148,24 @@ app.start({
       } else {
         response(`Notification ${id} not found.`);
       }
+      return;
+    } else if (cmd == "clipboard") {
+      const appLauncher = app.get_window(`app-launcher-${monitor}`);
+      if (appLauncher) {
+        appLauncher.show();
+        ((appLauncher as any).entry as Gtk.Entry)?.set_text("cb ");
+        ((appLauncher as any).entry as Gtk.Entry)?.set_position(-1);
+      }
+      response("Clipboard widget opened.");
+      return;
+    } else if (cmd == "emojis") {
+      const appLauncher = app.get_window(`app-launcher-${monitor}`);
+      if (appLauncher) {
+        appLauncher.show();
+        ((appLauncher as any).entry as Gtk.Entry)?.set_text("emojis ");
+        ((appLauncher as any).entry as Gtk.Entry)?.set_position(-1);
+      }
+      response("Emoji picker opened.");
       return;
     }
     response("unknown command");

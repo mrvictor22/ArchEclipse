@@ -1,130 +1,139 @@
 #!/usr/bin/env bash
-# Clipboard Monitor - Hybrid version
-# Fork singleton system + Upstream features (image preview/edit, video play/save)
 set -euo pipefail
-
-# =========================
-# Logging (for debugging with singleton)
-# =========================
-LOG_FILE="/tmp/clip-count.log"
-log() {
-    echo "[$(date '+%H:%M:%S')] $*" >> "$LOG_FILE"
-}
-
-log "EXEC - clipboard event received"
 
 # =========================
 # Config
 # =========================
 TMP_DIR="/tmp"
-SCREENSHOT_DIR="$HOME/Pictures/Screenshots"
-VIDEO_DIR="$HOME/Videos/ScreenRecords"
-
-# Ensure directories exist
-mkdir -p "$SCREENSHOT_DIR" "$VIDEO_DIR"
+PREVIEW_CMD="swayimg --class preview-image"
+EDIT_CMD="gimp"
+HISTORY_FILE="$HOME/.config/ags/cache/launcher/clipboard-history.json"
+HISTORY_LOCK="/tmp/clipboard-history.lock"
 
 # =========================
-# 1. Try IMAGE from clipboard
+# Validation
+# =========================
+if ! command -v jq &>/dev/null; then
+    echo "Error: jq is required but not installed" >> /tmp/clipboard-monitor.log
+    exit 1
+fi
+
+# =========================
+# Initialize JSON history file
+# =========================
+init_history_file() {
+    local history_dir="$(dirname "$HISTORY_FILE")"
+    mkdir -p "$history_dir"
+    
+    if [[ ! -f "$HISTORY_FILE" ]]; then
+        echo '[]' > "$HISTORY_FILE"
+        return
+    fi
+    
+    # Migrate legacy format {"version":...,"maxEntries":...,"entries":[...]} -> [...]
+    if jq -e 'type == "object" and has("entries") and (.entries | type == "array")' "$HISTORY_FILE" >/dev/null 2>&1; then
+        jq '.entries' "$HISTORY_FILE" > "${HISTORY_FILE}.tmp" && mv "${HISTORY_FILE}.tmp" "$HISTORY_FILE"
+        return
+    fi
+    
+    # If file is invalid or not an array, reset to empty array
+    if ! jq -e 'type == "array"' "$HISTORY_FILE" >/dev/null 2>&1; then
+        echo '[]' > "$HISTORY_FILE"
+    fi
+}
+
+# =========================
+# Add entry to clipboard history
+# =========================
+add_to_history() {
+    local type="$1"
+    local content="$2"
+    local mime_type="$3"
+    
+    # Generate timestamp
+    local ts=$(date +%s)
+    
+    # Escape content for JSON
+    local content_escaped=$(jq -n --arg c "$content" '$c')
+    
+    # Add entry with file locking to prevent race conditions
+    (
+        flock -x 200
+        
+        # Prepend new entry to root JSON array (newest first)
+        jq --argjson entry "{
+            \"id\": $ts,
+            \"timestamp\": $ts,
+            \"type\": \"$type\",
+            \"content\": $content_escaped,
+            \"mimeType\": \"$mime_type\"
+        }" '[$entry] + .' "$HISTORY_FILE" > "${HISTORY_FILE}.tmp" 2>> /tmp/clipboard-monitor.log
+        
+        # Atomic move
+        mv "${HISTORY_FILE}.tmp" "$HISTORY_FILE"
+        
+    ) 200>"$HISTORY_LOCK"
+}
+
+# Initialize history file on script start
+init_history_file
+
+# =========================
+# Timestamped image path
 # =========================
 timestamp=$(date +%Y%m%d_%H%M%S)
-image_path="$TMP_DIR/clipboard_image_${timestamp}.webp"
 
-if wl-paste --type image/png >"$image_path" 2>/dev/null && [ -s "$image_path" ]; then
-    log "IMAGE detected, showing notification"
+# =========================
+# Try image from clipboard
+# =========================
+image_saved=false
+detected_mime=""
 
-    action=$(notify-send "Clipboard Image" "Image copied to clipboard" \
-        -a "Screenshot" \
-        -i "$image_path" \
-        --action=preview:Preview \
-        --action=edit:Edit \
-        --action=save:Save 2>/dev/null || echo "")
+# Try different image formats
+for mime in "image/png" "image/jpeg" "image/webp"; do
+    ext="${mime#image/}"
+    image_path="$TMP_DIR/clipboard_image_${timestamp}.${ext}"
+    
+    if wl-paste --type "$mime" >"$image_path" 2>/dev/null; then
+        detected_mime="$mime"
+        image_saved=true
+        break
+    fi
+done
 
-    log "ACTION: $action"
-
-    case "$action" in
-        preview)
-            swayimg --class preview-image "$image_path" &
-            ;;
-        edit)
-            gimp "$image_path" &
-            ;;
-        save)
-            save_path=$(zenity --file-selection \
-                --save \
-                --confirm-overwrite \
-                --filename="$SCREENSHOT_DIR/clipboard_${timestamp}.png" \
-                --title="Save Image" 2>/dev/null || echo "")
-
-            if [ -n "$save_path" ]; then
-                cp "$image_path" "$save_path"
-                notify-send "Image Saved" "$(basename "$save_path")" -i "$save_path"
-                log "SAVED to $save_path"
-            fi
-            ;;
-    esac
-
-    log "DONE (image)"
+if [[ "$image_saved" == "true" ]]; then
+    # Add to clipboard history
+    add_to_history "image" "$image_path" "$detected_mime"
     exit 0
 fi
 
-# Clean up empty image file
-rm -f "$image_path" 2>/dev/null || true
-
 # =========================
-# 2. Try VIDEO URI from clipboard (screen recordings)
+# Try uri-list from clipboard
 # =========================
 if clipboard_uri=$(wl-paste --no-newline --type text/uri-list 2>/dev/null) && [[ -n "$clipboard_uri" ]]; then
-    # Extract file path from URI (file:///path/to/file -> /path/to/file)
+    # Extract file full path from uri-list (e.g., file:///home/user/Videos/clip.webm) to /home/user/Videos/clip.webm
     file_path="${clipboard_uri#file://}"
-
-    # Check if it's a video file
+    # Extract extension (mp4, webm, mkv, etc.)
     extension="${file_path##*.}"
-    if [[ "$extension" =~ ^(mp4|webm|mkv|avi|mov)$ ]] && [ -f "$file_path" ]; then
-        log "VIDEO URI detected: $file_path"
-
-        action=$(notify-send -i "video-x-generic" "Video Copied" "$file_path" \
-            -a "ScreenRecord" \
-            --action=play:Play \
-            --action=save:Save 2>/dev/null || echo "")
-
-        log "ACTION: $action"
-
-        case "$action" in
-            play)
-                vlc "$file_path" &
-                ;;
-            save)
-                save_path=$(zenity --file-selection \
-                    --save \
-                    --confirm-overwrite \
-                    --filename="$VIDEO_DIR/recording_${timestamp}.$extension" \
-                    --title="Save Video" 2>/dev/null || echo "")
-
-                if [ -n "$save_path" ]; then
-                    cp "$file_path" "$save_path"
-                    notify-send "Video Saved" "$(basename "$save_path")" -i "video-x-generic"
-                    log "SAVED to $save_path"
-                fi
-                ;;
-        esac
-
-        log "DONE (video)"
-        exit 0
-    fi
-fi
-
-# =========================
-# 3. Fallback: TEXT clipboard
-# =========================
-if clipboard_text=$(wl-paste --no-newline --type text 2>/dev/null) && [[ -n "$clipboard_text" ]]; then
-    # Truncate long text for notification (max 200 chars)
-    display_text="${clipboard_text:0:200}"
-    [ ${#clipboard_text} -gt 200 ] && display_text="${display_text}..."
-
-    notify-send -i "edit-copy" -a "Clipboard" "Text Copied" "$display_text"
-    log "TEXT: ${clipboard_text:0:50}..."
-    log "DONE (text)"
+    
+    # Add to clipboard history
+    add_to_history "uri-list" "$file_path" "text/uri-list"
     exit 0
 fi
 
-log "DONE (no content detected)"
+
+# =========================
+# Try HTML text from clipboard
+# =========================
+# if clipboard_html=$(wl-paste --no-newline --type text/html 2>/dev/null) && [[ -n "$clipboard_html" ]]; then
+#     add_to_history "text" "$clipboard_html" "text/html"
+#     exit 0
+# fi
+
+# =========================
+# Fallback: plain text clipboard
+# =========================
+if clipboard_text=$(wl-paste --no-newline --type text/plain 2>/dev/null) && [[ -n "$clipboard_text" ]]; then
+    add_to_history "text" "$clipboard_text" "text/plain"
+    exit 0
+fi
