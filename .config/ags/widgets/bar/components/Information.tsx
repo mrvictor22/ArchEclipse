@@ -135,7 +135,9 @@ function ClientTitle({
               ellipsize={Pango.EllipsizeMode.END}
               maxWidthChars={20}
               label={focusedClient((client) => {
-                return client ? createBinding(client, "title") : "No Title";
+                return client
+                  ? createBinding(client, "title").as((t) => t || "No Title")
+                  : "No Title";
               })()}
               tooltipMarkup={focusedClient((c) => c?.class ?? "")}
             />

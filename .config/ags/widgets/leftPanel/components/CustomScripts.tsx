@@ -4,7 +4,7 @@ import { customScripts } from "../../../constants/customScript.constant";
 import { execAsync } from "ags/process";
 
 import Hyprland from "gi://AstalHyprland";
-import { createState, For } from "gnim";
+import { createState, For } from "ags";
 import { notify } from "../../../utils/notification";
 const hyprland = Hyprland.get_default();
 

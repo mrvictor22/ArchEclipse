@@ -87,6 +87,10 @@ export class NotificationWidget {
   }
 
   public closeNotification = (dismiss = false) => {
+    if (!this.Revealer) {
+      if (dismiss) this.dismissNotification();
+      return;
+    }
     this.Revealer.reveal_child = false;
     timeout(globalTransition, () => {
       if (dismiss) this.dismissNotification();
