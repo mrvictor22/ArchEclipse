@@ -4,3 +4,12 @@ configs/custom/*
 theme/theme.conf
 hyprpaper/config/*
 !hyprpaper/config/defaults.conf
+
+# Claude Code local config
+.claude/agents/
+.claude/commands/
+.claude/skills/
+.mcp.json
+
+# Backups
+backups/
