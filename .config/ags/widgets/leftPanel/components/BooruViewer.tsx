@@ -10,14 +10,14 @@ import {
 import { notify } from "../../../utils/notification";
 import { createState, createComputed, For, With, Accessor } from "ags";
 import { booruApis } from "../../../constants/api.constants";
-import Picture from "../../Picture";
 import { Gdk } from "ags/gtk4";
-import Gio from "gi://Gio?version=2.0";
+import Gio from "gi://Gio";
 import { Progress } from "../../Progress";
 import { connectPopoverEvents } from "../../../utils/window";
 import { booruPath } from "../../../constants/path.constants";
 import Adw from "gi://Adw";
-import Pango from "gi://Pango?version=1.0";
+import Pango from "gi://Pango";
+import GLib from "gi://GLib";
 
 const [images, setImages] = createState<BooruImage[]>([]);
 const [cacheSize, setCacheSize] = createState<string>("0kb");
@@ -38,15 +38,25 @@ const [pageDirection, setPageDirection] = createState<"next" | "prev">("next");
 const [tags, setTags] = createState<string[]>([]);
 const [limit, setLimit] = createState<number>(100);
 
-const calculateCacheSize = async () =>
-  execAsync(
-    `bash -c "du -sb ${booruPath}/${
-      globalSettings.peek().booru.api.value
-    }/previews | cut -f1"`,
-  ).then((res) => {
+const calculateCacheSize = async () => {
+  try {
+    const res = await execAsync(
+      `bash -c "du -sb ${booruPath}/${
+        globalSettings.peek().booru.api.value
+      }/previews | cut -f1"`,
+    );
     // Convert bytes to megabytes
     setCacheSize(`${Math.round(Number(res) / (1024 * 1024))}mb`);
-  });
+  } catch (err) {
+    console.error("Error calculating cache size:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    notify({
+      summary: "Error calculating cache size",
+      body: errorMessage,
+    });
+    setCacheSize("0mb");
+  }
+};
 
 const ensureRatingTagFirst = () => {
   let tags: string[] = globalSettings.peek().booru.tags;
@@ -81,7 +91,12 @@ const cleanUp = () => {
       calculateCacheSize();
     })
     .catch((err) => {
-      notify({ summary: "Error", body: String(err) });
+      console.error("Error clearing cache:", err);
+      const errorMessage = err instanceof Error ? err.message : String(err);
+      notify({
+        summary: "Error clearing cache",
+        body: `Failed to clear cache: ${errorMessage}`,
+      });
     });
 };
 const fetchImages = async () => {
@@ -93,17 +108,33 @@ const fetchImages = async () => {
       t.replace(/'/g, "'\\''"),
     );
 
-    const res = await execAsync(`
-      python ./scripts/booru.py \
+    const command = `
+      python ${GLib.get_home_dir()}/.config/ags/scripts/booru.py \
         --api ${settings.booru.api.value} \
         --tags '${escapedTags.join(",")}' \
         --limit ${settings.booru.limit} \
-        --page ${settings.booru.page}
-    `);
+        --page ${settings.booru.page} \
+        --api-user ${settings.apiKeys[settings.booru.api.value as keyof typeof settings.apiKeys].user.value} \
+        --api-key ${settings.apiKeys[settings.booru.api.value as keyof typeof settings.apiKeys].key.value}
+    `;
+
+    const res = await execAsync(command);
 
     const jsonData = readJson(res);
-    if (!jsonData || !Array.isArray(jsonData)) {
-      throw new Error("Invalid response from booru API");
+    if (!jsonData) {
+      throw new Error("Failed to parse response");
+    }
+
+    // Check if response is an error
+    if (jsonData.error === true) {
+      const errorMsg = jsonData.details
+        ? `${jsonData.message}: ${jsonData.details}`
+        : jsonData.message;
+      throw new Error(errorMsg);
+    }
+
+    if (!Array.isArray(jsonData)) {
+      throw new Error("Invalid response format from booru API");
     }
 
     const images: BooruImage[] = jsonData.map(
@@ -114,32 +145,34 @@ const fetchImages = async () => {
         }),
     );
 
-    await execAsync(`
-      bash -c '
-        set -e
-        DIR="${booruPath}/${settings.booru.api.value}/previews"
-        mkdir -p "$DIR"
+    // Create preview directory
+    const previewDir = `${booruPath}/${settings.booru.api.value}/previews`;
+    await execAsync(`mkdir -p "${previewDir}"`);
 
-        for img in ${images
-          .map(
-            (i) =>
-              `"${i.id}|${i.extension}|${i.preview!.replace(/"/g, '\\"')}"`,
-          )
-          .join(" ")}
-        do
-          IFS="|" read -r id ext url <<< "$img"
-          file="$DIR/$id.$ext"
-          [ -f "$file" ] || curl -sSf -o "$file" "$url"
-        done
-      '
-    `);
+    // Download all previews in parallel
+    await Promise.all(
+      images.map(async (img) => {
+        const filePath = `${previewDir}/${img.id}.${img.extension}`;
+        try {
+          // Check if file exists
+          await execAsync(`test -f "${filePath}"`);
+        } catch {
+          // File doesn't exist, download it
+          await execAsync(`curl -sSf -o "${filePath}" "${img.preview}"`);
+        }
+      }),
+    );
 
     setImages(images);
     calculateCacheSize();
     setProgressStatus("success");
   } catch (err) {
     console.error(err);
-    notify({ summary: "Error", body: String(err) });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    notify({
+      summary: "Error fetching images",
+      body: errorMessage,
+    });
     setProgressStatus("error");
   }
 };
@@ -149,28 +182,24 @@ const fetchBookmarkImages = async () => {
 
     const bookmarks = globalSettings.peek().booru.bookmarks;
 
-    await execAsync(`
-      bash -c '
-        set -e
+    // Download all bookmark previews in parallel
+    await Promise.all(
+      bookmarks.map(async (bookmark) => {
+        const previewDir = `${booruPath}/${bookmark.api.value}/previews`;
+        const filePath = `${previewDir}/${bookmark.id}.${bookmark.extension}`;
 
-        for img in ${bookmarks
-          .map(
-            (i) =>
-              `"${i.api.value}|${i.id}|${i.extension}|${i.preview!.replace(
-                /"/g,
-                '\\"',
-              )}"`,
-          )
-          .join(" ")}
-        do
-          IFS="|" read -r api id ext url <<< "$img"
-          DIR="${booruPath}/$api/previews"
-          mkdir -p "$DIR"
-          file="$DIR/$id.$ext"
-          [ -f "$file" ] || curl -sSf -o "$file" "$url"
-        done
-      '
-    `);
+        // Create directory
+        await execAsync(`mkdir -p "${previewDir}"`);
+
+        try {
+          // Check if file exists
+          await execAsync(`test -f "${filePath}"`);
+        } catch {
+          // File doesn't exist, download it
+          await execAsync(`curl -sSf -o "${filePath}" "${bookmark.preview}"`);
+        }
+      }),
+    );
 
     // Convert bookmarks to BooruImage instances
     const bookmarkImages = bookmarks.map((b: any) => new BooruImage(b));
@@ -179,7 +208,11 @@ const fetchBookmarkImages = async () => {
     setProgressStatus("success");
   } catch (err) {
     console.error(err);
-    notify({ summary: "Error", body: String(err) });
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    notify({
+      summary: "Error loading bookmarks",
+      body: errorMessage,
+    });
     setProgressStatus("error");
   }
 };
@@ -216,19 +249,63 @@ const Tabs = () => (
 );
 
 const fetchTags = async (tag: string) => {
-  const escapedTag = tag.replace(/'/g, "'\\'''");
-  const res = await execAsync(
-    `python ./scripts/booru.py
-    --api ${globalSettings.peek().booru.api.value}
-    --tag '${escapedTag}'`,
-  );
-  const jsonData = readJson(res);
-  if (!jsonData || !Array.isArray(jsonData)) {
-    console.error("Invalid response from tag search");
+  try {
+    const settings = globalSettings.peek();
+    const escapedTag = tag.replace(/'/g, "'\\'''");
+    const res = await execAsync(
+      `python ${GLib.get_home_dir()}/.config/ags/scripts/booru.py \
+        --api ${globalSettings.peek().booru.api.value} \
+        --tag '${escapedTag}' \
+        --api-user ${settings.apiKeys[settings.booru.api.value as keyof typeof settings.apiKeys].user.value} \
+        --api-key ${settings.apiKeys[settings.booru.api.value as keyof typeof settings.apiKeys].key.value}
+        `,
+    );
+    const jsonData = readJson(res);
+    if (!jsonData) {
+      const errorMsg = "Failed to parse tag response";
+      console.error(errorMsg);
+      notify({
+        summary: "Error fetching tags",
+        body: errorMsg,
+      });
+      setFetchedTags([]);
+      return;
+    }
+
+    // Check if response is an error
+    if (jsonData.error === true) {
+      const errorMsg = jsonData.details
+        ? `${jsonData.message}: ${jsonData.details}`
+        : jsonData.message;
+      console.error("Tag fetch error:", errorMsg);
+      notify({
+        summary: "Error fetching tags",
+        body: errorMsg,
+      });
+      setFetchedTags([]);
+      return;
+    }
+
+    if (!Array.isArray(jsonData)) {
+      const errorMsg = "Invalid response format from tag search";
+      console.error(errorMsg);
+      notify({
+        summary: "Error fetching tags",
+        body: errorMsg,
+      });
+      setFetchedTags([]);
+      return;
+    }
+    setFetchedTags(jsonData);
+  } catch (err) {
+    console.error("Error fetching tags:", err);
+    const errorMessage = err instanceof Error ? err.message : String(err);
+    notify({
+      summary: "Error fetching tags",
+      body: errorMessage,
+    });
     setFetchedTags([]);
-    return;
   }
-  setFetchedTags(jsonData);
 };
 
 const showImagesPage = (
@@ -713,7 +790,7 @@ const Bottom = () => {
         onClicked={(self) => {
           setBottomIsRevealed(!bottomIsRevealed.get());
         }}
-        tooltipText={"SHIFT"}
+        tooltipText={"Toggle Settings (KEY-UP/DOWN)"}
       />
       <button
         label=""
@@ -745,36 +822,14 @@ export default () => {
       $={async (self) => {
         const keyController = new Gtk.EventControllerKey();
         keyController.connect("key-pressed", (_, keyval: number) => {
-          // shift to reveal/hide bottom
-          if (keyval === Gdk.KEY_Shift_L || keyval === Gdk.KEY_Shift_R) {
-            setBottomIsRevealed(!bottomIsRevealed.get());
-            return true;
-          }
           // scroll up
-          if (keyval === Gdk.KEY_Up && !bottomIsRevealed.get()) {
-            const sw = scrolledWindow.get();
-            if (sw) {
-              const vadjustment = sw.get_vadjustment();
-              const currentValue = vadjustment.get_value();
-              const pageSize = vadjustment.get_page_size();
-              vadjustment.set_value(
-                Math.max(0, currentValue - pageSize * 0.15),
-              );
-            }
+          if (keyval === Gdk.KEY_Up) {
+            setBottomIsRevealed(true);
             return true;
           }
           // scroll down
-          if (keyval === Gdk.KEY_Down && !bottomIsRevealed.get()) {
-            const sw = scrolledWindow.get();
-            if (sw) {
-              const vadjustment = sw.get_vadjustment();
-              const currentValue = vadjustment.get_value();
-              const pageSize = vadjustment.get_page_size();
-              const maxValue = vadjustment.get_upper() - pageSize;
-              vadjustment.set_value(
-                Math.min(maxValue, currentValue + pageSize * 0.15),
-              );
-            }
+          if (keyval === Gdk.KEY_Down) {
+            setBottomIsRevealed(false);
             return true;
           }
           if (keyval === Gdk.KEY_Right) {

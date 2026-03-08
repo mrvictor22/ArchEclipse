@@ -7,6 +7,7 @@ import { createBinding, createState, createComputed, Accessor, For } from "ags";
 import { execAsync } from "ags/process";
 import { notify } from "../../../utils/notification";
 import { AGSSetting } from "../../../interfaces/settings.interface";
+import { hideWindow } from "../../../utils/window";
 import { barWidgetSelectors } from "../../../constants/widget.constants";
 import { defaultSettings } from "../../../constants/settings.constants";
 import {
@@ -194,7 +195,7 @@ const FileManagerSelector = () => {
         label={"File Manager"}
         halign={Gtk.Align.START}
       />
-      <box class="setting" spacing={10} hexpand>
+      <box class="setting" spacing={10}>
         <For each={installedFileManagers}>
           {(fm) => (
             <togglebutton
@@ -510,6 +511,47 @@ const Setting = ({
     );
   };
 
+  const TextWidget = () => {
+    return (
+      <box orientation={Gtk.Orientation.VERTICAL} spacing={10}>
+        <Title />
+        <entry
+          hexpand
+          text={setting.value ?? ""}
+          placeholderText={`Enter ${setting.name}`}
+          onActivate={(self) => {
+            const text = self.text;
+            const sameValue = text === setting.value;
+
+            if (!sameValue) {
+              setGlobalSetting(keyChanged + ".value", text);
+              notify({
+                summary: setting.name,
+                body: `Changed to ${text}`,
+              });
+              if (callBack) callBack(text);
+              self.set_css_classes([]);
+              self.set_tooltip_markup("");
+            }
+          }}
+          onChanged={(self: Gtk.Entry) => {
+            const sameValue = self.text === setting.value;
+            if (!sameValue) {
+              self.set_css_classes(["unsaved"]);
+              self.set_tooltip_markup(
+                `<b>Unsaved Changes</b>\nPress Enter to save changes`,
+              );
+              return;
+            } else {
+              self.set_css_classes([]);
+              self.set_tooltip_markup("");
+            }
+          }}
+        />
+      </box>
+    );
+  };
+
   const Widget = () => {
     switch (setting.type) {
       case "int":
@@ -520,6 +562,8 @@ const Setting = ({
         return SwitchWidget();
       case "select":
         return SelectWidget();
+      case "string":
+        return TextWidget();
       default:
         return (
           <label halign={Gtk.Align.END} label={"Unsupported setting type"} />
@@ -588,10 +632,10 @@ export default () => {
   return (
     <scrolledwindow
       vexpand
-      $={() => {
+      $={() =>
         // Initialize detection
-        detectFileManagers();
-      }}
+        detectFileManagers()
+      }
     >
       <box orientation={Gtk.Orientation.VERTICAL} spacing={16} class="settings">
         <box
@@ -622,6 +666,49 @@ export default () => {
             setting={globalSettings.peek().ui.fontSize}
             callBack={refreshCss}
           />
+        </box>
+        <box
+          class={"category"}
+          orientation={Gtk.Orientation.VERTICAL}
+          spacing={16}
+        >
+          <label label={"AGS -- Api Keys"} halign={Gtk.Align.START} />
+          <box class={"sub-category"}>
+            <Setting
+              keyChanged="apiKeys.openrouter.key"
+              setting={globalSettings.peek().apiKeys.openrouter.key}
+            />
+          </box>
+          <box class={"sub-category"} spacing={5}>
+            <Setting
+              keyChanged="apiKeys.danbooru.user"
+              setting={globalSettings.peek().apiKeys.danbooru.user}
+            />
+            <Setting
+              keyChanged="apiKeys.danbooru.key"
+              setting={globalSettings.peek().apiKeys.danbooru.key}
+            />
+          </box>
+          <box class={"sub-category"} spacing={5}>
+            <Setting
+              keyChanged="apiKeys.gelbooru.user"
+              setting={globalSettings.peek().apiKeys.gelbooru.user}
+            />
+            <Setting
+              keyChanged="apiKeys.gelbooru.key"
+              setting={globalSettings.peek().apiKeys.gelbooru.key}
+            />
+          </box>
+          <box class={"sub-category"} spacing={5}>
+            <Setting
+              keyChanged="apiKeys.safebooru.user"
+              setting={globalSettings.peek().apiKeys.safebooru.user}
+            />
+            <Setting
+              keyChanged="apiKeys.safebooru.key"
+              setting={globalSettings.peek().apiKeys.safebooru.key}
+            />
+          </box>
         </box>
         <box
           class={"category"}

@@ -1,14 +1,19 @@
 import { exec } from "ags/process";
+import GLib from "gi://GLib";
 
-export async function compileBinaries() {
-  exec(`bash -c "mkdir -p /tmp/ags"`);
+export function compileBinaries() {
+  const homeDir = GLib.get_home_dir();
+  const tmpDir = `/tmp/ags`;
+  const scriptsDir = `${homeDir}/.config/ags/scripts`;
+
+  exec(`bash -c "mkdir -p ${tmpDir}"`);
   exec(
-    `gcc -o /tmp/ags/bandwidth-loop-ags ./scripts/bandwidth-loop-ags.c`,
+    `gcc -o ${tmpDir}/bandwidth-loop-ags ${scriptsDir}/bandwidth-loop-ags.c`,
   );
   exec(
-    `gcc -o /tmp/ags/system-resources-loop-ags ./scripts/system-resources-loop-ags.c`,
+    `gcc -o ${tmpDir}/system-resources-loop-ags ${scriptsDir}/system-resources-loop-ags.c`,
   );
   exec(
-    `gcc -o /tmp/ags/keystroke-loop-ags ./scripts/keystroke-loop-ags.c`,
+    `gcc -o ${tmpDir}/keystroke-loop-ags ${scriptsDir}/keystroke-loop-ags.c`,
   );
 }

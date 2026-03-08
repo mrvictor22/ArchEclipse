@@ -163,13 +163,13 @@ export const defaultSettings: Settings = {
   },
   rightPanel: {
     exclusivity: true,
-    lock: true,
+    lock: false,
     width: 250,
     widgets: rightPanelWidgetSelectors,
   },
   leftPanel: {
     exclusivity: true,
-    lock: true,
+    lock: false,
     width: 400,
     widget: leftPanelWidgetSelectors[0],
   },
@@ -213,12 +213,68 @@ export const defaultSettings: Settings = {
   },
   apiKeys: {
     openrouter: {
+      user: {
+        name: "OpenRouter API User",
+        value: "",
+        type: "string",
+        min: 1,
+        max: 256,
+      },
       key: {
         name: "OpenRouter API Key",
         value: "",
         type: "string",
-        min: 0,
-        max: 0,
+        min: 1,
+        max: 256,
+      },
+    },
+    danbooru: {
+      user: {
+        name: "Danbooru API User",
+        value: "publicapi",
+        type: "string",
+        min: 1,
+        max: 256,
+      },
+      key: {
+        name: "Danbooru API Key",
+        value: "Pr5ddYN7P889AnM6nq2nhgw1",
+        type: "string",
+        min: 1,
+        max: 256,
+      },
+    },
+    gelbooru: {
+      user: {
+        name: "Gelbooru API User",
+        value: "1667355",
+        type: "string",
+        min: 1,
+        max: 256,
+      },
+      key: {
+        name: "Gelbooru API Key",
+        value:
+          "1ccd9dd7c457c2317e79bd33f47a1138ef9545b9ba7471197f477534efd1dd05",
+        type: "string",
+        min: 1,
+        max: 256,
+      },
+    },
+    safebooru: {
+      user: {
+        name: "Safebooru API User",
+        value: "publicapi",
+        type: "string",
+        min: 1,
+        max: 256,
+      },
+      key: {
+        name: "Safebooru API Key",
+        value: "Pr5ddYN7P889AnM6nq2nhgw1",
+        type: "string",
+        min: 1,
+        max: 256,
       },
     },
   },

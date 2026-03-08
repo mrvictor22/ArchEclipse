@@ -1,6 +1,6 @@
 import { Accessor } from "ags";
-import { Gdk } from "ags/gtk4";
-import Gio from "gi://Gio?version=2.0";
+import Gdk from "gi://Gdk";
+import Gio from "gi://Gio";
 import { Gtk } from "ags/gtk4";
 
 interface PictureProps {
