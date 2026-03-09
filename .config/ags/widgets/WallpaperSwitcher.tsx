@@ -1,5 +1,5 @@
 import { createState, createComputed, For, With } from "ags";
-import { execAsync } from "ags/process";
+import { exec, execAsync } from "ags/process";
 import { monitorFile } from "ags/file";
 import app from "ags/gtk4/app";
 import { Gtk } from "ags/gtk4";
@@ -21,6 +21,31 @@ import { readJson } from "../utils/json";
 import GLib from "gi://GLib";
 
 const [selectedWorkspaceId, setSelectedWorkspaceId] = createState<number>(1);
+
+// Discretion mode state
+const [discretionMode, setDiscretionMode] = createState<boolean>(false);
+
+const checkDiscretionMode = () => {
+  try {
+    const result = exec("bash -c '$HOME/.config/hypr/scripts/discretion-mode.sh status 2>/dev/null | head -1'");
+    return result.includes(": on");
+  } catch {
+    return false;
+  }
+};
+
+const toggleDiscretionMode = async () => {
+  setProgressStatus("loading");
+  try {
+    await execAsync("bash -c '$HOME/.config/hypr/scripts/discretion-mode.sh toggle'");
+    const newState = checkDiscretionMode();
+    setDiscretionMode(newState);
+    setProgressStatus("success");
+  } catch (err) {
+    setProgressStatus("error");
+    notify({ summary: "Error", body: String(err) });
+  }
+};
 
 // progress status
 const [progressStatus, setProgressStatus] = createState<
@@ -456,12 +481,29 @@ function Display() {
     </menubutton>
   );
 
+  const discretionToggle = (
+    <togglebutton
+      valign={Gtk.Align.CENTER}
+      class="discretion-mode"
+      label={discretionMode((mode) => (mode ? "󰈈" : "󰈈"))}
+      active={discretionMode()}
+      tooltipMarkup={discretionMode((mode) =>
+        mode
+          ? "<b>Discretion Mode ON</b>\nClick to show normal wallpapers"
+          : "<b>Discretion Mode OFF</b>\nClick to enable SFW wallpapers"
+      )}
+      onToggled={() => toggleDiscretionMode()}
+      $={() => setDiscretionMode(checkDiscretionMode())}
+    />
+  );
+
   const actions = (
     <box class="actions" hexpand={true} halign={Gtk.Align.CENTER} spacing={10}>
       {targetButtons}
       {selectedWorkspaceLabel}
       {displayColorScheme}
       {categorySelector}
+      {discretionToggle}
       {randomButton}
       {resetButton}
       {addWallpaper}
